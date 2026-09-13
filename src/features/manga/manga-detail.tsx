@@ -24,9 +24,10 @@ function externalReadLink(description: string): ExternalReadLink | null {
 function cleanDescription(description: string) {
   return description
     .replace(/\r/g, "")
-    .replace(/^\s*---+\s*$/gm, "")
+    .replace(/\s*---+\s*/g, "\n\n")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1")
+    .replace(/([.!?])([A-Z])/g, "$1 $2")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
