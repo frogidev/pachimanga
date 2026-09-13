@@ -10,24 +10,32 @@ export default function SettingsPage() {
   const [s, setS] = useState<ReaderSettings>(() => getReaderSettings());
 
   function patch(p: Partial<ReaderSettings>) {
-    setS((v) => {
-      const n = { ...v, ...p };
-      saveReaderSettings(n);
-      document.documentElement.dataset.theme = n.theme;
-      return n;
+    setS((value) => {
+      const next = { ...value, ...p };
+      saveReaderSettings(next);
+      document.documentElement.dataset.theme = next.theme;
+      return next;
     });
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8">
-      <PageHeading title="Settings" subtitle="Reader defaults and account tools" />
-      <div className="mt-7 space-y-4">
-        <section className="rounded-3xl border border-white/8 bg-white/[.025] p-5">
-          <h2 className="font-semibold">Reader</h2>
-          <label className="mt-4 block text-sm text-zinc-400">
-            Base auto-scroll speed · {s.baseSpeedPxPerSecond} px/s
+    <div className="app-page max-w-4xl">
+      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune the reader, manage sync, and keep your imports under control." />
+      <div className="mt-6 grid gap-4">
+        <section className="surface-card p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="pixel-kicker text-[9px] text-pink-400">Reader</p>
+              <h2 className="mt-1 text-lg font-semibold text-zinc-100">Reading behavior</h2>
+              <p className="mt-1 text-sm text-zinc-500">Set comfortable defaults for long vertical chapters.</p>
+            </div>
+            <span className="rounded-full bg-pink-400/10 px-2.5 py-1 font-mono text-[9px] text-pink-300">{s.baseSpeedPxPerSecond}px/s</span>
+          </div>
+
+          <label className="mt-6 block text-sm text-zinc-400">
+            Base auto-scroll speed
             <input
-              className="mt-2 w-full accent-pink-400"
+              className="mt-3 w-full accent-pink-400"
               type="range"
               min="30"
               max="500"
@@ -36,46 +44,31 @@ export default function SettingsPage() {
               onChange={(e) => patch({ baseSpeedPxPerSecond: Number(e.target.value) })}
             />
           </label>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              className={`rounded-xl px-4 py-2 text-sm ${
-                s.fitMode === 'width' ? 'bg-pink-400 text-[#28101c]' : 'bg-white/5'
-              }`}
-              onClick={() => patch({ fitMode: 'width' })}
-            >
-              Fit width
-            </button>
-            <button
-              className={`rounded-xl px-4 py-2 text-sm ${
-                s.fitMode === 'screen' ? 'bg-pink-400 text-[#28101c]' : 'bg-white/5'
-              }`}
-              onClick={() => patch({ fitMode: 'screen' })}
-            >
-              Fit screen
-            </button>
+
+          <div className="mt-6">
+            <p className="text-xs font-medium uppercase tracking-[.12em] text-zinc-600">Default fit</p>
+            <div className="mt-2 inline-flex rounded-xl border border-white/[.08] bg-[#0d0c12] p-1">
+              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'width' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'width' })}>Fit width</button>
+              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'screen' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'screen' })}>Fit screen</button>
+            </div>
           </div>
         </section>
-        <section className="rounded-3xl border border-white/8 bg-white/[.025] p-5">
-          <h2 className="font-semibold">Account & sync</h2>
-          <p className="mt-2 text-sm text-zinc-500">
-            Sign in to sync imported library titles and reading progress across devices.
-          </p>
-          <Link
-            href="/auth"
-            className="mt-4 inline-flex rounded-xl bg-pink-400 px-4 py-2 text-sm font-semibold text-[#28101c]"
-          >
-            Manage account
-          </Link>
-        </section>
-        <section className="rounded-3xl border border-white/8 bg-white/[.025] p-5">
-          <h2 className="font-semibold">Import</h2>
-          <p className="mt-2 text-sm text-zinc-500">
-            Bring over screenshots or backups from Tachiyomi, Mihon, and Tachimanga.
-          </p>
-          <Link href="/import" className="mt-4 inline-flex rounded-xl bg-white/8 px-4 py-2 text-sm">
-            Open importer
-          </Link>
-        </section>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <section className="surface-card p-5 sm:p-6">
+            <div className="grid size-10 place-items-center rounded-xl bg-sky-400/10 text-sky-300">↻</div>
+            <h2 className="mt-4 font-semibold text-zinc-100">Account & sync</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">Sign in to mirror your imported library and reading progress across your devices.</p>
+            <Link href="/auth" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Manage account</Link>
+          </section>
+
+          <section className="surface-card p-5 sm:p-6">
+            <div className="grid size-10 place-items-center rounded-xl bg-amber-400/10 text-amber-300">⇩</div>
+            <h2 className="mt-4 font-semibold text-zinc-100">Import library</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">Bring over screenshots or backups from Tachiyomi, Mihon, and Tachimanga.</p>
+            <Link href="/import" className="button-secondary mt-5 inline-flex px-4 py-2.5 text-sm">Open importer</Link>
+          </section>
+        </div>
       </div>
     </div>
   );

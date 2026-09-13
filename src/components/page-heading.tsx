@@ -15,13 +15,13 @@ export function PageHeading({
 }) {
   const desc = subtitle || description;
   return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        {eyebrow ? <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-pink-400">{eyebrow}</p> : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{title}</h1>
-        {desc ? <p className="mt-1.5 text-sm text-zinc-500">{desc}</p> : null}
+    <header className="flex flex-col gap-5 border-b border-white/[.06] pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {eyebrow ? <p className="pixel-kicker mb-2 text-[9px] text-pink-400">{eyebrow}</p> : null}
+        <h1 className="text-[2rem] font-bold tracking-[-.045em] text-white sm:text-[2.35rem]">{title}</h1>
+        {desc ? <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">{desc}</p> : null}
       </div>
-      {actions}
+      {actions ? <div className="shrink-0">{actions}</div> : null}
     </header>
   );
 }

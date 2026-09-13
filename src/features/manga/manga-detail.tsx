@@ -3,11 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  addLibraryEntry,
-  getLibraryEntries,
-  removeLibraryEntry,
-} from "@/lib/storage/reader-storage";
+import { MockCoverArt } from "@/components/mock-cover-art";
+import { addLibraryEntry, getLibraryEntries, removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { Chapter, Manga } from "@/types/models";
 
 export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapter[] }) {
@@ -17,13 +14,9 @@ export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapt
   useEffect(() => {
     let cancelled = false;
     void getLibraryEntries().then((entries) => {
-      if (!cancelled) {
-        setInLibrary(entries.some((entry) => entry.mangaId === manga.id));
-      }
+      if (!cancelled) setInLibrary(entries.some((entry) => entry.mangaId === manga.id));
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [manga.id]);
 
   async function toggleLibrary() {
@@ -39,53 +32,45 @@ export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapt
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <Link href="/" className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300">← Library</Link>
-      <section className="mt-5 grid gap-6 sm:grid-cols-[190px_1fr] lg:grid-cols-[230px_1fr] lg:gap-10">
-        <div className="relative mx-auto aspect-[2/3] w-44 overflow-hidden rounded-3xl bg-zinc-900 shadow-2xl shadow-black/40 ring-1 ring-white/10 sm:mx-0 sm:w-full">
-          <Image src={manga.coverUrl} alt={`${manga.title} cover`} fill className="object-cover" priority unoptimized />
-        </div>
-        <div className="self-end">
-          <div className="mb-3 flex flex-wrap gap-2">
-            {manga.genres.map((genre) => (
-              <span key={genre} className="rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-xs text-zinc-400">{genre}</span>
-            ))}
+    <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
+      <Link href="/" className="inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-pink-300">← Library</Link>
+
+      <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[.08] bg-gradient-to-br from-[#171520] to-[#0f0e15] p-4 shadow-[0_24px_70px_rgba(0,0,0,.2)] sm:p-6 lg:p-8">
+        <div className="grid gap-7 sm:grid-cols-[190px_1fr] lg:grid-cols-[230px_1fr] lg:gap-10">
+          <div className="relative mx-auto aspect-[2/3] w-44 overflow-hidden rounded-[16px] bg-zinc-900 shadow-2xl shadow-black/35 ring-1 ring-white/10 sm:mx-0 sm:w-full">
+            {manga.sourceId === "mock" ? <MockCoverArt manga={manga} className="h-full w-full" /> : <Image src={manga.coverUrl} alt={`${manga.title} cover`} fill className="object-cover" priority unoptimized />}
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{manga.title}</h1>
-          <p className="mt-2 text-sm text-zinc-500">{manga.author} · {manga.status}</p>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-zinc-400 sm:text-base">{manga.description}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {chapters[0] ? (
-              <Link href={`/reader/${chapters[0].id}`} className="rounded-xl bg-pink-400 px-5 py-3 text-sm font-semibold text-[#28101c] transition hover:bg-pink-300">
-                Read latest
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              onClick={toggleLibrary}
-              disabled={busy}
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-            >
-              {inLibrary ? "Remove from library" : "Add to library"}
-            </button>
+
+          <div className="self-center">
+            <p className="pixel-kicker text-[9px] text-pink-400">Manga details</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {manga.genres.map((genre) => <span key={genre} className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-[11px] text-zinc-400">{genre}</span>)}
+            </div>
+            <h1 className="mt-4 text-3xl font-bold tracking-[-.045em] text-white sm:text-4xl">{manga.title}</h1>
+            <p className="mt-2 text-sm text-zinc-500">{manga.author} · <span className="capitalize">{manga.status}</span></p>
+            <p className="mt-5 max-w-3xl text-sm leading-7 text-zinc-400 sm:text-[15px]">{manga.description}</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {chapters[0] ? <Link href={`/reader/${chapters[0].id}`} className="button-primary px-5 py-3 text-sm">Read latest</Link> : null}
+              <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? "Remove from library" : "Add to library"}</button>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="mt-10 border-t border-white/8 pt-7">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Chapters</h2>
+      <section className="mt-8">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="pixel-kicker text-[9px] text-pink-400">Read</p>
+            <h2 className="mt-1 text-xl font-bold tracking-[-.03em]">Chapters</h2>
+          </div>
           <span className="text-xs text-zinc-600">{chapters.length} available</span>
         </div>
-        <div className="mt-4 divide-y divide-white/6 overflow-hidden rounded-2xl border border-white/8 bg-white/[0.02]">
-          {chapters.map((chapter) => (
-            <Link
-              key={chapter.id}
-              href={`/reader/${chapter.id}`}
-              className="flex min-h-14 items-center justify-between gap-4 px-4 py-3 text-sm transition hover:bg-white/5 sm:px-5"
-            >
-              <span className="font-medium text-zinc-200">{chapter.title}</span>
-              <span className="shrink-0 text-xs text-zinc-600">Read →</span>
+        <div className="surface-card mt-4 divide-y divide-white/[.055] overflow-hidden">
+          {chapters.map((chapter, index) => (
+            <Link key={chapter.id} href={`/reader/${chapter.id}`} className="group flex min-h-14 items-center gap-4 px-4 py-3 text-sm transition hover:bg-white/[.035] sm:px-5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] font-mono text-[10px] text-zinc-600 group-hover:bg-pink-400/10 group-hover:text-pink-300">{String(chapters.length - index).padStart(2, "0")}</span>
+              <span className="min-w-0 flex-1 truncate font-medium text-zinc-200">{chapter.title}</span>
+              <span className="shrink-0 text-xs text-zinc-600 transition group-hover:text-pink-300">Read →</span>
             </Link>
           ))}
         </div>

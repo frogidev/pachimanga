@@ -1,2 +1,17 @@
+import Link from 'next/link';
 import { PageHeading } from '@/components/page-heading';
-export default function UpdatesPage(){return <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8"><PageHeading title="Updates" subtitle="New chapter tracking is ready for source-backed library entries."/><div className="mt-8 rounded-3xl border border-white/8 bg-white/[.025] p-8 text-center"><div className="text-4xl">✦</div><h2 className="mt-3 text-lg font-semibold">Nothing new yet</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">Once you add WeebCentral titles to your library, Pachimanga can compare the latest chapter when you open Updates. Background polling is intentionally avoided to reduce provider load.</p></div></div>}
+import { PachiMascot } from '@/components/pachi-mascot';
+
+export default function UpdatesPage() {
+  return (
+    <div className="app-page max-w-5xl">
+      <PageHeading eyebrow="Latest" title="Updates" subtitle="See newly available chapters for the manga already in your library." />
+      <div className="surface-card mt-6 flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
+        <PachiMascot className="h-28 w-32" />
+        <h2 className="mt-2 text-lg font-semibold text-zinc-200">Nothing new yet</h2>
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">Once you add source-backed titles to your library, Pachimanga can compare the latest chapter when you open Updates. Background polling is intentionally avoided to reduce provider load.</p>
+        <Link href="/browse" className="button-primary mt-5 px-4 py-2.5 text-sm">Browse manga</Link>
+      </div>
+    </div>
+  );
+}
