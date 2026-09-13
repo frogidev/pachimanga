@@ -1,0 +1,2 @@
+import { createWorker } from 'tesseract.js';
+export async function extractTitlesFromImage(file:File,onProgress?:(n:number)=>void){const worker=await createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text'&&typeof m.progress==='number')onProgress?.(m.progress)}});try{const {data}=await worker.recognize(file);return Array.from(new Set(data.text.split(/\n+/).map(s=>s.replace(/^[\s•·\-\d.]+|\s+$/g,'')).filter(s=>s.length>=3&&s.length<=120&&!/^chapter\b/i.test(s)))).slice(0,60)}finally{await worker.terminate()}}

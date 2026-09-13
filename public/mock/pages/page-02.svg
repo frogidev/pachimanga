@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1820" viewBox="0 0 1200 1820">
+  <rect width="1200" height="1820" fill="#f4f4f5"/>
+  <rect x="28" y="28" width="1144" height="1764" fill="#fafafa" stroke="#18181b" stroke-width="8"/>
+  <rect x="70" y="80" width="1060" height="514" rx="8" fill="#18181b"/>
+  <circle cx="316" cy="244" r="96" fill="#d4d4d8"/>
+  <path d="M90 434 C 320 184, 650 524, 1110 254" fill="none" stroke="#71717a" stroke-width="24"/>
+  <rect x="70" y="798" width="500" height="286" fill="#e4e4e7" stroke="#18181b" stroke-width="7"/>
+  <rect x="610" y="728" width="520" height="408" fill="#27272a" stroke="#18181b" stroke-width="7"/>
+  <path d="M650 908 L1080 808 L900 1108 Z" fill="#52525b"/>
+  <rect x="70" y="1242" width="1060" height="488" fill="#d4d4d8" stroke="#18181b" stroke-width="7"/>
+  <path d="M100 1302 L1090 1302" stroke="#a1a1aa" stroke-width="16" stroke-dasharray="36 22"/>
+  <text x="95" y="1750" fill="#52525b" font-family="Arial, Helvetica, sans-serif" font-size="26">MOCK PAGE 2 · FROGILAB READER</text>
+</svg>
