@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { MangaDetail } from '@/features/manga/manga-detail';
 import { getMockChapters, getMockManga } from '@/lib/mock-data';
+import { comickSource } from '@/sources/comick/comick-source';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
 import { weebCentralSource } from '@/sources/weebcentral/weebcentral-source';
 
@@ -11,6 +12,18 @@ async function resolve(id: string) {
       const [manga, chapters] = await Promise.all([
         weebCentralSource.getManga(id),
         weebCentralSource.getChapters(id),
+      ]);
+      return { manga, chapters };
+    } catch {
+      return null;
+    }
+  }
+
+  if (id.startsWith('ck-')) {
+    try {
+      const [manga, chapters] = await Promise.all([
+        comickSource.getManga(id),
+        comickSource.getChapters(id),
       ]);
       return { manga, chapters };
     } catch {
