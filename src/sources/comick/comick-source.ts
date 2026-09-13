@@ -243,7 +243,8 @@ export class ComickSource implements MangaSource {
       `/chapter/${encodeURIComponent(rid)}`,
       60,
     );
-    const chapter = 'chapter' in payload ? payload.chapter : payload;
+    const wrapped = payload as { chapter?: ComickChapterDetail };
+    const chapter: ComickChapterDetail | undefined = wrapped.chapter ?? (payload as ComickChapterDetail);
     const pages = pagesFromChapter(chapter);
     if (!pages.length) throw new SourceUnavailableError('ComicK', 'no readable page images were found');
     return pages;
@@ -258,7 +259,7 @@ export async function getComickChapterContext(chapterId: string) {
     chapter?: ComickChapterDetail;
     comic?: { hid?: string };
   } & Partial<ComickChapterDetail>>(`/chapter/${encodeURIComponent(rid)}`, 60);
-  const chapterRaw = payload.chapter || payload;
+  const chapterRaw = (payload.chapter ?? payload) as ComickChapterDetail;
   const mangaHid = chapterRaw.md_comics?.hid || payload.comic?.hid || chapterRaw.comic?.hid;
   if (!mangaHid || !HID.test(mangaHid)) {
     throw new SourceUnavailableError('ComicK', 'chapter manga could not be resolved');
