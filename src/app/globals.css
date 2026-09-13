@@ -1,52 +1,18 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
-  --app-bg: #0d0a11;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--app-bg);
-  scroll-behavior: auto;
-  overscroll-behavior-y: none;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  background: var(--app-bg);
-  color: #f4f4f5;
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-button,
-a,
-input,
-select {
-  -webkit-tap-highlight-color: transparent;
-}
-
-button,
-input[type="range"] {
-  touch-action: manipulation;
-}
-
-::selection {
-  background: rgba(244, 114, 182, 0.32);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+:root { color-scheme: dark; --app-bg: #0b0910; --pachi-pink:#f472b6; --pachi-orange:#e58a42; --pachi-ink:#17131d; }
+* { box-sizing: border-box; }
+html { background: var(--app-bg); scroll-behavior: auto; overscroll-behavior-y: none; }
+body { margin:0; min-width:320px; background:var(--app-bg); color:#f4f4f5; font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+button,a,input,select { -webkit-tap-highlight-color:transparent; }
+button,input[type="range"] { touch-action:manipulation; }
+::selection { background:rgba(244,114,182,.32); }
+.pixel-logo { border-radius: 10px 10px 14px 14px; image-rendering:pixelated; }
+.pixel-title { font-family:ui-monospace,"SFMono-Regular",Menlo,Monaco,Consolas,monospace; font-weight:900; letter-spacing:-.055em; text-shadow:3px 3px 0 rgba(244,114,182,.10); }
+.pixel-bubble { position:relative; box-shadow:3px 3px 0 rgba(244,114,182,.18); }
+.pixel-bubble::after { content:""; position:absolute; left:22px; bottom:-7px; width:12px; height:12px; background:#15111b; border-right:1px solid rgba(244,114,182,.5); border-bottom:1px solid rgba(244,114,182,.5); transform:rotate(45deg); }
+.pachi-hero { position:relative; overflow:hidden; background:radial-gradient(circle at 70% 25%,rgba(244,114,182,.22),transparent 28%),radial-gradient(circle at 30% 10%,rgba(229,138,66,.13),transparent 24%),linear-gradient(135deg,#151022,#0d0b17 55%,#1a1020); }
+.pachi-hero::before { content:""; position:absolute; inset:0; opacity:.24; background-image:linear-gradient(rgba(244,114,182,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(244,114,182,.12) 1px,transparent 1px); background-size:24px 24px; mask-image:linear-gradient(to bottom,black,transparent); }
+.pixel-star { position:absolute; width:4px; height:4px; background:#ffb3d0; box-shadow:40px 28px #f3a25f,85px -8px #f472b6,-62px 18px #f8d5a5,128px 34px #fff0e7; }
+.paw-bg { background-image:radial-gradient(circle,rgba(244,114,182,.09) 0 3px,transparent 4px); background-size:44px 44px; }
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
