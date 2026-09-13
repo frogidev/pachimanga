@@ -141,7 +141,7 @@ export class MangaDexSource implements MangaSource {
     const q = query.trim().slice(0, 100);
     if (!q) return [];
 
-    const params = new URLSearchParams({ title: q, limit: '24' });
+    const params = new URLSearchParams({ title: q, limit: '24', hasAvailableChapters: 'true' });
     params.append('includes[]', 'cover_art');
     params.append('includes[]', 'author');
     params.append('includes[]', 'artist');
