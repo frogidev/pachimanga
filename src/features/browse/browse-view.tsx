@@ -6,7 +6,7 @@ import { PageHeading } from "@/components/page-heading";
 import { MOCK_MANGA } from "@/lib/mock-data";
 import type { Manga } from "@/types/models";
 
-const DEFAULT_STATUS = "Search WeebCentral with ComicK and MangaDex fallbacks.";
+const DEFAULT_STATUS = "Search WeebCentral with MangaDex as an automatic fallback.";
 
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
@@ -37,7 +37,7 @@ export function BrowseView() {
         const items = body.items || [];
         setResults(items);
         const source = body.source || "source";
-        const fallbackNote = body.warning ? ` · ${source} fallback is active.` : "";
+        const fallbackNote = body.warning && source === "MangaDex" ? " · WeebCentral is unavailable from this host, so MangaDex was used." : "";
         setStatus(`${items.length} result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
       } catch (error) {
         if ((error as Error).name !== "AbortError") setStatus(error instanceof Error ? error.message : "Search unavailable");
@@ -56,7 +56,7 @@ export function BrowseView() {
         eyebrow="Discover"
         title="Browse manga"
         subtitle={status}
-        actions={<span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400"><span className="size-1.5 rounded-full bg-emerald-400" /> WeebCentral → ComicK → MangaDex</span>}
+        actions={<span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400"><span className="size-1.5 rounded-full bg-emerald-400" /> WeebCentral + MangaDex fallback</span>}
       />
 
       <div className="mt-6 rounded-2xl border border-white/[.07] bg-[#111019] p-3 sm:p-4">
@@ -92,8 +92,8 @@ export function BrowseView() {
       ) : (
         <div className="surface-card mt-6 px-6 py-14 text-center">
           <div className="text-3xl">⌕</div>
-          <h3 className="mt-3 font-semibold text-zinc-200">No matching manga</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">Try a shorter title or remove punctuation. Pachimanga automatically tries the next public source when one is unavailable or has no readable results.</p>
+          <h3 className="mt-3 font-semibold text-zinc-200">No matching readable manga</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">Try a shorter title or remove punctuation. MangaDex fallback results are limited to titles that report available chapters.</p>
         </div>
       )}
     </div>
