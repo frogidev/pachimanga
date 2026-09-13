@@ -24,11 +24,15 @@ export function ReaderView({
   chapter,
   chapters,
   pages,
+  routeBasePath = "/reader",
+  mangaBasePath = "/manga",
 }: {
   manga: Manga;
   chapter: Chapter;
   chapters: Chapter[];
   pages: Page[];
+  routeBasePath?: string;
+  mangaBasePath?: string;
 }) {
   const router = useRouter();
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
@@ -167,16 +171,16 @@ export function ReaderView({
       } else if (event.key === "-" || event.key === "_") {
         updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) });
       } else if (event.key === "ArrowLeft" && previousChapter) {
-        router.push(`/reader/${previousChapter.id}`);
+        router.push(`${routeBasePath}/${previousChapter.id}`);
       } else if (event.key === "ArrowRight" && nextChapter) {
-        router.push(`/reader/${nextChapter.id}`);
+        router.push(`${routeBasePath}/${nextChapter.id}`);
       } else if (event.key === "Escape" && document.fullscreenElement) {
         void document.exitFullscreen();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [nextChapter, previousChapter, router, settings.autoScrollMultiplier, updateSettings]);
+  }, [nextChapter, previousChapter, routeBasePath, router, settings.autoScrollMultiplier, updateSettings]);
 
   async function toggleFullscreen() {
     if (document.fullscreenElement) {
@@ -227,7 +231,7 @@ export function ReaderView({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/10 bg-black/80 px-3 pt-[calc(.6rem+env(safe-area-inset-top))] pb-2.5 backdrop-blur-xl sm:px-5">
-          <Link href={`/manga/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Close reader">×</Link>
+          <Link href={`${mangaBasePath}/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Close reader">×</Link>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{manga.title}</p>
             <p className="truncate text-xs text-zinc-500">{chapter.title} · page {state.currentPageIndex + 1}/{pages.length}</p>
@@ -277,7 +281,7 @@ export function ReaderView({
               <button
                 type="button"
                 disabled={!previousChapter}
-                onClick={() => previousChapter && router.push(`/reader/${previousChapter.id}`)}
+                onClick={() => previousChapter && router.push(`${routeBasePath}/${previousChapter.id}`)}
                 className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25"
               >
                 ← Previous
@@ -292,7 +296,7 @@ export function ReaderView({
               <button
                 type="button"
                 disabled={!nextChapter}
-                onClick={() => nextChapter && router.push(`/reader/${nextChapter.id}`)}
+                onClick={() => nextChapter && router.push(`${routeBasePath}/${nextChapter.id}`)}
                 className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25"
               >
                 Next →

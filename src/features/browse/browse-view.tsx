@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PageHeading } from "@/components/page-heading";
 import { MOCK_MANGA } from "@/lib/mock-data";
+import { isTauriNative, searchNativeWeebCentral } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
-const DEFAULT_STATUS = "Search WeebCentral with MangaDex as an automatic fallback.";
+const WEB_STATUS = "Search WeebCentral with MangaDex as an automatic fallback.";
+const NATIVE_STATUS = "Native mode: WeebCentral connects from this device, with MangaDex as fallback.";
+
+type RuntimeMode = "checking" | "web" | "native";
 
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
@@ -15,40 +19,73 @@ function SearchIcon() {
 export function BrowseView() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Manga[]>(MOCK_MANGA);
-  const [status, setStatus] = useState(DEFAULT_STATUS);
+  const [runtime, setRuntime] = useState<RuntimeMode>("checking");
+  const [status, setStatus] = useState(WEB_STATUS);
 
   useEffect(() => {
+    const native = isTauriNative();
+    setRuntime(native ? "native" : "web");
+    setStatus(native ? NATIVE_STATUS : WEB_STATUS);
+  }, []);
+
+  useEffect(() => {
+    if (runtime === "checking") return;
     const q = query.trim();
     if (!q) {
       const resetTimer = window.setTimeout(() => {
         setResults(MOCK_MANGA);
-        setStatus(DEFAULT_STATUS);
+        setStatus(runtime === "native" ? NATIVE_STATUS : WEB_STATUS);
       }, 0);
       return () => clearTimeout(resetTimer);
     }
 
     const controller = new AbortController();
+    let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setStatus("Searching manga sources…");
+      setStatus(runtime === "native" ? "Searching WeebCentral from this device…" : "Searching manga sources…");
+      let nativeError: string | undefined;
+
+      if (runtime === "native") {
+        try {
+          const nativeItems = await searchNativeWeebCentral(q);
+          if (cancelled) return;
+          if (nativeItems.length) {
+            setResults(nativeItems);
+            setStatus(`${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
+            return;
+          }
+        } catch (error) {
+          nativeError = error instanceof Error ? error.message : "Native WeebCentral unavailable";
+        }
+      }
+
       try {
         const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "Search failed");
+        if (cancelled) return;
         const items = body.items || [];
         setResults(items);
         const source = body.source || "source";
-        const fallbackNote = body.warning && source === "MangaDex" ? " · WeebCentral is unavailable from this host, so MangaDex was used." : "";
+        const fallbackNote = runtime === "native" && nativeError
+          ? ` · Native WeebCentral unavailable (${nativeError}); ${source} was used.`
+          : body.warning && source === "MangaDex"
+            ? " · WeebCentral is unavailable from this host, so MangaDex was used."
+            : "";
         setStatus(`${items.length} result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
       } catch (error) {
-        if ((error as Error).name !== "AbortError") setStatus(error instanceof Error ? error.message : "Search unavailable");
+        if (!cancelled && (error as Error).name !== "AbortError") {
+          setStatus(error instanceof Error ? error.message : "Search unavailable");
+        }
       }
     }, 320);
 
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, runtime]);
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
@@ -56,7 +93,12 @@ export function BrowseView() {
         eyebrow="Discover"
         title="Browse manga"
         subtitle={status}
-        actions={<span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400"><span className="size-1.5 rounded-full bg-emerald-400" /> WeebCentral + MangaDex fallback</span>}
+        actions={
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400">
+            <span className={`size-1.5 rounded-full ${runtime === "native" ? "bg-pink-400" : "bg-emerald-400"}`} />
+            {runtime === "native" ? "Native WeebCentral + MangaDex" : "WeebCentral + MangaDex fallback"}
+          </span>
+        }
       />
 
       <div className="mt-6 rounded-2xl border border-white/[.07] bg-[#111019] p-3 sm:p-4">
@@ -87,7 +129,13 @@ export function BrowseView() {
 
       {results.length ? (
         <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {results.map((manga) => <MangaCard key={`${manga.sourceId}-${manga.id}`} manga={manga} />)}
+          {results.map((manga) => (
+            <MangaCard
+              key={`${manga.sourceId}-${manga.id}`}
+              manga={manga}
+              href={runtime === "native" && manga.sourceId === "weebcentral" ? `/native/manga/${manga.id}` : undefined}
+            />
+          ))}
         </div>
       ) : (
         <div className="surface-card mt-6 px-6 py-14 text-center">

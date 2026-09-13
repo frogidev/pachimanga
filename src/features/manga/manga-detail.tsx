@@ -39,12 +39,23 @@ function sourceName(sourceId: string) {
   return "this source";
 }
 
-export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapter[] }) {
+export function MangaDetail({
+  manga,
+  chapters,
+  readerBasePath = "/reader",
+  backHref = "/",
+}: {
+  manga: Manga;
+  chapters: Chapter[];
+  readerBasePath?: string;
+  backHref?: string;
+}) {
   const [inLibrary, setInLibrary] = useState(false);
   const [busy, setBusy] = useState(false);
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
   const description = useMemo(() => cleanDescription(manga.description), [manga.description]);
   const provider = sourceName(manga.sourceId);
+  const chapterHref = (chapterId: string) => `${readerBasePath}/${chapterId}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +79,7 @@ export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapt
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
-      <Link href="/" className="inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-pink-300">← Library</Link>
+      <Link href={backHref} className="inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-pink-300">← Library</Link>
 
       <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[.08] bg-gradient-to-br from-[#171520] to-[#0f0e15] p-4 shadow-[0_24px_70px_rgba(0,0,0,.2)] sm:p-6 lg:p-8">
         <div className="grid gap-7 sm:grid-cols-[190px_1fr] lg:grid-cols-[230px_1fr] lg:gap-10">
@@ -85,7 +96,7 @@ export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapt
             <p className="mt-2 text-sm text-zinc-500">{manga.author || "Unknown author"} · <span className="capitalize">{manga.status}</span> · {provider}</p>
             {description ? <p className="mt-5 max-w-3xl whitespace-pre-line text-sm leading-7 text-zinc-400 sm:text-[15px]">{description}</p> : null}
             <div className="mt-6 flex flex-wrap gap-3">
-              {chapters[0] ? <Link href={`/reader/${chapters[0].id}`} className="button-primary px-5 py-3 text-sm">Read latest</Link> : null}
+              {chapters[0] ? <Link href={chapterHref(chapters[0].id)} className="button-primary px-5 py-3 text-sm">Read latest</Link> : null}
               {!chapters.length && external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-5 py-3 text-sm">Read on {external.label} ↗</a> : null}
               <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? "Remove from library" : "Add to library"}</button>
             </div>
@@ -104,7 +115,7 @@ export function MangaDetail({ manga, chapters }: { manga: Manga; chapters: Chapt
         {chapters.length ? (
           <div className="surface-card mt-4 divide-y divide-white/[.055] overflow-hidden">
             {chapters.map((chapter, index) => (
-              <Link key={chapter.id} href={`/reader/${chapter.id}`} className="group flex min-h-14 items-center gap-4 px-4 py-3 text-sm transition hover:bg-white/[.035] sm:px-5">
+              <Link key={chapter.id} href={chapterHref(chapter.id)} className="group flex min-h-14 items-center gap-4 px-4 py-3 text-sm transition hover:bg-white/[.035] sm:px-5">
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] font-mono text-[10px] text-zinc-600 group-hover:bg-pink-400/10 group-hover:text-pink-300">{String(chapters.length - index).padStart(2, "0")}</span>
                 <span className="min-w-0 flex-1 truncate font-medium text-zinc-200">{chapter.title}</span>
                 <span className="shrink-0 text-xs text-zinc-600 transition group-hover:text-pink-300">Read →</span>

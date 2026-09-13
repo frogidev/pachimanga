@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "native-weebcentral"
+description = "Allows Pachimanga to make constrained, read-only WeebCentral requests from the user's device."
+commands.allow = ["weebcentral_request"]

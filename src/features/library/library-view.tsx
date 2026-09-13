@@ -6,6 +6,7 @@ import { MangaCard } from "@/components/manga-card";
 import { PachiMascot } from "@/components/pachi-mascot";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
 import { MOCK_MANGA } from "@/lib/mock-data";
+import { isTauriNative } from "@/lib/native/tauri-bridge";
 import { getLibraryEntries, seedLibrary } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 
@@ -34,10 +35,12 @@ export function LibraryView() {
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
   const [view, setView] = useState<ViewMode>("grid");
+  const [native, setNative] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setNative(isTauriNative());
     void seedLibrary(MOCK_MANGA.slice(0, 6).map((m) => m.id)).then((current) => {
       if (!cancelled) {
         setEntries(current);
@@ -162,7 +165,14 @@ export function LibraryView() {
           </div>
         ) : manga.length ? (
           <div className={`mt-4 grid gap-x-3 gap-y-5 sm:gap-x-4 ${view === "compact" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
-            {manga.map(({ manga: title, entry }) => <MangaCard key={title.id} manga={title} progress={entry.progress} />)}
+            {manga.map(({ manga: title, entry }) => (
+              <MangaCard
+                key={title.id}
+                manga={title}
+                progress={entry.progress}
+                href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
+              />
+            ))}
           </div>
         ) : (
           <div className="mt-8 flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">

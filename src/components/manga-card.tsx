@@ -25,13 +25,13 @@ const chapterById: Record<string, number> = {
   "paper-stars": 31,
 };
 
-export function MangaCard({ manga, progress }: { manga: Manga; progress?: number }) {
+export function MangaCard({ manga, progress, href }: { manga: Manga; progress?: number; href?: string }) {
   const pct = typeof progress === "number" ? Math.min(100, Math.max(0, progress)) : progressById[manga.id] ?? 44;
   const chapter = chapterById[manga.id];
   const mock = manga.sourceId === "mock";
 
   return (
-    <Link href={`/manga/${manga.id}`} className="group min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70">
+    <Link href={href ?? `/manga/${manga.id}`} className="group min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70">
       <article className="manga-card h-full">
         <div className="relative aspect-[2/3] overflow-hidden rounded-[13px] bg-[#17151d] ring-1 ring-white/[.08]">
           {mock ? (

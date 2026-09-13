@@ -7,6 +7,10 @@ out/
 build/
 *.tsbuildinfo
 
+# Tauri/Rust build output
+src-tauri/target/
+src-tauri/gen/
+
 # local env files
 .env
 .env.local
