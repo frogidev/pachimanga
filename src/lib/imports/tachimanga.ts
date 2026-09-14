@@ -1,5 +1,5 @@
-import { unzipSync } from 'fflate';
 import initSqlJs, { type Database, type SqlValue } from 'sql.js';
+import { unzipEntries } from './minizip';
 import { detectTmbKind } from './tmb-format';
 import type { ImportResult, ImportManga } from './types';
 
@@ -12,9 +12,9 @@ function findDb(entries: Record<string, Uint8Array>) {
 
 function unzipBestEffort(raw: Uint8Array, label: string): Record<string, Uint8Array> {
   try {
-    return unzipSync(raw);
+    return unzipEntries(raw);
   } catch (error) {
-    const reason = error instanceof Error ? `${error.constructor.name}: ${error.message}` : String(error);
+    const reason = error instanceof Error ? error.message : String(error);
     throw new Error(`This .tmb archive (${label}, ${(raw.length / 1024).toFixed(0)} KB) could not be opened [${reason}]. Export a fresh backup from Tachimanga and try again.`);
   }
 }
