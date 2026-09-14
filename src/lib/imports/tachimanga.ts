@@ -82,7 +82,8 @@ function readTachideskLibrary(db: Database, names: string[]): ImportManga[] | nu
     const rows = db.exec(
       `select m.id, m.title, m.real_url, m.url, m.in_library,
         (select max(c.chapter_number) from Chapter c where c.manga = m.id and (c.read or c.last_page_read > 0)),
-        (select c2.last_page_read from Chapter c2 where c2.manga = m.id and (c2.read or c2.last_page_read > 0) order by c2.chapter_number desc limit 1)${hasCover ? ', m.thumbnail_url' : ''}
+        (select c2.last_page_read from Chapter c2 where c2.manga = m.id and (c2.read or c2.last_page_read > 0) order by c2.chapter_number desc limit 1)${hasCover ? ', m.thumbnail_url' : ''},
+        (select max(c3.chapter_number) from Chapter c3 where c3.manga = m.id)
       from Manga m`
     )[0]?.values as SqlValue[][] | undefined;
     if (!rows) return [];
@@ -100,6 +101,7 @@ function readTachideskLibrary(db: Database, names: string[]): ImportManga[] | nu
         }
       }
     }
+    const totalIdx = hasCover ? 8 : 7;
     return rows.map((row) => ({
       title: String(row[1] || 'Untitled'),
       sourceUrl: String(row[2] || row[3] || '') || undefined,
@@ -107,6 +109,7 @@ function readTachideskLibrary(db: Database, names: string[]): ImportManga[] | nu
       favorite: Number(row[4] || 0) !== 0,
       lastChapterRead: Number(row[5] || 0),
       lastPageRead: Number(row[6] || 0),
+      totalChapters: Number(row[totalIdx] || 0) || undefined,
       categories: categories.get(Number(row[0])) || [],
     }));
   } catch {

@@ -204,8 +204,13 @@ export function ImportPanel() {
           await addLibraryEntry(manga.id, manga.sourceId, manga);
           const lastChapterRead = Number(chosen[index].lastChapterRead || 0);
           const lastPageRead = Number(chosen[index].lastPageRead || 0);
+          const totalChapters = Number(chosen[index].totalChapters || 0);
           if (lastChapterRead > 0 || lastPageRead > 0) {
-            await setEntryProgress(manga.id, { lastChapterRead, lastPageRead });
+            const progress =
+              totalChapters > 0 && lastChapterRead > 0
+                ? Math.max(0, Math.min(100, Math.round((lastChapterRead / totalChapters) * 100)))
+                : undefined;
+            await setEntryProgress(manga.id, { progress, lastChapterRead, lastPageRead });
           }
         } catch (error) {
           failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);

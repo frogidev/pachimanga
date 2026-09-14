@@ -66,12 +66,14 @@ export async function parseTachiyomi(file: File): Promise<ImportResult> {
     );
     const lastPage =
       partial.slice().sort((a, b) => Number(b.chapterNumber || 0) - Number(a.chapterNumber || 0))[0]?.lastPageRead || 0;
+    const total = Math.max(0, ...chapters.map((c) => Number(c.chapterNumber || 0)));
     return {
       title: String(m.title || 'Untitled'),
       sourceUrl: m.url ? String(m.url) : undefined,
       favorite: Boolean(m.favorite),
       lastChapterRead: lastRead,
       lastPageRead: Number(lastPage),
+      totalChapters: total || undefined,
       categories: (m.categories || []).map((i: number) => categories[i]).filter(Boolean),
     };
   });
