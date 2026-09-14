@@ -33,7 +33,7 @@ function isActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  if (pathname.startsWith("/reader/")) return <>{children}</>;
+  if (pathname.startsWith("/reader/") || pathname.startsWith("/auth") || pathname === "/offline") return <>{children}</>;
 
   return (
     <div className="min-h-dvh bg-[#09080d] text-zinc-100">
@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-semibold text-zinc-200">Pachimanga</div>
-                <div>Local-first · optional sync</div>
+                <div>Private account · synced</div>
               </div>
               <span className="rounded-md bg-white/[.045] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">v0.4</span>
             </div>
