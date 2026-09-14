@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             name: linux
           - os: windows-latest
             name: windows
@@ -34,12 +34,18 @@ jobs:
     timeout-minutes: 60
     env:
       RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
       APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      SIGN: ${{ runner.os == 'Linux' && '1' || '' }}
+      SIGN_KEY: ${{ secrets.LINUX_GPG_KEY_ID }}
+      APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+      APPIMAGETOOL_FORCE_SIGN: ${{ runner.os == 'Linux' && '1' || '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +81,18 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm gnupg
+
+      - name: Import Linux signing key
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+        run: |
+          test -n "$LINUX_GPG_PRIVATE_KEY"
+          test -n "$SIGN_KEY"
+          test -n "$APPIMAGETOOL_SIGN_PASSPHRASE"
+          printf '%s' "$LINUX_GPG_PRIVATE_KEY" | base64 --decode | gpg --batch --import
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.11" --locked
@@ -84,12 +101,12 @@ jobs:
         run: cargo tauri icon public/icons/icon-512.png
 
       - name: Import Windows signing certificate
-        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD) {
+            throw 'Windows signing secrets are required for release builds.'
+          }
           $certPath = Join-Path $env:RUNNER_TEMP 'pachimanga-signing.pfx'
           [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
           $secure = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
@@ -97,7 +114,7 @@ jobs:
           "WINDOWS_CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Configure Windows code signing
-        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE_THUMBPRINT != ''
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $config = @{
@@ -115,15 +132,19 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo tauri build --bundles deb,appimage,rpm
 
+      - name: Sign Linux package artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          find src-tauri/target/release/bundle -type f \( -name '*.deb' -o -name '*.rpm' \) -print0 | while IFS= read -r -d '' file; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$APPIMAGETOOL_SIGN_PASSPHRASE" --local-user "$SIGN_KEY" --armor --detach-sign "$file"
+          done
+          (cd src-tauri/target/release/bundle && find . -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$APPIMAGETOOL_SIGN_PASSPHRASE" --local-user "$SIGN_KEY" --armor --detach-sign src-tauri/target/release/bundle/SHA256SUMS
+
       - name: Build Windows
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if ($env:WINDOWS_CERTIFICATE_THUMBPRINT) {
-            cargo tauri build --config src-tauri/tauri.release.windows.json --bundles msi,nsis
-          } else {
-            Write-Error 'Windows signing secrets are required for release builds.'
-          }
+        run: cargo tauri build --config src-tauri/tauri.release.windows.json --bundles msi,nsis
 
       - name: Build and notarize macOS
         if: runner.os == 'macOS'
@@ -145,6 +166,8 @@ jobs:
             src-tauri/target/release/bundle/**/*.deb
             src-tauri/target/release/bundle/**/*.rpm
             src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.asc
+            src-tauri/target/release/bundle/**/SHA256SUMS
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
             src-tauri/target/release/bundle/**/*.dmg
@@ -160,6 +183,8 @@ jobs:
             src-tauri/target/release/bundle/**/*.deb
             src-tauri/target/release/bundle/**/*.rpm
             src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.asc
+            src-tauri/target/release/bundle/**/SHA256SUMS
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
             src-tauri/target/release/bundle/**/*.dmg
