@@ -195,6 +195,7 @@ export function ImportPanel() {
     setImporting(true);
     setImportedCount(null);
     const failed: string[] = [];
+    let withProgress = 0;
     try {
       for (let index = 0; index < chosen.length; index += 1) {
         setStatus(`Importing ${index + 1} of ${chosen.length} titles into your account…`);
@@ -211,6 +212,7 @@ export function ImportPanel() {
                 ? Math.max(0, Math.min(100, Math.round((lastChapterRead / totalChapters) * 100)))
                 : undefined;
             await setEntryProgress(manga.id, { progress, lastChapterRead, lastPageRead });
+            withProgress += 1;
           }
         } catch (error) {
           failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
@@ -220,8 +222,8 @@ export function ImportPanel() {
       setImportedCount(done);
       setStatus(
         failed.length
-          ? `Imported ${done} of ${chosen.length} titles. Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
-          : `Imported ${done} titles into your private library. Unmatched titles remain marked as imported until you match them to a source.`
+          ? `Imported ${done} of ${chosen.length} titles (${withProgress} with progress). Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
+          : `Imported ${done} titles (${withProgress} with progress) into your private library. Unmatched titles remain marked as imported until you match them to a source.`
       );
     } finally {
       setImporting(false);
