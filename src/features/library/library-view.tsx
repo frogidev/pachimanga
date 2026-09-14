@@ -34,13 +34,12 @@ export function LibraryView() {
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
   const [view, setView] = useState<ViewMode>("grid");
-  const [native, setNative] = useState(false);
+  const [native] = useState(() => isTauriNative());
   const [loadError, setLoadError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setNative(isTauriNative());
 
     const refresh = async () => {
       try {
