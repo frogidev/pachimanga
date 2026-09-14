@@ -9,7 +9,7 @@ if (!source.includes('import java.io.FileInputStream')) {
 
 if (!source.includes('create("release")')) {
   const marker = '    buildTypes {';
-  const signing = `    signingConfigs {\n        create("release") {\n            val keystorePropertiesFile = rootProject.file("keystore.properties")\n            val keystoreProperties = Properties()\n            keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n            keyAlias = keystoreProperties["keyAlias"] as String\n            keyPassword = keystoreProperties["password"] as String\n            storeFile = file(keystoreProperties["storeFile"] as String)\n            storePassword = keystoreProperties["password"] as String\n        }\n    }\n\n`;
+  const signing = `    signingConfigs {\n        create("release") {\n            val keystorePropertiesFile = rootProject.file("keystore.properties")\n            val keystoreProperties = Properties()\n            keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n            keyAlias = keystoreProperties["keyAlias"] as String\n            keyPassword = keystoreProperties["keyPassword"] as String\n            storeFile = file(keystoreProperties["storeFile"] as String)\n            storePassword = keystoreProperties["storePassword"] as String\n        }\n    }\n\n`;
   if (!source.includes(marker)) throw new Error(`Could not find ${marker} in ${file}`);
   source = source.replace(marker, signing + marker);
 }
