@@ -1,2 +1,21 @@
 import type { MetadataRoute } from 'next';
-export default function manifest():MetadataRoute.Manifest{return {name:'Pachimanga',short_name:'Pachimanga',description:'Your manga. Everywhere — smooth reading, imports, and optional private sync.',start_url:'/',display:'standalone',background_color:'#0d0a11',theme_color:'#140d16',orientation:'any',icons:[{src:'/icons/icon-192.png',sizes:'192x192',type:'image/png'},{src:'/icons/icon-512.png',sizes:'512x512',type:'image/png'},{src:'/icons/icon-512-maskable.png',sizes:'512x512',type:'image/png',purpose:'maskable'}]}}
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    id: '/',
+    name: 'Pachimanga',
+    short_name: 'Pachimanga',
+    description: 'Your manga. Everywhere — smooth reading, imports, private sync, and free PWA installation.',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    background_color: '#0d0a11',
+    theme_color: '#140d16',
+    orientation: 'any',
+    icons: [
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  };
+}
