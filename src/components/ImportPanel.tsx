@@ -169,14 +169,15 @@ export function ImportPanel() {
 
   async function matchBatch() {
     setMatching(true);
-    setStatus('Matching titles against WeebCentral…');
+    const pending = items.map((item, index) => ({ item, index })).filter(({ item }) => !item.match);
     let found = 0;
     try {
-      for (let i = 0; i < Math.min(items.length, 20); i += 1) {
-        if (await findMatch(i)) found += 1;
+      for (let n = 0; n < pending.length; n += 1) {
+        setStatus(`Matching ${n + 1} of ${pending.length} titles…`);
+        if (await findMatch(pending[n].index)) found += 1;
         await sleep(250);
       }
-      setStatus(`Matched ${found} of the first ${Math.min(items.length, 20)} titles. You can match additional rows individually.`);
+      setStatus(`Matched ${found} of ${pending.length} titles. Review the rest individually or import the remainder as-is.`);
     } finally {
       setMatching(false);
     }
@@ -255,7 +256,7 @@ export function ImportPanel() {
             <span className="flex-1" />
             <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true })))}>Select all</button>
             <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false })))}>Select none</button>
-            <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match first 20'}</button>
+            <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match all'}</button>
             <button disabled={importing} className="button-primary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void save()}>{importing ? 'Importing…' : 'Import selected'}</button>
           </div>
 
