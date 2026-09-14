@@ -237,6 +237,19 @@ export async function saveProgress(progress: ReadingProgress) {
   window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
 }
 
+export async function clearProgress(chapterId: string) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const { error } = await auth.sb
+    .from('reading_progress')
+    .delete()
+    .eq('user_id', auth.user.id)
+    .eq('chapter_id', chapterId);
+  if (error) throw error;
+  await idbDelete('progress', chapterId);
+  window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
+}
+
 export async function getHistory() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);

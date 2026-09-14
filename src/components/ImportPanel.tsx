@@ -47,6 +47,28 @@ function matchSourceLabel(sourceId: string): string {
   return 'your library';
 }
 
+function dedupeCandidates(items: ImportManga[]): { items: ImportManga[]; merged: number } {
+  const byTitle = new Map<string, ImportManga>();
+  let merged = 0;
+  for (const item of items) {
+    const key = item.title.trim().toLowerCase();
+    const existing = byTitle.get(key);
+    if (!existing) {
+      byTitle.set(key, item);
+      continue;
+    }
+    merged += 1;
+    const existingWc = (existing.sourceUrl || '').includes('weebcentral.com');
+    const itemWc = (item.sourceUrl || '').includes('weebcentral.com');
+    if (itemWc && !existingWc) {
+      byTitle.set(key, { ...item, lastChapterRead: Math.max(Number(item.lastChapterRead || 0), Number(existing.lastChapterRead || 0)) });
+    } else if (Number(item.lastChapterRead || 0) > Number(existing.lastChapterRead || 0)) {
+      byTitle.set(key, { ...existing, lastChapterRead: item.lastChapterRead, lastPageRead: item.lastPageRead, totalChapters: item.totalChapters });
+    }
+  }
+  return { items: [...byTitle.values()], merged };
+}
+
 function linkCandidate(item: ImportManga, library: Manga[]): Manga | null {
   const direct = weebCentralMatch(item);
   if (direct) return direct;
@@ -115,13 +137,14 @@ export function ImportPanel() {
     setStatus('Reading backup…');
     try {
       const out = await parseBackup(file);
+      const deduped = dedupeCandidates(out.manga);
       const library = await readExistingLibrary();
-      const linked = out.manga.map((item) => ({ ...item, selected: true, match: linkCandidate(item, library) ?? undefined }));
+      const linked = deduped.items.map((item) => ({ ...item, selected: true, match: linkCandidate(item, library) ?? undefined }));
       setItems(linked);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
-      setStatus(`Found ${out.manga.length} titles${auto ? `, ${auto} linked to WeebCentral` : ''}${dupes ? `, ${dupes} already in your library` : ''}. Review and match them before importing.`);
+      setStatus(`Found ${out.manga.length} titles${deduped.merged ? `, ${deduped.merged} duplicate rows merged` : ''}${auto ? `, ${auto} linked to WeebCentral` : ''}${dupes ? `, ${dupes} already in your library` : ''}. Review and match them before importing.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Import failed');
     }
