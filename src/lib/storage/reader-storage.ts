@@ -1,14 +1,280 @@
-import type {LibraryEntry,Manga,ReaderSettings,ReadingHistoryEntry,ReadingProgress} from '@/types/models';
-import {idbDelete,idbGet,idbGetAll,idbPut} from '@/lib/storage/idb';
-export const DEFAULT_READER_SETTINGS:ReaderSettings={autoScrollMultiplier:1,baseSpeedPxPerSecond:120,fitMode:'width',theme:'dark'};
-async function signedIn(){try{const {createClient}=await import('@/lib/supabase/client');const sb=createClient();const {data:{user}}=await sb.auth.getUser();return user?{sb,user}:null}catch{return null}}
-function sourceIdFromMangaId(mangaId:string){if(mangaId.startsWith('wc-'))return 'weebcentral';if(mangaId.startsWith('ck-'))return 'comick';if(mangaId.startsWith('md-'))return 'mangadex';return 'mock'}
-export async function getLibraryEntries(){return idbGetAll<LibraryEntry>('library')}
-export async function addLibraryEntry(mangaId:string,sourceId='mock',manga?:Manga){const entry:LibraryEntry={mangaId,sourceId,addedAt:new Date().toISOString(),manga};await idbPut('library',entry as unknown as Record<string,unknown>);window.dispatchEvent(new CustomEvent('pachimanga:library-change'));void (async()=>{const auth=await signedIn();if(!auth)return;await auth.sb.from('library_entries').upsert({user_id:auth.user.id,manga_id:mangaId,source_id:sourceId,title:manga?.title||mangaId,cover_url:manga?.coverUrl||null,updated_at:new Date().toISOString()},{onConflict:'user_id,source_id,manga_id'})})();return entry}
-export async function removeLibraryEntry(mangaId:string){await idbDelete('library',mangaId);window.dispatchEvent(new CustomEvent('pachimanga:library-change'));void (async()=>{const auth=await signedIn();if(auth)await auth.sb.from('library_entries').delete().eq('user_id',auth.user.id).eq('manga_id',mangaId)})()}
-export async function seedLibrary(mangaIds:string[]){const existing=await getLibraryEntries();if(existing.length>0)return existing;return Promise.all(mangaIds.map(id=>addLibraryEntry(id)))}
-export async function getProgress(chapterId:string){const local=await idbGet<ReadingProgress>('progress',chapterId);if(local)return local;const auth=await signedIn();if(!auth)return undefined;const {data}=await auth.sb.from('reading_progress').select('manga_id,chapter_id,page_index,scroll_progress,updated_at').eq('user_id',auth.user.id).eq('chapter_id',chapterId).maybeSingle();if(!data)return undefined;const p:ReadingProgress={mangaId:data.manga_id,chapterId:data.chapter_id,pageIndex:data.page_index,scrollPosition:0,percentage:Number(data.scroll_progress)*100,updatedAt:data.updated_at};await idbPut('progress',p as unknown as Record<string,unknown>);return p}
-export async function saveProgress(progress:ReadingProgress){await idbPut('progress',progress as unknown as Record<string,unknown>);const history:ReadingHistoryEntry={mangaId:progress.mangaId,chapterId:progress.chapterId,percentage:progress.percentage,readAt:progress.updatedAt};await idbPut('history',history as unknown as Record<string,unknown>);window.dispatchEvent(new CustomEvent('pachimanga:history-change'));void (async()=>{const auth=await signedIn();if(!auth)return;const sourceId=sourceIdFromMangaId(progress.mangaId);await Promise.all([auth.sb.from('reading_progress').upsert({user_id:auth.user.id,source_id:sourceId,manga_id:progress.mangaId,chapter_id:progress.chapterId,page_index:progress.pageIndex,scroll_progress:progress.percentage/100,completed:progress.percentage>=99,updated_at:progress.updatedAt},{onConflict:'user_id,source_id,chapter_id'})])})()}
-export async function getHistory(){const history=await idbGetAll<ReadingHistoryEntry>('history');return history.sort((a,b)=>b.readAt.localeCompare(a.readAt))}
-export function getReaderSettings():ReaderSettings{if(typeof window==='undefined')return DEFAULT_READER_SETTINGS;try{const raw=localStorage.getItem('pachimanga:reader-settings')||localStorage.getItem('frogilab:reader-settings');return raw?{...DEFAULT_READER_SETTINGS,...JSON.parse(raw)}:DEFAULT_READER_SETTINGS}catch{return DEFAULT_READER_SETTINGS}}
-export function saveReaderSettings(settings:ReaderSettings){localStorage.setItem('pachimanga:reader-settings',JSON.stringify(settings));void (async()=>{const auth=await signedIn();if(auth)await auth.sb.from('user_settings').upsert({user_id:auth.user.id,settings:{reader:settings},updated_at:new Date().toISOString()},{onConflict:'user_id'})})()}
+import type { LibraryEntry, Manga, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
+import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
+
+export const DEFAULT_READER_SETTINGS: ReaderSettings = {
+  autoScrollMultiplier: 1,
+  baseSpeedPxPerSecond: 120,
+  fitMode: 'width',
+  theme: 'dark',
+};
+
+const CACHE_OWNER_KEY = 'pachimanga:cache-owner';
+
+async function signedIn() {
+  try {
+    const { createClient } = await import('@/lib/supabase/client');
+    const sb = createClient();
+    const { data: { user } } = await sb.auth.getUser();
+    return user ? { sb, user } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function requireSignedIn() {
+  const auth = await signedIn();
+  if (!auth) throw new Error('Sign in to use Pachimanga.');
+  return auth;
+}
+
+async function bindCacheToUser(userId: string) {
+  if (typeof window === 'undefined') return;
+  const current = localStorage.getItem(CACHE_OWNER_KEY);
+  if (current === userId) return;
+
+  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+  localStorage.removeItem('pachimanga:reader-settings');
+  localStorage.removeItem('frogilab:reader-settings');
+  localStorage.setItem(CACHE_OWNER_KEY, userId);
+}
+
+export async function bindCurrentUserCache() {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  return auth.user;
+}
+
+export async function clearLocalUserCache() {
+  if (typeof window !== 'undefined') {
+    const owner = localStorage.getItem(CACHE_OWNER_KEY);
+    if (owner) localStorage.removeItem(`pachimanga:reader-settings:${owner}`);
+    localStorage.removeItem(CACHE_OWNER_KEY);
+    localStorage.removeItem('pachimanga:reader-settings');
+    localStorage.removeItem('frogilab:reader-settings');
+  }
+  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+}
+
+function sourceIdFromMangaId(mangaId: string) {
+  if (mangaId.startsWith('wc-')) return 'weebcentral';
+  if (mangaId.startsWith('ck-')) return 'comick';
+  if (mangaId.startsWith('md-')) return 'mangadex';
+  return 'import';
+}
+
+function placeholderManga(row: { manga_id: string; source_id: string; title: string; cover_url: string | null }): Manga {
+  return {
+    id: row.manga_id,
+    sourceId: row.source_id,
+    title: row.title,
+    alternativeTitles: [],
+    description: '',
+    coverUrl: row.cover_url || '',
+    author: '',
+    artist: '',
+    status: 'unknown',
+    genres: [],
+    sourceUrl: '',
+  };
+}
+
+export async function getLibraryEntries() {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+
+  const local = await idbGetAll<LibraryEntry>('library');
+  const localById = new Map(local.map((entry) => [entry.mangaId, entry]));
+  const { data, error } = await auth.sb
+    .from('library_entries')
+    .select('manga_id,source_id,title,cover_url,added_at')
+    .eq('user_id', auth.user.id)
+    .order('added_at', { ascending: false });
+  if (error) throw error;
+
+  const remote = (data || []).map((row) => {
+    const cached = localById.get(row.manga_id);
+    const entry: LibraryEntry = {
+      mangaId: row.manga_id,
+      sourceId: row.source_id,
+      addedAt: row.added_at,
+      manga: cached?.manga || placeholderManga(row),
+      lastReadAt: cached?.lastReadAt,
+      progress: cached?.progress,
+    };
+    return entry;
+  });
+
+  const remoteIds = new Set(remote.map((entry) => entry.mangaId));
+  await Promise.all([
+    ...remote.map((entry) => idbPut('library', entry as unknown as Record<string, unknown>)),
+    ...local.filter((entry) => !remoteIds.has(entry.mangaId)).map((entry) => idbDelete('library', entry.mangaId)),
+  ]);
+
+  return remote;
+}
+
+export async function addLibraryEntry(mangaId: string, sourceId = 'import', manga?: Manga) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const entry: LibraryEntry = { mangaId, sourceId, addedAt: new Date().toISOString(), manga };
+
+  const { error } = await auth.sb.from('library_entries').upsert({
+    user_id: auth.user.id,
+    manga_id: mangaId,
+    source_id: sourceId,
+    title: manga?.title || mangaId,
+    cover_url: manga?.coverUrl || null,
+    added_at: entry.addedAt,
+    updated_at: entry.addedAt,
+  }, { onConflict: 'user_id,source_id,manga_id' });
+  if (error) throw error;
+
+  await idbPut('library', entry as unknown as Record<string, unknown>);
+  window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+  return entry;
+}
+
+export async function removeLibraryEntry(mangaId: string) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const { error } = await auth.sb.from('library_entries').delete().eq('user_id', auth.user.id).eq('manga_id', mangaId);
+  if (error) throw error;
+  await idbDelete('library', mangaId);
+  window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+}
+
+export async function getProgress(chapterId: string) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const local = await idbGet<ReadingProgress>('progress', chapterId);
+  if (local) return local;
+
+  const { data, error } = await auth.sb
+    .from('reading_progress')
+    .select('manga_id,chapter_id,page_index,scroll_progress,updated_at')
+    .eq('user_id', auth.user.id)
+    .eq('chapter_id', chapterId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return undefined;
+
+  const progress: ReadingProgress = {
+    mangaId: data.manga_id,
+    chapterId: data.chapter_id,
+    pageIndex: data.page_index,
+    scrollPosition: 0,
+    percentage: Number(data.scroll_progress) * 100,
+    updatedAt: data.updated_at,
+  };
+  await idbPut('progress', progress as unknown as Record<string, unknown>);
+  return progress;
+}
+
+export async function saveProgress(progress: ReadingProgress) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const sourceId = sourceIdFromMangaId(progress.mangaId);
+  const history: ReadingHistoryEntry = {
+    mangaId: progress.mangaId,
+    chapterId: progress.chapterId,
+    percentage: progress.percentage,
+    readAt: progress.updatedAt,
+  };
+
+  const [progressResult, historyResult] = await Promise.all([
+    auth.sb.from('reading_progress').upsert({
+      user_id: auth.user.id,
+      source_id: sourceId,
+      manga_id: progress.mangaId,
+      chapter_id: progress.chapterId,
+      page_index: progress.pageIndex,
+      scroll_progress: progress.percentage / 100,
+      completed: progress.percentage >= 99,
+      updated_at: progress.updatedAt,
+    }, { onConflict: 'user_id,source_id,chapter_id' }),
+    auth.sb.from('reading_history').upsert({
+      user_id: auth.user.id,
+      source_id: sourceId,
+      manga_id: progress.mangaId,
+      chapter_id: progress.chapterId,
+      percentage: progress.percentage,
+      read_at: progress.updatedAt,
+    }, { onConflict: 'user_id,source_id,manga_id' }),
+  ]);
+  if (progressResult.error) throw progressResult.error;
+  if (historyResult.error) throw historyResult.error;
+
+  await Promise.all([
+    idbPut('progress', progress as unknown as Record<string, unknown>),
+    idbPut('history', history as unknown as Record<string, unknown>),
+  ]);
+  window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
+}
+
+export async function getHistory() {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const { data, error } = await auth.sb
+    .from('reading_history')
+    .select('manga_id,chapter_id,percentage,read_at')
+    .eq('user_id', auth.user.id)
+    .order('read_at', { ascending: false });
+  if (error) throw error;
+
+  const history: ReadingHistoryEntry[] = (data || []).map((row) => ({
+    mangaId: row.manga_id,
+    chapterId: row.chapter_id,
+    percentage: Number(row.percentage),
+    readAt: row.read_at,
+  }));
+  await idbClear('history');
+  await Promise.all(history.map((entry) => idbPut('history', entry as unknown as Record<string, unknown>)));
+  return history;
+}
+
+function readerSettingsKey() {
+  if (typeof window === 'undefined') return 'pachimanga:reader-settings:server';
+  const owner = localStorage.getItem(CACHE_OWNER_KEY);
+  return owner ? `pachimanga:reader-settings:${owner}` : 'pachimanga:reader-settings:unbound';
+}
+
+export function getReaderSettings(): ReaderSettings {
+  if (typeof window === 'undefined') return DEFAULT_READER_SETTINGS;
+  try {
+    const raw = localStorage.getItem(readerSettingsKey());
+    return raw ? { ...DEFAULT_READER_SETTINGS, ...JSON.parse(raw) } : DEFAULT_READER_SETTINGS;
+  } catch {
+    return DEFAULT_READER_SETTINGS;
+  }
+}
+
+export async function loadReaderSettings() {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const { data, error } = await auth.sb
+    .from('user_settings')
+    .select('settings')
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+  if (error) throw error;
+
+  const remote = data?.settings && typeof data.settings === 'object' && 'reader' in data.settings
+    ? (data.settings as { reader?: Partial<ReaderSettings> }).reader
+    : undefined;
+  const settings = remote ? { ...DEFAULT_READER_SETTINGS, ...remote } : getReaderSettings();
+  localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
+  return settings;
+}
+
+export function saveReaderSettings(settings: ReaderSettings) {
+  localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
+  void (async () => {
+    const auth = await requireSignedIn();
+    await bindCacheToUser(auth.user.id);
+    await auth.sb.from('user_settings').upsert({
+      user_id: auth.user.id,
+      settings: { reader: settings },
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  })();
+}
