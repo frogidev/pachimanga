@@ -157,6 +157,18 @@ export async function setEntryProgress(
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
 }
 
+export async function clearAccountLibrary() {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  for (const table of ['library_entries', 'reading_progress', 'reading_history']) {
+    const { error } = await auth.sb.from(table).delete().eq('user_id', auth.user.id);
+    if (error) throw error;
+  }
+  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+  window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+  window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
+}
+
 export async function getProgress(chapterId: string) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);

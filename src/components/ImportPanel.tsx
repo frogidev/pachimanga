@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import { parseSeriesIdFromUrl } from '@/sources/weebcentral/endpoints';
 import type { ImportManga } from '@/lib/imports/types';
-import { addLibraryEntry, getLibraryEntries, setEntryProgress } from '@/lib/storage/reader-storage';
+import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, setEntryProgress } from '@/lib/storage/reader-storage';
 import type { Manga } from '@/types/models';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean };
@@ -80,6 +80,35 @@ export function ImportPanel() {
   const [matching, setMatching] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState<number | null>(null);
+  const [wiping, setWiping] = useState(false);
+  const [libraryCount, setLibraryCount] = useState<number | null>(null);
+
+  function refreshLibraryCount() {
+    void Promise.resolve()
+      .then(() => getLibraryEntries())
+      .then((entries) => setLibraryCount(entries.length))
+      .catch(() => setLibraryCount(null));
+  }
+
+  useEffect(() => {
+    void refreshLibraryCount();
+  }, []);
+
+  async function wipe() {
+    if (!window.confirm('Remove EVERYTHING in your library, including progress and history? This cannot be undone.')) return;
+    setWiping(true);
+    try {
+      await clearAccountLibrary();
+      setItems([]);
+      setImportedCount(null);
+      await refreshLibraryCount();
+      setStatus('Library cleared. Re-import any time from a backup file.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not clear the library');
+    } finally {
+      setWiping(false);
+    }
+  }
 
   async function backup(file: File) {
     setStatus('Reading backup…');
@@ -186,6 +215,7 @@ export function ImportPanel() {
       );
     } finally {
       setImporting(false);
+      void refreshLibraryCount();
     }
   }
 
@@ -244,6 +274,23 @@ export function ImportPanel() {
           </div>
         </section>
       ) : null}
+
+      <section className="rounded-2xl border border-red-300/15 bg-red-400/[.03] p-4 sm:p-5">
+        <p className="pixel-kicker text-[9px] text-red-300/80">Danger zone</p>
+        <strong className="mt-1 block text-sm text-zinc-100">Start over</strong>
+        <p className="mt-1 text-sm leading-6 text-zinc-500">
+          Removes every title, reading progress entry and history item in this account, on this device and in cloud sync.
+          {libraryCount !== null ? ` Current library: ${libraryCount} titles.` : ''}
+        </p>
+        <button
+          type="button"
+          disabled={wiping}
+          onClick={() => void wipe()}
+          className="mt-3 rounded-xl border border-red-300/25 px-4 py-2 text-sm text-red-300 transition hover:bg-red-400/10 disabled:opacity-50"
+        >
+          {wiping ? 'Removing…' : 'Remove everything I imported'}
+        </button>
+      </section>
     </div>
   );
 }
