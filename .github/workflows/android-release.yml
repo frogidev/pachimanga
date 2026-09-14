@@ -25,10 +25,6 @@ jobs:
     env:
       NDK_VERSION: "27.2.12479018"
       RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
-      TAURI_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
-      TAURI_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      TAURI_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      TAURI_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +53,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -66,23 +62,39 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.11" --locked
 
-      - name: Restore Android signing keystore
-        shell: bash
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$TAURI_ANDROID_KEYSTORE_PATH"
-          chmod 600 "$TAURI_ANDROID_KEYSTORE_PATH"
-
       - name: Generate native icons
         run: cargo tauri icon public/icons/icon-512.png
 
       - name: Initialize Android project
         run: cargo tauri android init
 
-      - name: Build signed APK and AAB
-        run: cargo tauri android build --apk --aab --target aarch64
+      - name: Configure Android signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          KEYSTORE_PATH="$RUNNER_TEMP/pachimanga-upload.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          cat > src-tauri/gen/android/keystore.properties <<EOF
+          keyAlias=$ANDROID_KEY_ALIAS
+          password=$ANDROID_KEY_PASSWORD
+          storeFile=$KEYSTORE_PATH
+          EOF
+          node scripts/configure-android-signing.mjs
+
+      - name: Build signed APK
+        run: cargo tauri android build --apk --target aarch64
+
+      - name: Build signed AAB
+        run: cargo tauri android build --aab --target aarch64
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
