@@ -1,19 +1,33 @@
 # Free PWA distribution and private WeebCentral relay
 
-Pachimanga can be distributed to iPhone, iPad, Android and desktop browsers as a PWA without an Apple or Google developer membership.
+Pachimanga can be distributed to iPhone, iPad, Android, and desktop browsers as a PWA without an Apple or Google developer membership.
 
-The only part that cannot run directly in a normal browser is the WeebCentral HTML integration. Browsers cannot bypass cross-origin restrictions, and WeebCentral can reject requests from cloud hosting networks. Pachimanga therefore supports an optional locked-down relay running from a trusted network such as the Frogilab homelab.
+The PWA is not a guest/demo version. The same mandatory Pachimanga login/registration and per-user Supabase data model applies after launch.
+
+The only part that cannot use the same network path as a normal browser is the device-side Tauri WeebCentral bridge. Browsers instead use the optional locked-down Frogilab relay described here when WeebCentral cannot be accessed reliably from the hosted web runtime.
+
+## Access model
+
+Users may receive the production URL freely, but application content remains behind Pachimanga authentication:
+
+```text
+https://pachimanga.frogilab.dev
+```
+
+Unauthenticated users are sent to `/auth`. After signing in, they can use browse/import/library/reader/install flows under their own account.
+
+The PWA/service worker must not turn authenticated application HTML/data into a shared public cache. Authenticated responses are intended to remain private and account-scoped.
 
 ## Architecture
 
 ```text
 PWA / browser
     |
-    | same-origin HTTPS
+    | HTTPS + Pachimanga session
     v
 pachimanga.frogilab.dev (Vercel)
     |
-    | server-only bearer token
+    | server-only relay token
     v
 wc-relay.frogilab.dev (Cloudflare Tunnel)
     |
@@ -24,17 +38,17 @@ Pachimanga relay on homelab
 weebcentral.com
 ```
 
-The relay only accepts these operations:
+The relay only accepts known read operations such as:
 
-- `GET /v1/search?q=...`
-- `GET /v1/manga/:id`
-- `GET /v1/chapters/:id`
-- `GET /v1/chapter/:id`
-- `GET /v1/pages/:id`
+- search
+- manga metadata
+- chapter lists
+- chapter HTML
+- page discovery
 
-There is intentionally no `?url=` endpoint and no arbitrary HTTP proxy.
+There is intentionally no caller-controlled `?url=` endpoint and no arbitrary HTTP proxy.
 
-The application parses the returned HTML and uses the original page-image URLs. Manga images therefore load from their original image hosts and do not flow through the homelab relay.
+The application parses the returned source responses and uses original page-image URLs where possible. Manga image bytes therefore do not intentionally flow through Supabase or the homelab relay.
 
 ## 1. Generate a relay token
 
@@ -85,15 +99,15 @@ Expected response:
 
 ## 3. Publish it through Cloudflare Tunnel
 
-Use the existing Frogilab Cloudflare Tunnel and map:
+Use the Frogilab Cloudflare Tunnel and map:
 
 ```text
 wc-relay.frogilab.dev -> http://127.0.0.1:8787
 ```
 
-If `cloudflared` runs directly on the host, keeping the relay bound to `127.0.0.1` is preferred. If `cloudflared` runs in Docker, put both containers on the same private Docker network and target the relay container by service name instead of exposing it publicly.
+If `cloudflared` runs directly on the host, keeping the relay bound to `127.0.0.1` is preferred. If `cloudflared` runs in Docker, place both containers on the same private Docker network and target the relay by service/container name instead of exposing it publicly.
 
-The relay should never be port-forwarded from the router.
+The relay should never be port-forwarded directly from the router.
 
 External service health:
 
@@ -110,50 +124,59 @@ curl -H "Authorization: Bearer $RELAY_TOKEN" \
 
 ## 4. Configure Vercel
 
-Add these server-side environment variables to the Pachimanga project for Production and Preview as appropriate:
+Add these server-side environment variables to the Pachimanga Vercel project for Production and Preview as appropriate:
 
 ```text
 WEEBCENTRAL_RELAY_URL=https://wc-relay.frogilab.dev
 WEEBCENTRAL_RELAY_TOKEN=<same RELAY_TOKEN used by the homelab>
 ```
 
-Do not prefix either variable with `NEXT_PUBLIC_`. The browser must never receive the bearer token.
+Do not prefix either value with `NEXT_PUBLIC_`. The browser must never receive the bearer token.
 
-Redeploy Pachimanga after adding the variables.
+Redeploy Pachimanga after adding or changing the values.
 
-When both values are present, all server-side WeebCentral reads automatically use the relay. If either value is missing, Pachimanga keeps the existing direct-host behavior and can fall back to MangaDex.
+## 5. Validate authenticated PWA access
 
-## 5. Validate PWA WeebCentral access
+Use a real Pachimanga account for the smoke test:
 
-1. Open `https://pachimanga.frogilab.dev/browse` in Safari or another browser.
-2. The source badge should report `PWA/Web · private relay + MangaDex` with a healthy indicator.
-3. Search for a known WeebCentral title.
-4. Open a title, open a chapter, and verify page images load.
-5. Test the same flow after installing the PWA.
+1. Open `https://pachimanga.frogilab.dev` in Safari/another browser.
+2. Confirm an anonymous session receives the login/register screen instead of Library/Browse.
+3. Sign in.
+4. Open Browse and search a known WeebCentral title.
+5. Open a title, chapter, and reader; verify page images load.
+6. Add a manga and change reader settings.
+7. Sign out and verify the previous account's library/settings are no longer visible.
+8. Re-sign in and verify account state returns.
+9. Repeat after installing the PWA.
 
 ## 6. Install on iPhone or iPad for free
 
-1. Open `https://pachimanga.frogilab.dev/install` in Safari.
-2. Tap Share.
-3. Choose **Add to Home Screen**.
-4. Confirm Add.
-5. Launch Pachimanga from the Home Screen.
+1. Open `https://pachimanga.frogilab.dev` in Safari and sign in/register.
+2. Open the install page from the authenticated application if needed.
+3. Tap Share.
+4. Choose **Add to Home Screen**.
+5. Confirm Add.
+6. Launch Pachimanga from the Home Screen and sign in if the session is not already available there.
 
 Because this is a PWA, there is no seven-day sideload signing expiry and no Apple Developer membership is required.
 
+For a small private group, this is the recommended zero-cost iPhone/iPad distribution path unless native TestFlight distribution is intentionally enabled.
+
 ## Security properties
 
-- WeebCentral host/path construction lives in the relay; callers cannot choose arbitrary destinations.
-- IDs must match the expected WeebCentral identifier format.
-- Queries are normalized and length limited.
-- The relay requires a constant-time compared bearer token for all source operations.
-- The relay has request timeouts, an in-memory response cache, and an IP rate limit.
-- Only `/health` is public and it exposes no secret or upstream data.
-- The token is stored only in the homelab environment and Vercel server environment.
-- Image bandwidth is not proxied through the relay.
+- Pachimanga authentication is required before normal application use.
+- WeebCentral host/path construction lives in trusted code; callers cannot choose arbitrary destinations.
+- IDs are validated against expected formats.
+- Queries are normalized and length-limited.
+- The relay requires a bearer token for protected source operations.
+- The relay uses request timeouts, response caching, and rate limiting.
+- Public health endpoints must expose no token or private upstream data.
+- The token is stored only in homelab/Vercel server environments.
+- Image bandwidth is not intentionally proxied through Supabase or the relay.
+- Supabase service-role credentials are not required by the browser and must never be exposed client-side.
 
 ## Native applications
 
-Android/Tauri continues using the existing on-device `weebcentral_request` bridge. The relay is for browser/PWA requests and does not widen the native bridge.
+Android/Tauri uses the existing on-device `weebcentral_request` bridge rather than the homelab relay for its native WeebCentral path. The bridge is deliberately source-specific and does not widen into an arbitrary HTTP proxy.
 
-macOS/iOS native distribution remains optional. For the zero-cost strategy, iPhone and iPad use the PWA.
+macOS/iOS native distribution remains optional. For a zero-cost private strategy, iPhone/iPad use the authenticated PWA. If Apple Developer membership is enabled later, TestFlight is the practical native distribution path for a small invited group.
