@@ -20,6 +20,14 @@ End users do not need Rust, Node.js, or a development environment. They only nee
 
 The app still uses the hosted Pachimanga UI, Supabase, and normal MangaDex fallback. The native binary only adds device-side WeebCentral networking.
 
+## Cloud Android APK build
+
+Because the repository is public, `.github/workflows/android-apk.yml` builds the test APK on a standard public GitHub-hosted runner. No local Android Studio installation is required just to produce the APK.
+
+The workflow builds an arm64 APK for modern Android phones and uploads it as the `pachimanga-android-arm64` workflow artifact. It runs when the native bridge/workflow changes and can also be started manually from GitHub Actions with **Build Android APK -> Run workflow**.
+
+The generated Android project remains ephemeral in CI under `src-tauri/gen/android`; it is intentionally ignored by Git. This initial APK is intended for direct device testing. Play Store distribution should use a private signing keystore stored only in GitHub Actions secrets, never in this public repository.
+
 ## Developer requirements
 
 Install Rust and the Tauri CLI:
@@ -53,7 +61,7 @@ Tauri mobile projects are generated locally and are not committed until we inten
 
 ```bash
 cargo tauri android init
-cargo tauri android build
+cargo tauri android build --apk
 ```
 
 On macOS for iOS:
