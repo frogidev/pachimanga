@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MockCoverArt } from "@/components/mock-cover-art";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import { idbGetAll } from "@/lib/storage/idb";
@@ -56,6 +56,8 @@ export function MangaDetail({
   const [chapterProgress, setChapterProgress] = useState<Record<string, number>>({});
   const [busyChapter, setBusyChapter] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [bulk, setBulk] = useState<{ done: number; total: number; label: string } | null>(null);
+  const bulkCancel = useRef(false);
   const [continueTo, setContinueTo] = useState<{ id: string; title: string } | null>(null);
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
   const description = useMemo(() => cleanDescription(manga.description), [manga.description]);
@@ -169,26 +171,62 @@ export function MangaDetail({
     }
   }
 
-  async function markAllRead() {
-    if (!chapters.length || markingAll) return;
-    if (!window.confirm(`Mark all ${chapters.length} chapters of "${manga.title}" as read?`)) return;
-    setMarkingAll(true);
+  async function runBulkMark(targets: Chapter[], read: boolean, label: string) {
+    if (!targets.length || bulk) return;
+    if (!window.confirm(`${label} (${targets.length} chapter${targets.length === 1 ? "" : "s"} of "${manga.title}")?`)) return;
+    bulkCancel.current = false;
+    setBulk({ done: 0, total: targets.length, label });
     try {
       const now = new Date().toISOString();
-      for (const chapter of chapters) {
-        await saveProgress({
-          mangaId: manga.id,
-          chapterId: chapter.id,
-          pageIndex: 0,
-          scrollPosition: 0,
-          percentage: 100,
-          updatedAt: now,
-        });
+      let done = 0;
+      for (const chapter of targets) {
+        if (bulkCancel.current) break;
+        if (read) {
+          await saveProgress({
+            mangaId: manga.id,
+            chapterId: chapter.id,
+            pageIndex: 0,
+            scrollPosition: 0,
+            percentage: 100,
+            updatedAt: now,
+          });
+        } else {
+          await clearProgress(chapter.id);
+        }
+        done += 1;
+        setBulk({ done, total: targets.length, label });
+        setChapterProgress((map) => ({ ...map, [chapter.id]: read ? 100 : 0 }));
       }
-      setChapterProgress(Object.fromEntries(chapters.map((chapter) => [chapter.id, 100])));
+    } finally {
+      setBulk(null);
+    }
+  }
+
+  async function markAllRead() {
+    if (markingAll) return;
+    setMarkingAll(true);
+    try {
+      await runBulkMark(chapters, true, "Mark all as read");
     } finally {
       setMarkingAll(false);
     }
+  }
+
+  async function markAllUnread() {
+    if (markingAll) return;
+    setMarkingAll(true);
+    try {
+      await runBulkMark(chapters, false, "Mark all as unread");
+    } finally {
+      setMarkingAll(false);
+    }
+  }
+
+  async function markFromHere(index: number) {
+    const targets = chapters.slice(index);
+    const chapter = chapters[index];
+    if (!chapter || bulk) return;
+    await runBulkMark(targets, true, `Mark "${chapter.title}" and older as read`);
   }
 
   return (
@@ -228,14 +266,37 @@ export function MangaDetail({
           <span className="text-xs text-zinc-600">{chapters.length ? `${chapters.length} available` : "No in-app chapters"}</span>
         </div>
         {chapters.length ? (
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+            {bulk ? (
+              <div className="flex min-w-52 flex-1 items-center gap-3 sm:max-w-xs" role="progressbar" aria-valuenow={bulk.done} aria-valuemin={0} aria-valuemax={bulk.total} aria-label={bulk.label}>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[.06]">
+                  <div className="h-full rounded-full bg-gradient-to-r from-pink-400 to-sky-300 transition-[width]" style={{ width: `${Math.round((bulk.done / Math.max(1, bulk.total)) * 100)}%` }} />
+                </div>
+                <span className="shrink-0 font-mono text-[10px] text-zinc-500">{bulk.done}/{bulk.total}</span>
+                <button
+                  type="button"
+                  onClick={() => { bulkCancel.current = true; }}
+                  className="shrink-0 rounded-lg px-2 py-1 text-[11px] text-zinc-500 transition hover:bg-white/[.06] hover:text-zinc-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => void markAllRead()}
-              disabled={markingAll}
+              disabled={markingAll || bulk !== null}
               className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-pink-300 disabled:opacity-50"
             >
               {markingAll ? "Marking…" : "Mark all as read"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void markAllUnread()}
+              disabled={markingAll || bulk !== null}
+              className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300 disabled:opacity-50"
+            >
+              Mark all as unread
             </button>
           </div>
         ) : null}
@@ -260,6 +321,16 @@ export function MangaDetail({
                   className={`grid size-8 shrink-0 place-items-center rounded-lg text-sm transition disabled:opacity-50 ${read ? "bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20" : "bg-white/[.04] text-zinc-500 hover:bg-white/[.08] hover:text-zinc-200"}`}
                 >
                   {read ? "✓" : "○"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || bulk !== null}
+                  aria-label={`Mark ${chapter.title} and older chapters as read`}
+                  title="Mark this chapter and older as read"
+                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); void markFromHere(index); }}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] text-sm text-zinc-500 transition hover:bg-white/[.08] hover:text-pink-300 disabled:opacity-50"
+                >
+                  ⇣
                 </button>
                 <span className="shrink-0 text-xs text-zinc-600 transition group-hover:text-pink-300">Read →</span>
               </Link>
