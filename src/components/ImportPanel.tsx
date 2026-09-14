@@ -4,11 +4,29 @@ import { useState } from 'react';
 import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import type { ImportManga } from '@/lib/imports/types';
+import { addLibraryEntry } from '@/lib/storage/reader-storage';
 import type { Manga } from '@/types/models';
-import { createClient } from '@/lib/supabase/client';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean };
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function importedManga(item: Candidate, index: number): Manga {
+  if (item.match) return item.match;
+  const id = `import-${index}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'title'}`;
+  return {
+    id,
+    sourceId: 'import',
+    title: item.title,
+    alternativeTitles: [],
+    description: '',
+    coverUrl: '',
+    author: '',
+    artist: '',
+    status: 'unknown',
+    genres: [],
+    sourceUrl: '',
+  };
+}
 
 export function ImportPanel() {
   const [items, setItems] = useState<Candidate[]>([]);
@@ -23,7 +41,7 @@ export function ImportPanel() {
       const out = await parseBackup(file);
       setItems(out.manga.map((item) => ({ ...item, selected: true })));
       setWarnings(out.warnings);
-      setStatus(`Found ${out.manga.length} titles. Progress is preserved where the backup exposes it.`);
+      setStatus(`Found ${out.manga.length} titles. Review and match them before importing.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Import failed');
     }
@@ -67,23 +85,13 @@ export function ImportPanel() {
 
   async function save() {
     try {
-      const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) throw new Error('Sign in before importing to cloud sync.');
       const chosen = items.filter((item) => item.selected !== false);
-      const rows = chosen.map((manga, index) => ({
-        user_id: user.id,
-        manga_id: manga.match?.id || `import-${index}-${manga.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`,
-        source_id: manga.match?.sourceId || 'import',
-        title: manga.match?.title || manga.title,
-        cover_url: manga.match?.coverUrl || null,
-        updated_at: new Date().toISOString(),
-      }));
-      for (const row of rows) {
-        const { error } = await sb.from('library_entries').upsert(row, { onConflict: 'user_id,source_id,manga_id' });
-        if (error) throw error;
+      setStatus(`Importing ${chosen.length} titles into your account…`);
+      for (let index = 0; index < chosen.length; index += 1) {
+        const manga = importedManga(chosen[index], index);
+        await addLibraryEntry(manga.id, manga.sourceId, manga);
       }
-      setStatus(`Imported ${rows.length} titles into your private account.`);
+      setStatus(`Imported ${chosen.length} titles into your private library. Unmatched titles remain marked as imported until you match them to a source.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not save import');
     }
@@ -133,7 +141,7 @@ export function ImportPanel() {
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
                   <input className="w-full bg-transparent font-medium text-zinc-200 outline-none" value={manga.title} onChange={(event) => patch(index, { title: event.target.value, match: undefined })} />
-                  <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · WeebCentral` : manga.lastChapterRead ? `Imported progress: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · WeebCentral` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
                 </div>
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
               </div>

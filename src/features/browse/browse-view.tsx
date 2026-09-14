@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PageHeading } from "@/components/page-heading";
-import { MOCK_MANGA } from "@/lib/mock-data";
 import {
   isTauriNative,
   nativeErrorMessage,
@@ -12,7 +11,7 @@ import {
 } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
-const WEB_STATUS = "PWA/web uses the private WeebCentral relay when available, with MangaDex fallback.";
+const WEB_STATUS = "Search WeebCentral through the private relay, with MangaDex fallback.";
 const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
 
 type RuntimeMode = "checking" | "web" | "native";
@@ -31,7 +30,7 @@ function SearchIcon() {
 
 export function BrowseView() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Manga[]>(MOCK_MANGA);
+  const [results, setResults] = useState<Manga[]>([]);
   const [runtime, setRuntime] = useState<RuntimeMode>("checking");
   const [sourceHealth, setSourceHealth] = useState<SourceHealth>("idle");
   const [status, setStatus] = useState(WEB_STATUS);
@@ -92,7 +91,7 @@ export function BrowseView() {
     const q = query.trim();
     if (!q) {
       const resetTimer = window.setTimeout(() => {
-        setResults(MOCK_MANGA);
+        setResults([]);
         setStatus(runtime === "native" ? NATIVE_STATUS : WEB_STATUS);
       }, 0);
       return () => clearTimeout(resetTimer);
@@ -183,6 +182,8 @@ export function BrowseView() {
       ? "PWA/Web · private relay + MangaDex"
       : "PWA/Web · MangaDex fallback";
 
+  const hasQuery = Boolean(query.trim());
+
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
       <PageHeading
@@ -223,9 +224,9 @@ export function BrowseView() {
       <div className="mt-6 flex items-end justify-between">
         <div>
           <p className="pixel-kicker text-[9px] text-pink-400">Catalog</p>
-          <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{query.trim() ? "Search results" : "Recommended for you"}</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{hasQuery ? "Search results" : "Search your manga sources"}</h2>
         </div>
-        <span className="text-xs text-zinc-500">{results.length} title{results.length === 1 ? "" : "s"}</span>
+        {hasQuery ? <span className="text-xs text-zinc-500">{results.length} title{results.length === 1 ? "" : "s"}</span> : null}
       </div>
 
       {results.length ? (
@@ -241,8 +242,8 @@ export function BrowseView() {
       ) : (
         <div className="surface-card mt-6 px-6 py-14 text-center">
           <div className="text-3xl">⌕</div>
-          <h3 className="mt-3 font-semibold text-zinc-200">No matching readable manga</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">Try a shorter title or remove punctuation. MangaDex fallback results are limited to titles that report available chapters.</p>
+          <h3 className="mt-3 font-semibold text-zinc-200">{hasQuery ? "No matching readable manga" : "Search to build your library"}</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">{hasQuery ? "Try a shorter title or remove punctuation. MangaDex fallback results are limited to titles that report available chapters." : "Pachimanga does not preload demo titles. Search a real source, open a manga, and add it to your private account."}</p>
         </div>
       )}
     </div>
