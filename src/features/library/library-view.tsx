@@ -27,6 +27,36 @@ function ListIcon() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="18" r="1" fill="currentColor" stroke="none"/></svg>;
 }
 
+function PachiHeadPink() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" shapeRendering="crispEdges" aria-hidden="true">
+      <rect x="3" y="3" width="6" height="6" fill="#ff78b4" />
+      <rect x="15" y="3" width="6" height="6" fill="#ff78b4" />
+      <rect x="4" y="8" width="16" height="12" fill="#ff9cca" />
+      <rect x="6" y="6" width="12" height="14" fill="#ff9cca" />
+      <rect x="7" y="11" width="3" height="4" fill="#28101b" />
+      <rect x="14" y="11" width="3" height="4" fill="#28101b" />
+      <rect x="11" y="15" width="2" height="2" fill="#28101b" />
+    </svg>
+  );
+}
+
+function PawPrint({ className = "" }: { className?: string }) {
+  return (
+    <svg width="26" height="26" viewBox="0 0 20 20" shapeRendering="crispEdges" fill="currentColor" className={className} aria-hidden="true">
+      <rect x="6" y="11" width="8" height="6" />
+      <rect x="7" y="10" width="6" height="1" />
+      <rect x="2" y="6" width="4" height="4" />
+      <rect x="8" y="3" width="4" height="4" />
+      <rect x="14" y="6" width="4" height="4" />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z" /></svg>;
+}
+
 function subscribeNative() {
   return () => {};
 }
@@ -157,7 +187,7 @@ export function LibraryView() {
 
         <div className="mt-6 flex items-end justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-lg bg-pink-400/10 text-pink-400" aria-hidden="true">▥</span>
+            <span className="grid size-9 place-items-center rounded-lg bg-pink-400/10 text-pink-400" aria-hidden="true"><BookIcon /></span>
             <div>
               <p className="pixel-kicker text-[9px] text-pink-400">Your collection</p>
               <h2 className="mt-0.5 text-[1.65rem] font-bold tracking-[-.035em] text-white">Your Library</h2>
@@ -195,11 +225,15 @@ export function LibraryView() {
           </div>
         )}
 
-        <div className="promo-strip mt-8 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-pink-400/10 font-mono text-2xl text-pink-300">▣</div>
+        <div className="promo-strip relative mt-8 flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
+          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-pink-400/10"><PachiHeadPink /></div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
             <div className="font-semibold text-zinc-100">A new chapter is always a good idea.</div>
             <div className="mt-1 text-sm text-zinc-500">Keep reading, keep collecting, keep enjoying!</div>
+          </div>
+          <div aria-hidden="true" className="hidden shrink-0 items-center gap-3 text-pink-400/40 md:flex">
+            <PawPrint className="translate-y-2 rotate-[-12deg]" />
+            <PawPrint className="-translate-y-1 rotate-[10deg]" />
           </div>
           <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#ff80b9] to-[#ff9bc9] px-5 py-3 text-sm font-bold text-[#28101b] shadow-[0_10px_24px_rgba(255,112,174,.12)] transition hover:brightness-105">Browse Manga <span className="ml-2">→</span></Link>
         </div>
