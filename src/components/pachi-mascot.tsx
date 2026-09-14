@@ -4,57 +4,54 @@ export function PachiMascot({ className = "" }: { className?: string }) {
       viewBox="0 0 120 120"
       className={className}
       role="img"
-      aria-label="Pachi, the 8-bit calico cat mascot"
+      aria-label="Pachi, the calico cat mascot"
       shapeRendering="crispEdges"
     >
-      {/* ears / silhouette */}
-      <rect x="24" y="18" width="18" height="18" fill="#2a222d" />
-      <rect x="30" y="12" width="12" height="12" fill="#2a222d" />
-      <rect x="78" y="18" width="18" height="18" fill="#2a222d" />
-      <rect x="78" y="12" width="12" height="12" fill="#2a222d" />
-      <rect x="30" y="18" width="8" height="10" fill="#f3a2bf" />
-      <rect x="82" y="18" width="8" height="10" fill="#f3a2bf" />
+      {/* ears */}
+      <rect x="20" y="12" width="22" height="26" fill="#241c2b" />
+      <rect x="78" y="12" width="22" height="26" fill="#241c2b" />
+      <rect x="26" y="20" width="10" height="14" fill="#f7b1c8" />
+      <rect x="84" y="20" width="10" height="14" fill="#f7b1c8" />
+      {/* left ear + head patch: orange */}
+      <rect x="20" y="12" width="22" height="12" fill="#e8933c" />
+      <rect x="78" y="12" width="22" height="12" fill="#35313c" />
 
-      {/* blocky head outline */}
-      <rect x="18" y="36" width="84" height="48" fill="#2a222d" />
-      <rect x="24" y="30" width="72" height="60" fill="#2a222d" />
-      <rect x="30" y="26" width="60" height="68" fill="#2a222d" />
+      {/* head base */}
+      <rect x="14" y="36" width="92" height="54" fill="#241c2b" />
+      <rect x="20" y="30" width="80" height="66" fill="#241c2b" />
+      <rect x="28" y="26" width="64" height="74" fill="#241c2b" />
 
       {/* cream face */}
-      <rect x="24" y="40" width="72" height="40" fill="#fff4e9" />
-      <rect x="30" y="34" width="60" height="52" fill="#fff4e9" />
-      <rect x="36" y="30" width="48" height="60" fill="#fff4e9" />
+      <rect x="20" y="40" width="80" height="46" fill="#fff1e0" />
+      <rect x="26" y="34" width="68" height="58" fill="#fff1e0" />
+      <rect x="32" y="30" width="56" height="66" fill="#fff1e0" />
 
-      {/* calico patches */}
-      <rect x="24" y="40" width="18" height="18" fill="#d77c38" />
-      <rect x="30" y="34" width="18" height="18" fill="#d77c38" />
-      <rect x="36" y="30" width="12" height="12" fill="#d77c38" />
-      <rect x="48" y="30" width="24" height="18" fill="#34313b" />
-      <rect x="54" y="36" width="24" height="18" fill="#34313b" />
-      <rect x="78" y="40" width="18" height="18" fill="#d77c38" />
-      <rect x="72" y="46" width="24" height="18" fill="#d77c38" />
+      {/* orange left cheek patch */}
+      <rect x="20" y="40" width="26" height="34" fill="#e8933c" />
+      <rect x="26" y="34" width="22" height="22" fill="#e8933c" />
+      <rect x="32" y="30" width="14" height="16" fill="#e8933c" />
+
+      {/* dark top-right patch */}
+      <rect x="74" y="30" width="22" height="20" fill="#35313c" />
+      <rect x="80" y="34" width="20" height="18" fill="#35313c" />
+      <rect x="86" y="40" width="14" height="14" fill="#35313c" />
 
       {/* eyes */}
-      <rect x="42" y="58" width="6" height="9" fill="#231d27" />
-      <rect x="72" y="58" width="6" height="9" fill="#231d27" />
+      <rect x="42" y="60" width="7" height="11" fill="#241c2b" />
+      <rect x="71" y="60" width="7" height="11" fill="#241c2b" />
+      <rect x="42" y="60" width="7" height="3" fill="#fff1e0" opacity=".25" />
 
-      {/* muzzle / nose */}
-      <rect x="54" y="66" width="12" height="6" fill="#ef78a8" />
-      <rect x="57" y="72" width="6" height="6" fill="#231d27" />
-      <rect x="51" y="78" width="9" height="3" fill="#231d27" />
-      <rect x="60" y="78" width="9" height="3" fill="#231d27" />
+      {/* nose + mouth */}
+      <rect x="56" y="72" width="8" height="6" fill="#f2739e" />
+      <rect x="53" y="78" width="6" height="3" fill="#241c2b" />
+      <rect x="61" y="78" width="6" height="3" fill="#241c2b" />
+      <rect x="59" y="78" width="2" height="5" fill="#241c2b" />
 
       {/* whiskers */}
-      <rect x="18" y="68" width="18" height="3" fill="#806b78" />
-      <rect x="15" y="76" width="21" height="3" fill="#806b78" />
-      <rect x="84" y="68" width="18" height="3" fill="#806b78" />
-      <rect x="84" y="76" width="21" height="3" fill="#806b78" />
-
-      {/* chest / collar */}
-      <rect x="36" y="88" width="48" height="12" fill="#2a222d" />
-      <rect x="42" y="88" width="36" height="18" fill="#fff4e9" />
-      <rect x="54" y="88" width="12" height="6" fill="#ff6fae" />
-      <rect x="48" y="100" width="24" height="6" fill="#ead7cc" />
+      <rect x="12" y="68" width="16" height="3" fill="#b98a94" />
+      <rect x="10" y="77" width="18" height="3" fill="#b98a94" />
+      <rect x="92" y="68" width="16" height="3" fill="#b98a94" />
+      <rect x="92" y="77" width="18" height="3" fill="#b98a94" />
     </svg>
   );
 }
@@ -62,76 +59,67 @@ export function PachiMascot({ className = "" }: { className?: string }) {
 export function PachiSleeper({ className = "" }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 180 126"
+      viewBox="0 0 210 132"
       className={className}
       role="img"
-      aria-label="Pachi sleeping on a manga box in 8-bit style"
+      aria-label="Pachi the calico cat sleeping on a manga box in 8-bit style"
       shapeRendering="crispEdges"
     >
-      {/* cardboard box */}
-      <rect x="12" y="84" width="156" height="34" fill="#2a1c25" />
-      <rect x="18" y="90" width="144" height="28" fill="#6e3941" />
-      <rect x="18" y="84" width="144" height="8" fill="#9b554f" />
-      <rect x="30" y="96" width="42" height="4" fill="#b86b5e" opacity=".5" />
-      <rect x="118" y="100" width="26" height="4" fill="#b86b5e" opacity=".4" />
-      <rect x="132" y="90" width="4" height="28" fill="#45272f" />
+      {/* manga box */}
+      <rect x="10" y="86" width="180" height="38" fill="#241c2b" />
+      <rect x="16" y="92" width="168" height="26" fill="#6e3f43" />
+      <rect x="16" y="86" width="168" height="8" fill="#9b554f" />
+      <rect x="30" y="99" width="44" height="4" fill="#b86b5e" opacity=".5" />
+      <rect x="128" y="103" width="28" height="4" fill="#b86b5e" opacity=".4" />
+      <rect x="104" y="86" width="8" height="32" fill="#45272f" />
 
-      {/* long body outline */}
-      <rect x="34" y="52" width="88" height="32" fill="#2a222d" />
-      <rect x="42" y="44" width="70" height="40" fill="#2a222d" />
-      <rect x="52" y="40" width="52" height="42" fill="#2a222d" />
+      {/* striped tail draped off the left, touching the body */}
+      <rect x="26" y="64" width="20" height="36" fill="#241c2b" />
+      <rect x="29" y="67" width="14" height="30" fill="#e8933c" />
+      <rect x="29" y="74" width="14" height="4" fill="#35313c" />
+      <rect x="29" y="84" width="14" height="4" fill="#35313c" />
 
-      {/* cream body */}
-      <rect x="40" y="58" width="78" height="20" fill="#fff4e9" />
-      <rect x="48" y="50" width="62" height="28" fill="#fff4e9" />
-      <rect x="58" y="46" width="44" height="28" fill="#fff4e9" />
+      {/* loaf body */}
+      <rect x="40" y="54" width="108" height="34" fill="#241c2b" />
+      <rect x="48" y="48" width="94" height="40" fill="#241c2b" />
+      <rect x="46" y="60" width="98" height="22" fill="#fff1e0" />
+      <rect x="54" y="54" width="84" height="28" fill="#fff1e0" />
 
-      {/* calico back patches */}
-      <rect x="40" y="54" width="20" height="20" fill="#d77c38" />
-      <rect x="48" y="48" width="20" height="18" fill="#d77c38" />
-      <rect x="64" y="46" width="26" height="20" fill="#36323c" />
-      <rect x="78" y="52" width="26" height="18" fill="#36323c" />
+      {/* dark saddle with stepped top and orange rim */}
+      <rect x="76" y="38" width="38" height="7" fill="#35313c" />
+      <rect x="66" y="44" width="58" height="22" fill="#35313c" />
+      <rect x="66" y="66" width="58" height="5" fill="#e8933c" />
 
-      {/* head outline and ears */}
-      <rect x="102" y="46" width="44" height="34" fill="#2a222d" />
-      <rect x="108" y="40" width="34" height="42" fill="#2a222d" />
-      <rect x="108" y="34" width="10" height="12" fill="#2a222d" />
-      <rect x="132" y="34" width="10" height="12" fill="#2a222d" />
-      <rect x="110" y="38" width="6" height="8" fill="#f4a2bf" />
-      <rect x="134" y="38" width="6" height="8" fill="#f4a2bf" />
+      {/* head */}
+      <rect x="136" y="38" width="48" height="46" fill="#241c2b" />
+      <rect x="142" y="32" width="38" height="52" fill="#241c2b" />
+      <rect x="140" y="26" width="13" height="15" fill="#241c2b" />
+      <rect x="167" y="26" width="13" height="15" fill="#241c2b" />
+      <rect x="143" y="30" width="7" height="9" fill="#f7b1c8" />
+      <rect x="170" y="30" width="7" height="9" fill="#f7b1c8" />
 
-      {/* head cream */}
-      <rect x="108" y="50" width="34" height="26" fill="#fff4e9" />
-      <rect x="114" y="44" width="22" height="34" fill="#fff4e9" />
+      {/* orange head with cream muzzle */}
+      <rect x="142" y="43" width="36" height="36" fill="#e8933c" />
+      <rect x="147" y="37" width="28" height="42" fill="#e8933c" />
+      <rect x="146" y="60" width="30" height="19" fill="#fff1e0" />
+      <rect x="150" y="64" width="22" height="15" fill="#fff1e0" />
 
-      {/* head patches */}
-      <rect x="108" y="48" width="12" height="14" fill="#d77c38" />
-      <rect x="114" y="44" width="10" height="12" fill="#d77c38" />
-      <rect x="126" y="44" width="10" height="12" fill="#36323c" />
-      <rect x="136" y="50" width="6" height="14" fill="#d77c38" />
+      {/* sleepy closed eyes + nose */}
+      <rect x="149" y="58" width="10" height="3" fill="#241c2b" />
+      <rect x="164" y="58" width="10" height="3" fill="#241c2b" />
+      <rect x="159" y="66" width="7" height="5" fill="#f2739e" />
+      <rect x="162" y="71" width="3" height="4" fill="#241c2b" />
 
-      {/* sleepy eyes */}
-      <rect x="114" y="62" width="8" height="3" fill="#231d27" />
-      <rect x="130" y="62" width="8" height="3" fill="#231d27" />
-      <rect x="123" y="68" width="7" height="4" fill="#ef78a8" />
-      <rect x="126" y="72" width="3" height="4" fill="#231d27" />
-
-      {/* paws */}
-      <rect x="108" y="76" width="14" height="12" fill="#2a222d" />
-      <rect x="112" y="76" width="14" height="8" fill="#fff4e9" />
-      <rect x="136" y="76" width="14" height="12" fill="#2a222d" />
-      <rect x="132" y="76" width="14" height="8" fill="#fff4e9" />
-
-      {/* dangling tail */}
-      <rect x="28" y="68" width="18" height="14" fill="#2a222d" />
-      <rect x="22" y="76" width="18" height="20" fill="#2a222d" />
-      <rect x="24" y="78" width="10" height="12" fill="#36323c" />
-      <rect x="28" y="68" width="10" height="10" fill="#d77c38" />
+      {/* paws draped over the box edge */}
+      <rect x="144" y="80" width="14" height="16" fill="#241c2b" />
+      <rect x="147" y="80" width="11" height="13" fill="#fff1e0" />
+      <rect x="163" y="80" width="14" height="16" fill="#241c2b" />
+      <rect x="163" y="80" width="11" height="13" fill="#fff1e0" />
 
       {/* sleep z's */}
       <g fill="#ff82bb" fontFamily="ui-monospace, SFMono-Regular, monospace" fontWeight="900">
-        <text x="150" y="48" fontSize="11">Z</text>
-        <text x="160" y="36" fontSize="8">Z</text>
+        <text x="188" y="52" fontSize="12">Z</text>
+        <text x="197" y="38" fontSize="9">Z</text>
       </g>
     </svg>
   );
