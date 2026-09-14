@@ -12,21 +12,25 @@ function requestedDestination() {
   return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
 }
 
+function initialAuthMessage() {
+  if (typeof window === 'undefined') return '';
+  const error = new URLSearchParams(window.location.search).get('error');
+  if (error === 'confirmation') return 'The confirmation link is invalid or expired. Request a new sign-up email or try signing in.';
+  if (error === 'configuration') return 'Authentication is temporarily unavailable.';
+  return '';
+}
+
 export function AuthForm() {
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialAuthMessage);
   const [busy, setBusy] = useState(false);
   const [signedIn, setSignedIn] = useState<string | null>(null);
 
   useEffect(() => {
     const sb = createClient();
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('error') === 'confirmation') setMessage('The confirmation link is invalid or expired. Request a new sign-up email or try signing in.');
-    if (params.get('error') === 'configuration') setMessage('Authentication is temporarily unavailable.');
-
     void sb.auth.getUser().then(async ({ data }) => {
       setSignedIn(data.user?.email || null);
       if (data.user) await bindCurrentUserCache();
