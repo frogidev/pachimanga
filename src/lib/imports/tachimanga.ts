@@ -1,5 +1,6 @@
 import initSqlJs, { type Database, type SqlValue } from 'sql.js';
 import { unzipEntries } from './minizip';
+import { columnSet } from './sqlite-schema';
 import { detectTmbKind } from './tmb-format';
 import type { ImportResult, ImportManga } from './types';
 
@@ -64,11 +65,6 @@ export async function parseTachimanga(file: File): Promise<ImportResult> {
       'Tachimanga schema varies by release; unmatched progress fields are left empty rather than guessed.',
     ],
   };
-}
-
-function columnSet(db: Database, table: string): Set<string> {
-  const res = db.exec(`select * from "${table}" limit 0`)[0];
-  return new Set((res?.columns || []).map((c: string) => String(c).toLowerCase()));
 }
 
 function readTachideskLibrary(db: Database, names: string[]): ImportManga[] | null {
