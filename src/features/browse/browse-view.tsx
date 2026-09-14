@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PageHeading } from "@/components/page-heading";
 import { MOCK_MANGA } from "@/lib/mock-data";
-import { isTauriNative, searchNativeWeebCentral } from "@/lib/native/tauri-bridge";
+import { isTauriNative, nativeWeebCentralHealth, searchNativeWeebCentral } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
 const WEB_STATUS = "Search WeebCentral with MangaDex as an automatic fallback.";
-const NATIVE_STATUS = "Native mode: WeebCentral connects from this device, with MangaDex as fallback.";
+const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
 
 type RuntimeMode = "checking" | "web" | "native";
+type NativeHealth = "idle" | "checking" | "reachable" | "unreachable";
 
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
@@ -20,12 +21,32 @@ export function BrowseView() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Manga[]>(MOCK_MANGA);
   const [runtime, setRuntime] = useState<RuntimeMode>("checking");
+  const [nativeHealth, setNativeHealth] = useState<NativeHealth>("idle");
   const [status, setStatus] = useState(WEB_STATUS);
+  const [sourceNotice, setSourceNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const native = isTauriNative();
     setRuntime(native ? "native" : "web");
     setStatus(native ? NATIVE_STATUS : WEB_STATUS);
+
+    if (!native) return;
+    setNativeHealth("checking");
+    setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
+    void nativeWeebCentralHealth().then((ok) => {
+      if (cancelled) return;
+      setNativeHealth(ok ? "reachable" : "unreachable");
+      setSourceNotice(
+        ok
+          ? "Native bridge connected · WeebCentral homepage is reachable from this device."
+          : "Native bridge connected · WeebCentral did not accept the direct health request from this device.",
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -43,6 +64,7 @@ export function BrowseView() {
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setStatus(runtime === "native" ? "Searching WeebCentral from this device…" : "Searching manga sources…");
+      if (runtime === "native") setSourceNotice("Native WeebCentral search in progress…");
       let nativeError: string | undefined;
 
       if (runtime === "native") {
@@ -51,11 +73,16 @@ export function BrowseView() {
           if (cancelled) return;
           if (nativeItems.length) {
             setResults(nativeItems);
+            setNativeHealth("reachable");
+            setSourceNotice(`Using WeebCentral directly from this device · ${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"}.`);
             setStatus(`${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
             return;
           }
+          setSourceNotice("WeebCentral answered the native search but returned no matching titles. Trying MangaDex…");
         } catch (error) {
           nativeError = error instanceof Error ? error.message : "Native WeebCentral unavailable";
+          setNativeHealth("unreachable");
+          setSourceNotice(`Native WeebCentral failed: ${nativeError} · Trying MangaDex fallback…`);
         }
       }
 
@@ -72,10 +99,19 @@ export function BrowseView() {
           : body.warning && source === "MangaDex"
             ? " · WeebCentral is unavailable from this host, so MangaDex was used."
             : "";
+        if (runtime === "native") {
+          setSourceNotice(
+            nativeError
+              ? `Showing ${source} fallback · native WeebCentral error: ${nativeError}`
+              : `Showing ${source} fallback because native WeebCentral returned no matching titles.`,
+          );
+        }
         setStatus(`${items.length} result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
       } catch (error) {
         if (!cancelled && (error as Error).name !== "AbortError") {
-          setStatus(error instanceof Error ? error.message : "Search unavailable");
+          const message = error instanceof Error ? error.message : "Search unavailable";
+          setStatus(message);
+          if (runtime === "native") setSourceNotice(`Search failed: ${message}`);
         }
       }
     }, 320);
@@ -87,6 +123,12 @@ export function BrowseView() {
     };
   }, [query, runtime]);
 
+  const nativeDot = nativeHealth === "reachable"
+    ? "bg-emerald-400"
+    : nativeHealth === "unreachable"
+      ? "bg-amber-400"
+      : "bg-pink-400";
+
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
       <PageHeading
@@ -95,8 +137,8 @@ export function BrowseView() {
         subtitle={status}
         actions={
           <span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400">
-            <span className={`size-1.5 rounded-full ${runtime === "native" ? "bg-pink-400" : "bg-emerald-400"}`} />
-            {runtime === "native" ? "Native WeebCentral + MangaDex" : "WeebCentral + MangaDex fallback"}
+            <span className={`size-1.5 rounded-full ${runtime === "native" ? nativeDot : "bg-emerald-400"}`} />
+            {runtime === "native" ? "Native shell · WeebCentral + MangaDex" : "WeebCentral + MangaDex fallback"}
           </span>
         }
       />
@@ -112,6 +154,11 @@ export function BrowseView() {
             autoComplete="off"
           />
         </label>
+        {runtime === "native" && sourceNotice ? (
+          <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5 ${nativeHealth === "unreachable" ? "border-amber-300/20 bg-amber-300/[.05] text-amber-200/80" : "border-pink-300/15 bg-pink-300/[.04] text-zinc-400"}`}>
+            {sourceNotice}
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-zinc-600">
           <span className="rounded-full bg-white/[.035] px-2.5 py-1">Try: fantasy</span>
           <span className="rounded-full bg-white/[.035] px-2.5 py-1">romance</span>
