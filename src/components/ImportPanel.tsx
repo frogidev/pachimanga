@@ -139,12 +139,14 @@ export function ImportPanel() {
       const out = await parseBackup(file);
       const deduped = dedupeCandidates(out.manga);
       const library = await readExistingLibrary();
-      const linked = deduped.items.map((item) => ({ ...item, selected: true, match: linkCandidate(item, library) ?? undefined }));
+      const linked = deduped.items.map((item) => ({ ...item, selected: item.favorite !== false, match: linkCandidate(item, library) ?? undefined }));
       setItems(linked);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
-      setStatus(`Found ${out.manga.length} titles${deduped.merged ? `, ${deduped.merged} duplicate rows merged` : ''}${auto ? `, ${auto} linked to WeebCentral` : ''}${dupes ? `, ${dupes} already in your library` : ''}. Review and match them before importing.`);
+      const extra = linked.filter((item) => item.favorite === false).length;
+      const selected = linked.filter((item) => item.selected).length;
+      setStatus(`Found ${out.manga.length} titles${deduped.merged ? `, ${deduped.merged} duplicate rows merged` : ''}${auto ? `, ${auto} linked to WeebCentral` : ''}${dupes ? `, ${dupes} already in your library` : ''}. ${selected} library titles pre-selected${extra ? ` (${extra} non-library rows left unticked)` : ''}. Review and match them before importing.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Import failed');
     }
