@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
-import { weebCentralSource } from '@/sources/weebcentral/weebcentral-source';
+import {
+  getWeebCentralTransport,
+  weebCentralSource,
+} from '@/sources/weebcentral/weebcentral-source';
 
 export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get('q')?.trim() || '';
-  if (!query) return NextResponse.json({ items: [], source: null });
+  const transport = getWeebCentralTransport();
+  if (!query) return NextResponse.json({ items: [], source: null, transport });
 
   let weebCentralError: string | undefined;
   try {
     const items = await weebCentralSource.search(query);
-    if (items.length) return NextResponse.json({ items, source: 'WeebCentral' });
+    if (items.length) return NextResponse.json({ items, source: 'WeebCentral', transport });
   } catch (error) {
     weebCentralError = error instanceof Error ? error.message : 'WeebCentral unavailable';
   }
@@ -19,6 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       items,
       source: 'MangaDex',
+      transport,
       warning: weebCentralError,
     });
   } catch (error) {
@@ -27,6 +32,7 @@ export async function GET(request: Request) {
       {
         items: [],
         source: null,
+        transport,
         error: [weebCentralError, mangaDexError].filter(Boolean).join(' · '),
       },
       { status: 502 },
