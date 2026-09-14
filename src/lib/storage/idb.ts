@@ -149,3 +149,22 @@ export async function idbDelete(
     deleteFallback(store, keyField, key);
   }
 }
+
+export async function idbClear(store: StoreName): Promise<void> {
+  if (typeof window !== "undefined") localStorage.removeItem(fallbackKey(store));
+  if (!hasIndexedDb()) return;
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).clear();
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // Fallback storage was already cleared above.
+  }
+}
