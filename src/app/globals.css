@@ -163,6 +163,7 @@ button, select { cursor: pointer; }
   transition: border-color .16s ease, background .16s ease;
 }
 .field:focus { border-color: rgba(255, 120, 180, .5); background: #191722; }
+.field:focus-visible { outline: 2px solid rgba(255, 120, 180, .8); outline-offset: 1px; }
 .button-primary {
   border-radius: 11px;
   background: linear-gradient(90deg, #ff7ab5, #ff9ac9);

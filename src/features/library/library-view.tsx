@@ -101,7 +101,7 @@ export function LibraryView() {
           <h1 className="pixel-heading text-[2.1rem] leading-[1.03] text-white sm:text-[2.65rem]">
             Welcome to <span className="text-pink-400">Pachimanga</span>
           </h1>
-          <p className="mt-2 text-sm text-zinc-400 sm:text-base">Your private manga library, synced to your account.</p>
+          <p className="mt-2 text-sm text-zinc-400 sm:text-base">Organize. Read. Sync. Your manga. Everywhere.</p>
         </header>
 
         <div className="mt-6 flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -140,7 +140,7 @@ export function LibraryView() {
             <button
               key={item}
               onClick={() => setFilter(item)}
-              className={`shrink-0 rounded-[10px] border px-4 py-2 text-xs font-medium transition ${
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition ${
                 filter === item
                   ? "border-pink-300/70 bg-pink-400 text-[#28101b] shadow-[0_6px_18px_rgba(255,105,170,.13)]"
                   : "border-white/[.08] bg-[#14141d] text-zinc-400 hover:border-white/[.14] hover:text-zinc-100"
@@ -194,8 +194,8 @@ export function LibraryView() {
         <div className="promo-strip mt-8 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
           <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-pink-400/10 font-mono text-2xl text-pink-300">▣</div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <div className="font-semibold text-zinc-100">Build your own collection.</div>
-            <div className="mt-1 text-sm text-zinc-500">Only manga attached to your account appears here.</div>
+            <div className="font-semibold text-zinc-100">A new chapter is always a good idea.</div>
+            <div className="mt-1 text-sm text-zinc-500">Keep reading, keep collecting, keep enjoying!</div>
           </div>
           <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#ff80b9] to-[#ff9bc9] px-5 py-3 text-sm font-bold text-[#28101b] shadow-[0_10px_24px_rgba(255,112,174,.12)] transition hover:brightness-105">Browse Manga <span className="ml-2">→</span></Link>
         </div>

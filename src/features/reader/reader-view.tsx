@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
+import { prefersReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer } from "@/features/reader/reader-state";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
@@ -26,8 +27,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const previousChapter = chapterIndex >= 0 && chapterIndex < chapters.length - 1 ? chapters[chapterIndex + 1] : undefined;
   const nextChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : undefined;
   const speed = useMemo(() => effectiveSpeed(settings.baseSpeedPxPerSecond, settings.autoScrollMultiplier), [settings]);
+  const reducedMotion = useMemo(() => prefersReducedMotion(), []);
   const pause = useCallback(() => dispatch({ type: "pause" }), []);
-  useAutoScroll({ playing: state.autoScrollPlaying, speedPxPerSecond: speed, onEnd: pause });
+  useAutoScroll({ playing: state.autoScrollPlaying && !reducedMotion, speedPxPerSecond: speed, onEnd: pause });
 
   const persistCurrentProgress = useCallback(() => {
     if (!hydrated) return;
@@ -118,10 +120,18 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   return (
     <div className="min-h-dvh bg-black text-white" onClick={toggleControls} onMouseMove={() => dispatch({ type: "show-controls" })}>
       <div className="mx-auto flex min-h-dvh w-full max-w-[1200px] flex-col items-center bg-zinc-950">
-        {pages.map((page, index) => {
+        {!hydrated ? (
+          <div role="status" aria-label="Loading chapter" className="flex w-full flex-col items-center gap-3 py-10">
+            {[0, 1].map((skeleton) => (
+              <div key={skeleton} aria-hidden="true" className="aspect-[3/4] w-full max-w-[800px] animate-pulse rounded-lg bg-white/[.05]" />
+            ))}
+            <span className="text-sm text-zinc-500">Loading chapter…</span>
+          </div>
+        ) : pages.map((page, index) => {
           const hasDimensions = Boolean(page.width && page.height);
           return (
-            <div key={page.index} data-page-index={index} className={`flex w-full justify-center bg-zinc-900 ${index > 0 ? "border-t border-black" : ""}`}>
+            <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 ${index > 0 ? "border-t border-black" : ""}`}>
+              {!hasDimensions && <div aria-hidden="true" className="aspect-[3/4] w-full max-w-[1200px] bg-white/[.04]" />}
               <Image
                 src={page.imageUrl}
                 alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
@@ -136,6 +146,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
             </div>
           );
         })}
+
       </div>
 
       <div className={`fixed inset-x-0 top-0 z-50 transition duration-200 ${state.controlsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
@@ -150,7 +161,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         <div className="mx-auto max-w-xl px-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-4">
           <div className="rounded-3xl border border-white/10 bg-black/85 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-4">
             <div className="flex items-center gap-3">
-              <button type="button" onClick={() => dispatch({ type: "toggle-play" })} className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-base font-black text-zinc-950 hover:bg-emerald-300" aria-label={state.autoScrollPlaying ? "Pause auto-scroll" : "Play auto-scroll"}>{state.autoScrollPlaying ? "Ⅱ" : "▶"}</button>
+              <button type="button" onClick={() => dispatch({ type: "toggle-play" })} disabled={reducedMotion} title={reducedMotion ? "Auto-scroll stays off while your system requests reduced motion" : undefined} className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-base font-black text-zinc-950 hover:bg-emerald-300 disabled:opacity-40 disabled:hover:bg-emerald-400" aria-label={reducedMotion ? "Auto-scroll unavailable with reduced motion" : state.autoScrollPlaying ? "Pause auto-scroll" : "Play auto-scroll"}>{state.autoScrollPlaying && !reducedMotion ? "Ⅱ" : "▶"}</button>
               <div className="min-w-0 flex-1"><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-medium text-zinc-200">Auto-scroll</span><span className="tabular-nums text-zinc-500">{settings.autoScrollMultiplier.toFixed(settings.autoScrollMultiplier % 1 ? 2 : 0)}× · {Math.round(speed)} px/s</span></div><input type="range" min="0.1" max="5" step="0.05" value={settings.autoScrollMultiplier} onChange={(event) => updateSettings({ autoScrollMultiplier: Number(event.target.value) })} className="w-full accent-emerald-400" aria-label="Auto-scroll speed" /></div>
               <div className="flex shrink-0 gap-1"><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Decrease auto-scroll speed">−</button><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, 1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Increase auto-scroll speed">+</button></div>
             </div>
