@@ -12,11 +12,18 @@ import {
 } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
-const WEB_STATUS = "Search WeebCentral with MangaDex as an automatic fallback.";
+const WEB_STATUS = "PWA/web uses the private WeebCentral relay when available, with MangaDex fallback.";
 const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
 
 type RuntimeMode = "checking" | "web" | "native";
-type NativeHealth = "idle" | "checking" | "reachable" | "unreachable";
+type SourceHealth = "idle" | "checking" | "reachable" | "unreachable";
+
+type WebRelayStatus = {
+  configured?: boolean;
+  reachable?: boolean;
+  transport?: "relay" | "direct";
+  error?: string;
+};
 
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
@@ -26,7 +33,7 @@ export function BrowseView() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Manga[]>(MOCK_MANGA);
   const [runtime, setRuntime] = useState<RuntimeMode>("checking");
-  const [nativeHealth, setNativeHealth] = useState<NativeHealth>("idle");
+  const [sourceHealth, setSourceHealth] = useState<SourceHealth>("idle");
   const [status, setStatus] = useState(WEB_STATUS);
   const [sourceNotice, setSourceNotice] = useState<string | null>(null);
 
@@ -35,19 +42,41 @@ export function BrowseView() {
     const native = isTauriNative();
     setRuntime(native ? "native" : "web");
     setStatus(native ? NATIVE_STATUS : WEB_STATUS);
+    setSourceHealth("checking");
 
-    if (!native) return;
-    setNativeHealth("checking");
-    setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
-    void probeNativeWeebCentral().then((probe) => {
-      if (cancelled) return;
-      setNativeHealth(probe.ok ? "reachable" : "unreachable");
-      setSourceNotice(
-        probe.ok
-          ? "Native bridge connected · WeebCentral homepage is reachable from this device."
-          : `Native bridge connected, but the WeebCentral health request failed: ${probe.error || "unknown native error"}`,
-      );
-    });
+    if (native) {
+      setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
+      void probeNativeWeebCentral().then((probe) => {
+        if (cancelled) return;
+        setSourceHealth(probe.ok ? "reachable" : "unreachable");
+        setSourceNotice(
+          probe.ok
+            ? "Native bridge connected · WeebCentral is reachable directly from this device."
+            : `Native bridge connected, but WeebCentral health failed: ${probe.error || "unknown native error"}`,
+        );
+      });
+    } else {
+      setSourceNotice("Checking private WeebCentral relay for PWA/web…");
+      void fetch("/api/source/weebcentral/status", { cache: "no-store" })
+        .then(async (response) => {
+          const body = (await response.json()) as WebRelayStatus;
+          if (cancelled) return;
+          const relayReady = Boolean(body.configured && body.reachable && body.transport === "relay");
+          setSourceHealth(relayReady ? "reachable" : "unreachable");
+          setSourceNotice(
+            relayReady
+              ? "Private WeebCentral relay connected · PWA/web has full WeebCentral access."
+              : body.configured
+                ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."} MangaDex remains available.`
+                : "Private WeebCentral relay is not configured yet · MangaDex fallback remains available.",
+          );
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          setSourceHealth("unreachable");
+          setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)} · MangaDex remains available.`);
+        });
+    }
 
     return () => {
       cancelled = true;
@@ -78,7 +107,7 @@ export function BrowseView() {
           if (cancelled) return;
           if (nativeItems.length) {
             setResults(nativeItems);
-            setNativeHealth("reachable");
+            setSourceHealth("reachable");
             setSourceNotice(`Using WeebCentral directly from this device · ${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"}.`);
             setStatus(`${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
             return;
@@ -86,7 +115,7 @@ export function BrowseView() {
           setSourceNotice("WeebCentral answered the native search but returned no matching titles. Trying MangaDex…");
         } catch (error) {
           nativeError = nativeErrorMessage(error);
-          setNativeHealth("unreachable");
+          setSourceHealth("unreachable");
           setSourceNotice(`Native WeebCentral failed: ${nativeError} · Trying MangaDex fallback…`);
         }
       }
@@ -99,24 +128,34 @@ export function BrowseView() {
         const items = body.items || [];
         setResults(items);
         const source = body.source || "source";
+        const viaRelay = runtime === "web" && source === "WeebCentral" && body.transport === "relay";
         const fallbackNote = runtime === "native" && nativeError
           ? ` · Native WeebCentral unavailable (${nativeError}); ${source} was used.`
           : body.warning && source === "MangaDex"
-            ? " · WeebCentral is unavailable from this host, so MangaDex was used."
-            : "";
+            ? " · WeebCentral is unavailable, so MangaDex was used."
+            : viaRelay
+              ? " · private relay"
+              : "";
+
         if (runtime === "native") {
           setSourceNotice(
             nativeError
               ? `Showing ${source} fallback · native WeebCentral error: ${nativeError}`
               : `Showing ${source} fallback because native WeebCentral returned no matching titles.`,
           );
+        } else if (viaRelay) {
+          setSourceHealth("reachable");
+          setSourceNotice(`Using WeebCentral through the private relay · ${items.length} result${items.length === 1 ? "" : "s"}.`);
+        } else if (body.warning) {
+          setSourceHealth("unreachable");
+          setSourceNotice(`Showing ${source} fallback · ${body.warning}`);
         }
         setStatus(`${items.length} result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
       } catch (error) {
         if (!cancelled && (error as Error).name !== "AbortError") {
           const message = nativeErrorMessage(error);
           setStatus(message);
-          if (runtime === "native") setSourceNotice(`Search failed: ${message}`);
+          setSourceNotice(`Search failed: ${message}`);
         }
       }
     }, 320);
@@ -128,11 +167,17 @@ export function BrowseView() {
     };
   }, [query, runtime]);
 
-  const nativeDot = nativeHealth === "reachable"
+  const sourceDot = sourceHealth === "reachable"
     ? "bg-emerald-400"
-    : nativeHealth === "unreachable"
+    : sourceHealth === "unreachable"
       ? "bg-amber-400"
       : "bg-pink-400";
+
+  const runtimeLabel = runtime === "native"
+    ? "Native · WeebCentral + MangaDex"
+    : sourceHealth === "reachable"
+      ? "PWA/Web · private relay + MangaDex"
+      : "PWA/Web · MangaDex fallback";
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
@@ -142,8 +187,8 @@ export function BrowseView() {
         subtitle={status}
         actions={
           <span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400">
-            <span className={`size-1.5 rounded-full ${runtime === "native" ? nativeDot : "bg-emerald-400"}`} />
-            {runtime === "native" ? "Native shell · WeebCentral + MangaDex" : "WeebCentral + MangaDex fallback"}
+            <span className={`size-1.5 rounded-full ${sourceDot}`} />
+            {runtimeLabel}
           </span>
         }
       />
@@ -159,8 +204,8 @@ export function BrowseView() {
             autoComplete="off"
           />
         </label>
-        {runtime === "native" && sourceNotice ? (
-          <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5 ${nativeHealth === "unreachable" ? "border-amber-300/20 bg-amber-300/[.05] text-amber-200/80" : "border-pink-300/15 bg-pink-300/[.04] text-zinc-400"}`}>
+        {sourceNotice ? (
+          <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5 ${sourceHealth === "unreachable" ? "border-amber-300/20 bg-amber-300/[.05] text-amber-200/80" : "border-pink-300/15 bg-pink-300/[.04] text-zinc-400"}`}>
             {sourceNotice}
           </div>
         ) : null}

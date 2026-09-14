@@ -20,7 +20,7 @@ export default function SettingsPage() {
 
   return (
     <div className="app-page max-w-4xl">
-      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune the reader, manage sync, and keep your imports under control." />
+      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune the reader, manage sync, and install Pachimanga on your devices." />
       <div className="mt-6 grid gap-4">
         <section className="surface-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
@@ -52,6 +52,13 @@ export default function SettingsPage() {
               <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'screen' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'screen' })}>Fit screen</button>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-pink-300/15 bg-pink-300/[.045] p-5 sm:p-6">
+          <div className="grid size-10 place-items-center rounded-xl bg-pink-400/10 text-pink-300">PWA</div>
+          <h2 className="mt-4 font-semibold text-zinc-100">Free install for iPhone & iPad</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">Install Pachimanga from Safari using Add to Home Screen. No Apple Developer membership or seven-day sideload refresh is required.</p>
+          <Link href="/install" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Installation guide</Link>
         </section>
 
         <div className="grid gap-4 md:grid-cols-2">
