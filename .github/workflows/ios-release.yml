@@ -1,0 +1,106 @@
+name: iOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without v prefix (for example 0.4.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      IOS_MOBILE_PROVISION_BASE64: ${{ secrets.IOS_MOBILE_PROVISION_BASE64 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify release version
+        run: node scripts/check-native-version.mjs
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.11" --locked
+
+      - name: Require Apple signing credentials
+        shell: bash
+        run: |
+          test -n "$APPLE_CERTIFICATE"
+          test -n "$APPLE_CERTIFICATE_PASSWORD"
+          test -n "$APPLE_SIGNING_IDENTITY"
+          test -n "$APPLE_TEAM_ID"
+          test -n "$IOS_MOBILE_PROVISION_BASE64"
+
+      - name: Import signing certificate
+        shell: bash
+        run: |
+          CERT_PATH="$RUNNER_TEMP/apple-signing.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/pachimanga-signing.keychain-db"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "actions" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "actions" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "actions" "$KEYCHAIN_PATH"
+
+      - name: Install provisioning profile
+        shell: bash
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/pachimanga.mobileprovision"
+          printf '%s' "$IOS_MOBILE_PROVISION_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+      - name: Generate native icons
+        run: cargo tauri icon public/icons/icon-512.png
+
+      - name: Initialize iOS project
+        run: cargo tauri ios init
+
+      - name: Build signed iOS app
+        run: cargo tauri ios build
+
+      - name: Collect IPA
+        shell: bash
+        run: |
+          mkdir -p dist/ios
+          find src-tauri/gen/apple -type f -name '*.ipa' -exec cp {} dist/ios/ \;
+          if ! find dist/ios -type f -name '*.ipa' | grep -q .; then
+            echo 'No IPA was produced. Apple provisioning/export settings may still need App Store Connect configuration.' >&2
+            exit 1
+          fi
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: pachimanga-ios-${{ env.RELEASE_VERSION }}
+          path: dist/ios/*.ipa
+          if-no-files-found: error
+          retention-days: 30
