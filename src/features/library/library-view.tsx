@@ -5,9 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PachiMascot } from "@/components/pachi-mascot";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
-import { MOCK_MANGA } from "@/lib/mock-data";
 import { isTauriNative } from "@/lib/native/tauri-bridge";
-import { getLibraryEntries, seedLibrary } from "@/lib/storage/reader-storage";
+import { getLibraryEntries } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 
 type SortMode = "recent" | "title";
@@ -36,25 +35,30 @@ export function LibraryView() {
   const [filter, setFilter] = useState<FilterMode>("All");
   const [view, setView] = useState<ViewMode>("grid");
   const [native, setNative] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const nativeRuntime = isTauriNative();
-    void seedLibrary(MOCK_MANGA.slice(0, 6).map((m) => m.id)).then((current) => {
-      if (!cancelled) {
-        setNative(nativeRuntime);
-        setEntries(current);
-        setReady(true);
-      }
-    });
+    setNative(isTauriNative());
 
-    const onLibraryChange = () => {
-      void getLibraryEntries().then((result) => {
-        if (!cancelled) setEntries(result);
-      });
+    const refresh = async () => {
+      try {
+        const result = await getLibraryEntries();
+        if (!cancelled) {
+          setEntries(result);
+          setLoadError(null);
+        }
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Could not load your library.");
+      } finally {
+        if (!cancelled) setReady(true);
+      }
     };
 
+    void refresh();
+
+    const onLibraryChange = () => void refresh();
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -72,10 +76,9 @@ export function LibraryView() {
   }, []);
 
   const manga = useMemo(() => {
-    const mock = new Map(MOCK_MANGA.map((m) => [m.id, m]));
     const q = query.trim().toLowerCase();
     const pairs = entries
-      .map((entry) => ({ entry, manga: entry.manga || mock.get(entry.mangaId) }))
+      .map((entry) => ({ entry, manga: entry.manga }))
       .filter((item): item is { entry: LibraryEntry; manga: Manga } => Boolean(item.manga))
       .filter((item) => !q || item.manga.title.toLowerCase().includes(q) || item.manga.genres.some((genre) => genre.toLowerCase().includes(q)))
       .filter((item) => {
@@ -99,7 +102,7 @@ export function LibraryView() {
           <h1 className="pixel-heading text-[2.1rem] leading-[1.03] text-white sm:text-[2.65rem]">
             Welcome to <span className="text-pink-400">Pachimanga</span>
           </h1>
-          <p className="mt-2 text-sm text-zinc-400 sm:text-base">Organize. Read. Sync. Your manga. Everywhere.</p>
+          <p className="mt-2 text-sm text-zinc-400 sm:text-base">Your private manga library, synced to your account.</p>
         </header>
 
         <div className="mt-6 flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -160,6 +163,8 @@ export function LibraryView() {
           <span className="pb-1 text-xs text-zinc-500">{manga.length} title{manga.length === 1 ? "" : "s"}</span>
         </div>
 
+        {loadError ? <div className="mt-4 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80">{loadError}</div> : null}
+
         {!ready ? (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
             {Array.from({ length: 6 }, (_, index) => <div key={index} className="aspect-[2/3.55] animate-pulse rounded-2xl bg-white/[.045]" />)}
@@ -168,7 +173,7 @@ export function LibraryView() {
           <div className={`mt-4 grid gap-x-3 gap-y-5 sm:gap-x-4 ${view === "compact" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
             {manga.map(({ manga: title, entry }) => (
               <MangaCard
-                key={title.id}
+                key={`${entry.sourceId}-${title.id}`}
                 manga={title}
                 progress={entry.progress}
                 href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
@@ -176,24 +181,24 @@ export function LibraryView() {
             ))}
           </div>
         ) : (
-          <div className="mt-8 flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">
+          <div className="mt-8 flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">
             <PachiMascot className="h-24 w-28" />
-            <h3 className="mt-1 font-semibold text-zinc-200">Nothing in this view</h3>
-            <p className="mt-1 max-w-md text-sm leading-6 text-zinc-500">Try another filter or search term. Your saved manga stays on this device.</p>
+            <h3 className="mt-1 font-semibold text-zinc-200">Your library is empty</h3>
+            <p className="mt-1 max-w-md text-sm leading-6 text-zinc-500">Search the catalog to add manga, or import an existing Tachiyomi, Mihon or Tachimanga library into this account.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Link href="/browse" className="button-primary px-4 py-2.5 text-sm">Browse manga</Link>
+              <Link href="/import" className="button-secondary px-4 py-2.5 text-sm">Import library</Link>
+            </div>
           </div>
         )}
 
         <div className="promo-strip mt-8 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
           <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-pink-400/10 font-mono text-2xl text-pink-300">▣</div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <div className="font-semibold text-zinc-100">A new chapter is always a good idea.</div>
-            <div className="mt-1 text-sm text-zinc-500">Keep reading, keep collecting, keep enjoying.</div>
+            <div className="font-semibold text-zinc-100">Build your own collection.</div>
+            <div className="mt-1 text-sm text-zinc-500">Only manga attached to your account appears here.</div>
           </div>
           <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#ff80b9] to-[#ff9bc9] px-5 py-3 text-sm font-bold text-[#28101b] shadow-[0_10px_24px_rgba(255,112,174,.12)] transition hover:brightness-105">Browse Manga <span className="ml-2">→</span></Link>
-        </div>
-
-        <div className="mt-5 flex items-center justify-center gap-2 font-mono text-[9px] text-zinc-600">
-          <span>made with</span><span className="text-pink-500">♡</span><span>for manga lovers</span><span className="text-zinc-700">·</span><span>calico approved</span>
         </div>
       </div>
     </div>
