@@ -1,0 +1,67 @@
+name: Native Quality
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/**"
+      - "src-tauri/**"
+      - "src/lib/native/**"
+      - "src/features/native/**"
+      - "src/features/reader/**"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "scripts/**"
+      - "src-tauri/**"
+      - "src/lib/native/**"
+      - "src/features/native/**"
+      - "src/features/reader/**"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Check Rust shell
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+      - name: Check version consistency
+        run: node scripts/check-native-version.mjs
