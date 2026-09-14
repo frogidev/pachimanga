@@ -40,6 +40,17 @@ function sourceName(sourceId: string) {
   return "this source";
 }
 
+function summarizeReadState(chapters: Chapter[], map: Record<string, number>) {
+  const readNumbers = chapters
+    .filter((chapter) => (map[chapter.id] ?? 0) >= 99)
+    .map((chapter) => Number(chapter.chapterNumber || 0))
+    .filter((n) => n > 0);
+  return {
+    progress: chapters.length ? Math.round((readNumbers.length / chapters.length) * 100) : 0,
+    lastChapterRead: readNumbers.length ? Math.max(...readNumbers) : 0,
+  };
+}
+
 export function MangaDetail({
   manga,
   chapters,
@@ -127,7 +138,10 @@ export function MangaDetail({
           percentage,
           updatedAt: new Date().toISOString(),
         });
-        if (!cancelled) await setEntryProgress(manga.id, { progress: percentage });
+        if (!cancelled) {
+          setChapterProgress((map) => ({ ...map, [best.id]: percentage }));
+          await setEntryProgress(manga.id, { progress: percentage });
+        }
       } catch {
         // Imported-progress resolution is best-effort; the reader still works without it.
       }
@@ -148,13 +162,13 @@ export function MangaDetail({
   }
 
   async function toggleChapterRead(chapter: Chapter) {
-    if (busyChapter) return;
+    if (busyChapter || bulk) return;
     const read = (chapterProgress[chapter.id] ?? 0) >= 99;
+    const next = read ? 0 : 100;
     setBusyChapter(chapter.id);
     try {
       if (read) {
         await clearProgress(chapter.id);
-        setChapterProgress((map) => ({ ...map, [chapter.id]: 0 }));
       } else {
         await saveProgress({
           mangaId: manga.id,
@@ -164,8 +178,11 @@ export function MangaDetail({
           percentage: 100,
           updatedAt: new Date().toISOString(),
         });
-        setChapterProgress((map) => ({ ...map, [chapter.id]: 100 }));
       }
+      const map = { ...chapterProgress, [chapter.id]: next };
+      setChapterProgress(map);
+      const summary = summarizeReadState(chapters, map);
+      await setEntryProgress(manga.id, { progress: summary.progress, lastChapterRead: summary.lastChapterRead }).catch(() => {});
     } finally {
       setBusyChapter(null);
     }
@@ -176,6 +193,8 @@ export function MangaDetail({
     if (!window.confirm(`${label} (${targets.length} chapter${targets.length === 1 ? "" : "s"} of "${manga.title}")?`)) return;
     bulkCancel.current = false;
     setBulk({ done: 0, total: targets.length, label });
+    const base = { ...chapterProgress };
+    const acc: Record<string, number> = {};
     try {
       const now = new Date().toISOString();
       let done = 0;
@@ -194,9 +213,12 @@ export function MangaDetail({
           await clearProgress(chapter.id);
         }
         done += 1;
+        acc[chapter.id] = read ? 100 : 0;
         setBulk({ done, total: targets.length, label });
         setChapterProgress((map) => ({ ...map, [chapter.id]: read ? 100 : 0 }));
       }
+      const summary = summarizeReadState(chapters, { ...base, ...acc });
+      await setEntryProgress(manga.id, { progress: summary.progress, lastChapterRead: summary.lastChapterRead }).catch(() => {});
     } finally {
       setBulk(null);
     }

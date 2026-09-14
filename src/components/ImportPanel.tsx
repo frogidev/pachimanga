@@ -6,7 +6,7 @@ import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import { parseSeriesIdFromUrl } from '@/sources/weebcentral/endpoints';
 import type { ImportManga } from '@/lib/imports/types';
-import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, setEntryProgress } from '@/lib/storage/reader-storage';
+import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, setEntryProgress } from '@/lib/storage/reader-storage';
 import type { Manga } from '@/types/models';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean };
@@ -238,6 +238,33 @@ export function ImportPanel() {
                 : undefined;
             await setEntryProgress(manga.id, { progress, lastChapterRead, lastPageRead });
             withProgress += 1;
+          }
+          if (
+            lastChapterRead > 0 &&
+            (manga.sourceId === 'weebcentral' || manga.sourceId === 'mangadex' || manga.sourceId === 'comick')
+          ) {
+            try {
+              const response = await fetch(
+                `/api/source/chapters?source=${manga.sourceId}&mangaId=${encodeURIComponent(manga.id)}`
+              );
+              const body = await response.json();
+              const list = (body.chapters || []) as { id: string; chapterNumber: number }[];
+              const now = new Date().toISOString();
+              for (const item of list) {
+                if (Number(item.chapterNumber) > 0 && Number(item.chapterNumber) <= lastChapterRead) {
+                  await saveProgress({
+                    mangaId: manga.id,
+                    chapterId: item.id,
+                    pageIndex: 0,
+                    scrollPosition: 0,
+                    percentage: 100,
+                    updatedAt: now,
+                  });
+                }
+              }
+            } catch {
+              // Per-chapter marks are best-effort; the entry numbers still land above.
+            }
           }
         } catch (error) {
           failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
