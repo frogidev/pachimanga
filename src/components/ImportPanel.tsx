@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import type { ImportManga } from '@/lib/imports/types';
@@ -34,6 +35,8 @@ export function ImportPanel() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
   const [matching, setMatching] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importedCount, setImportedCount] = useState<number | null>(null);
 
   async function backup(file: File) {
     setStatus('Reading backup…');
@@ -84,16 +87,33 @@ export function ImportPanel() {
   }
 
   async function save() {
+    const chosen = items.filter((item) => item.selected !== false);
+    if (!chosen.length) {
+      setStatus('Select at least one title first.');
+      return;
+    }
+    setImporting(true);
+    setImportedCount(null);
+    const failed: string[] = [];
     try {
-      const chosen = items.filter((item) => item.selected !== false);
-      setStatus(`Importing ${chosen.length} titles into your account…`);
       for (let index = 0; index < chosen.length; index += 1) {
-        const manga = importedManga(chosen[index], index);
-        await addLibraryEntry(manga.id, manga.sourceId, manga);
+        setStatus(`Importing ${index + 1} of ${chosen.length} titles into your account…`);
+        try {
+          const manga = importedManga(chosen[index], index);
+          await addLibraryEntry(manga.id, manga.sourceId, manga);
+        } catch (error) {
+          failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
+        }
       }
-      setStatus(`Imported ${chosen.length} titles into your private library. Unmatched titles remain marked as imported until you match them to a source.`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not save import');
+      const done = chosen.length - failed.length;
+      setImportedCount(done);
+      setStatus(
+        failed.length
+          ? `Imported ${done} of ${chosen.length} titles. Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
+          : `Imported ${done} titles into your private library. Unmatched titles remain marked as imported until you match them to a source.`
+      );
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -120,7 +140,7 @@ export function ImportPanel() {
         </label>
       </div>
 
-      {status ? <div className="rounded-xl border border-white/[.07] bg-white/[.03] px-4 py-3 text-sm text-zinc-400">{status}</div> : null}
+      {status ? <div className="rounded-xl border border-white/[.07] bg-white/[.03] px-4 py-3 text-sm text-zinc-400">{status}{importedCount !== null && importedCount > 0 ? <> <Link href="/library" className="text-pink-300 hover:text-pink-200">View your library →</Link></> : null}</div> : null}
       {warnings.map((warning) => <div className="rounded-xl border border-amber-300/15 bg-amber-400/[.05] px-4 py-3 text-sm text-amber-300" key={warning}>{warning}</div>)}
 
       {items.length > 0 ? (
@@ -131,10 +151,10 @@ export function ImportPanel() {
               <strong className="mt-1 block text-zinc-100">{items.length} candidates</strong>
             </div>
             <span className="flex-1" />
-            <button className="button-secondary px-4 py-2 text-sm" onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true })))}>Select all</button>
-            <button className="button-secondary px-4 py-2 text-sm" onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false })))}>Select none</button>
-            <button disabled={matching} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match first 20'}</button>
-            <button className="button-primary px-4 py-2 text-sm" onClick={() => void save()}>Import selected</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true })))}>Select all</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false })))}>Select none</button>
+            <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match first 20'}</button>
+            <button disabled={importing} className="button-primary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void save()}>{importing ? 'Importing…' : 'Import selected'}</button>
           </div>
 
           <div className="grid gap-2 p-3 sm:p-4">
