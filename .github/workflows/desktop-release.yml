@@ -7,12 +7,9 @@ on:
         description: Release version without v prefix (for example 0.4.1)
         required: true
         type: string
-  push:
-    tags:
-      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: desktop-release-${{ github.ref }}
@@ -33,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:
-      RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+      RELEASE_VERSION: ${{ inputs.version }}
       WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -49,18 +46,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Normalize release version (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: echo "RELEASE_VERSION=${RELEASE_VERSION#v}" >> "$GITHUB_ENV"
-
-      - name: Normalize release version (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $v = $env:RELEASE_VERSION -replace '^v',''
-          "RELEASE_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - uses: actions/setup-node@v4
         with:
@@ -174,18 +159,3 @@ jobs:
             src-tauri/target/release/bundle/**/*.app.tar.gz
           if-no-files-found: error
           retention-days: 30
-
-      - name: Attach artifacts to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.rpm
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.asc
-            src-tauri/target/release/bundle/**/SHA256SUMS
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app.tar.gz
