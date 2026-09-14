@@ -1,5 +1,6 @@
 import { unzipSync } from 'fflate';
 import initSqlJs, { type Database, type SqlValue } from 'sql.js';
+import { detectTmbKind } from './tmb-format';
 import type { ImportResult, ImportManga } from './types';
 
 function findDb(entries: Record<string, Uint8Array>) {
@@ -19,9 +20,27 @@ function firstExisting(names: string[], candidates: string[]) {
 }
 
 export async function parseTachimanga(file: File): Promise<ImportResult> {
-  const zip = unzipSync(new Uint8Array(await file.arrayBuffer()));
-  const bytes = findDb(zip);
-  if (!bytes) throw new Error('No SQLite database was found inside this Tachimanga backup.');
+  const raw = new Uint8Array(await file.arrayBuffer());
+  const kind = detectTmbKind(raw);
+  if (kind === 'unknown') {
+    throw new Error(
+      'This .tmb file is not a supported Tachimanga backup variant (expected a zip or a raw SQLite database). Export a fresh backup from Tachimanga and try again.'
+    );
+  }
+  let bytes: Uint8Array;
+  if (kind === 'sqlite') {
+    bytes = raw;
+  } else {
+    let zip: Record<string, Uint8Array>;
+    try {
+      zip = unzipSync(raw);
+    } catch {
+      throw new Error('This .tmb archive could not be opened. Export a fresh backup from Tachimanga and try again.');
+    }
+    const found = findDb(zip);
+    if (!found) throw new Error('No SQLite database was found inside this Tachimanga backup.');
+    bytes = found;
+  }
   const SQL = await initSqlJs({ locateFile: () => '/sql-wasm.wasm' });
   const db = new SQL.Database(bytes);
   const names = tableNames(db);
