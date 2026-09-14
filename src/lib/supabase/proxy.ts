@@ -7,10 +7,7 @@ function isPublicPath(pathname: string) {
 
 function copySessionState(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((cookie) => to.cookies.set(cookie));
-  for (const key of ['cache-control', 'expires', 'pragma']) {
-    const value = from.headers.get(key);
-    if (value) to.headers.set(key, value);
-  }
+  to.headers.set('Cache-Control', 'private, no-store');
   return to;
 }
 
@@ -33,17 +30,17 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet, headers) {
+      setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options));
-        Object.entries(headers).forEach(([header, value]) => supabaseResponse.headers.set(header, value));
       },
     },
   });
 
   const { data } = await supabase.auth.getClaims();
   const authenticated = Boolean(data?.claims?.sub);
+  supabaseResponse.headers.set('Cache-Control', 'private, no-store');
 
   if (!authenticated && !isPublicPath(request.nextUrl.pathname)) {
     const redirectTo = request.nextUrl.clone();
