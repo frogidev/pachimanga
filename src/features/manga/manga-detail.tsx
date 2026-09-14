@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MockCoverArt } from "@/components/mock-cover-art";
-import { addLibraryEntry, getLibraryEntries, removeLibraryEntry } from "@/lib/storage/reader-storage";
+import { addLibraryEntry, getLibraryEntries, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import type { Chapter, Manga } from "@/types/models";
 
 type ExternalReadLink = { label: string; url: string };
@@ -64,6 +64,41 @@ export function MangaDetail({
     });
     return () => { cancelled = true; };
   }, [manga.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const entries = await getLibraryEntries();
+        const entry = entries.find((item) => item.mangaId === manga.id);
+        if (cancelled || !entry || entry.progress != null) return;
+        const lastChapter = Number(entry.lastChapterRead || 0);
+        if (!lastChapter || !chapters.length) return;
+        const numbers = chapters.map((chapter) => Number(chapter.chapterNumber || 0)).filter((n) => n > 0);
+        const max = Math.max(...numbers, lastChapter);
+        const best = chapters.reduce<Chapter | null>((acc, chapter) => {
+          const n = Number(chapter.chapterNumber || 0);
+          if (n <= 0 || n > lastChapter) return acc;
+          if (!acc || n > Number(acc.chapterNumber || 0)) return chapter;
+          return acc;
+        }, null);
+        if (!best) return;
+        const percentage = Math.max(0, Math.min(99, Math.round((lastChapter / max) * 100)));
+        await saveProgress({
+          mangaId: manga.id,
+          chapterId: best.id,
+          pageIndex: Math.max(0, Number(entry.lastPageRead || 0)),
+          scrollPosition: 0,
+          percentage,
+          updatedAt: new Date().toISOString(),
+        });
+        if (!cancelled) await setEntryProgress(manga.id, { progress: percentage });
+      } catch {
+        // Imported-progress resolution is best-effort; the reader still works without it.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [manga.id, chapters]);
 
   async function toggleLibrary() {
     setBusy(true);

@@ -10,6 +10,12 @@ function findDb(entries: Record<string, Uint8Array>) {
   return key ? entries[key] : null;
 }
 
+function remoteCoverUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const url = value.trim();
+  return /^https?:\/\//i.test(url) ? url : undefined;
+}
+
 function unzipBestEffort(raw: Uint8Array, label: string): Record<string, Uint8Array> {
   try {
     return unzipEntries(raw);
@@ -72,10 +78,11 @@ function readTachideskLibrary(db: Database, names: string[]): ImportManga[] | nu
     const chapterCols = columnSet(db, 'Chapter');
     for (const col of ['id', 'title', 'in_library']) if (!mangaCols.has(col)) return null;
     for (const col of ['manga', 'chapter_number', 'read', 'last_page_read']) if (!chapterCols.has(col)) return null;
+    const hasCover = mangaCols.has('thumbnail_url');
     const rows = db.exec(
       `select m.id, m.title, m.real_url, m.url, m.in_library,
         (select max(c.chapter_number) from Chapter c where c.manga = m.id and (c.read or c.last_page_read > 0)),
-        (select c2.last_page_read from Chapter c2 where c2.manga = m.id and (c2.read or c2.last_page_read > 0) order by c2.chapter_number desc limit 1)
+        (select c2.last_page_read from Chapter c2 where c2.manga = m.id and (c2.read or c2.last_page_read > 0) order by c2.chapter_number desc limit 1)${hasCover ? ', m.thumbnail_url' : ''}
       from Manga m`
     )[0]?.values as SqlValue[][] | undefined;
     if (!rows) return [];
@@ -96,6 +103,7 @@ function readTachideskLibrary(db: Database, names: string[]): ImportManga[] | nu
     return rows.map((row) => ({
       title: String(row[1] || 'Untitled'),
       sourceUrl: String(row[2] || row[3] || '') || undefined,
+      coverUrl: hasCover ? remoteCoverUrl(row[7]) : undefined,
       favorite: Number(row[4] || 0) !== 0,
       lastChapterRead: Number(row[5] || 0),
       lastPageRead: Number(row[6] || 0),
@@ -121,9 +129,11 @@ function readGenericTable(db: Database, names: string[]): ImportManga[] {
   const urlI = idx('url', 'mangaurl', 'sourceurl');
   const favoriteI = idx('favorite', 'isfavorite', 'inlibrary');
   const lastChapterI = idx('lastchapterread', 'last_read_chapter', 'lastchapter');
+  const coverI = idx('thumbnail_url', 'thumbnailurl', 'cover', 'coverurl');
   return result.values.map((row: SqlValue[]) => ({
     title: titleI >= 0 ? String(row[titleI] || 'Untitled') : 'Untitled',
     sourceUrl: urlI >= 0 ? String(row[urlI] || '') : undefined,
+    coverUrl: coverI >= 0 ? remoteCoverUrl(row[coverI]) : undefined,
     favorite: favoriteI >= 0 ? Boolean(row[favoriteI]) : true,
     lastChapterRead: lastChapterI >= 0 ? Number(row[lastChapterI] || 0) : 0,
   }));

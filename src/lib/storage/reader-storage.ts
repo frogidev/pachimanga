@@ -100,6 +100,8 @@ export async function getLibraryEntries() {
       manga: cached?.manga || placeholderManga(row),
       lastReadAt: cached?.lastReadAt,
       progress: cached?.progress,
+      lastChapterRead: cached?.lastChapterRead,
+      lastPageRead: cached?.lastPageRead,
     };
     return entry;
   });
@@ -140,6 +142,18 @@ export async function removeLibraryEntry(mangaId: string) {
   const { error } = await auth.sb.from('library_entries').delete().eq('user_id', auth.user.id).eq('manga_id', mangaId);
   if (error) throw error;
   await idbDelete('library', mangaId);
+  window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+}
+
+export async function setEntryProgress(
+  mangaId: string,
+  patch: { progress?: number; lastChapterRead?: number; lastPageRead?: number }
+) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const entry = await idbGet<LibraryEntry>('library', mangaId);
+  if (!entry) return;
+  await idbPut('library', { ...entry, ...patch } as unknown as Record<string, unknown>);
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
 }
 

@@ -238,6 +238,7 @@ export function LibraryView() {
                 progress={entry.progress}
                 href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
                 onRemove={() => void removeEntry(entry, title.title)}
+                lastChapterRead={entry.lastChapterRead}
               />
             ))}
           </div>

@@ -6,7 +6,7 @@ import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import { parseSeriesIdFromUrl } from '@/sources/weebcentral/endpoints';
 import type { ImportManga } from '@/lib/imports/types';
-import { addLibraryEntry, getLibraryEntries } from '@/lib/storage/reader-storage';
+import { addLibraryEntry, getLibraryEntries, setEntryProgress } from '@/lib/storage/reader-storage';
 import type { Manga } from '@/types/models';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean };
@@ -22,7 +22,7 @@ function weebCentralMatch(item: ImportManga): Manga | null {
     title: item.title,
     alternativeTitles: [],
     description: '',
-    coverUrl: '',
+    coverUrl: item.coverUrl || '',
     author: '',
     artist: '',
     status: 'unknown',
@@ -38,6 +38,13 @@ async function readExistingLibrary(): Promise<Manga[]> {
   } catch {
     return [];
   }
+}
+
+function matchSourceLabel(sourceId: string): string {
+  if (sourceId === 'weebcentral') return 'WeebCentral';
+  if (sourceId === 'mangadex') return 'MangaDex';
+  if (sourceId === 'comick') return 'ComicK';
+  return 'your library';
 }
 
 function linkCandidate(item: ImportManga, library: Manga[]): Manga | null {
@@ -56,7 +63,7 @@ function importedManga(item: Candidate, index: number): Manga {
     title: item.title,
     alternativeTitles: [],
     description: '',
-    coverUrl: '',
+    coverUrl: item.coverUrl || '',
     author: '',
     artist: '',
     status: 'unknown',
@@ -109,11 +116,26 @@ export function ImportPanel() {
       setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match: direct } : candidate));
       return true;
     }
-    const response = await fetch(`/api/source/weebcentral/search?q=${encodeURIComponent(item.title)}`);
-    const body = await response.json();
-    const match = (body.items || [])[0] as Manga | undefined;
-    setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
-    return Boolean(match);
+    try {
+      const response = await fetch(`/api/source/weebcentral/search?q=${encodeURIComponent(item.title)}`);
+      const body = await response.json();
+      const match = (body.items || [])[0] as Manga | undefined;
+      if (match) {
+        setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
+        return true;
+      }
+    } catch {
+      // fall through to multi-source search
+    }
+    try {
+      const response = await fetch(`/api/source/search?q=${encodeURIComponent(item.title)}`);
+      const body = await response.json();
+      const match = (body.items || [])[0] as Manga | undefined;
+      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
+      return Boolean(match);
+    } catch {
+      return false;
+    }
   }
 
   async function matchBatch() {
@@ -146,6 +168,11 @@ export function ImportPanel() {
         try {
           const manga = importedManga(chosen[index], index);
           await addLibraryEntry(manga.id, manga.sourceId, manga);
+          const lastChapterRead = Number(chosen[index].lastChapterRead || 0);
+          const lastPageRead = Number(chosen[index].lastPageRead || 0);
+          if (lastChapterRead > 0 || lastPageRead > 0) {
+            await setEntryProgress(manga.id, { lastChapterRead, lastPageRead });
+          }
         } catch (error) {
           failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
         }
@@ -208,7 +235,7 @@ export function ImportPanel() {
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
                   <input className="w-full bg-transparent font-medium text-zinc-200 outline-none" value={manga.title} onChange={(event) => patch(index, { title: event.target.value, match: undefined })} />
-                  <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · ${manga.match.sourceId === 'weebcentral' ? 'WeebCentral' : 'your library'}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · ${matchSourceLabel(manga.match.sourceId)}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
                 </div>
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
                 <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
