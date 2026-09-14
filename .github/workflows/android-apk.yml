@@ -67,13 +67,13 @@ jobs:
       - name: Initialize Android project
         run: cargo tauri android init
 
-      - name: Build test APK
-        run: cargo tauri android build --apk --target aarch64
+      - name: Build installable test APK
+        run: cargo tauri android build --debug --apk --target aarch64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: pachimanga-android-arm64
+          name: pachimanga-android-arm64-debug
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
