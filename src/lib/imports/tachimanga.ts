@@ -10,11 +10,12 @@ function findDb(entries: Record<string, Uint8Array>) {
   return key ? entries[key] : null;
 }
 
-function unzipBestEffort(raw: Uint8Array): Record<string, Uint8Array> {
+function unzipBestEffort(raw: Uint8Array, label: string): Record<string, Uint8Array> {
   try {
     return unzipSync(raw);
-  } catch {
-    throw new Error('This .tmb archive could not be opened. Export a fresh backup from Tachimanga and try again.');
+  } catch (error) {
+    const reason = error instanceof Error ? `${error.constructor.name}: ${error.message}` : String(error);
+    throw new Error(`This .tmb archive (${label}, ${(raw.length / 1024).toFixed(0)} KB) could not be opened [${reason}]. Export a fresh backup from Tachimanga and try again.`);
   }
 }
 
@@ -39,9 +40,9 @@ export async function parseTachimanga(file: File): Promise<ImportResult> {
   if (kind === 'sqlite') {
     bytes = raw;
   } else {
-    const outer = unzipBestEffort(raw);
+    const outer = unzipBestEffort(raw, 'outer');
     const nested = outer['contents.zip'];
-    const entries = nested ? unzipBestEffort(nested) : outer;
+    const entries = nested ? unzipBestEffort(nested, 'contents.zip') : outer;
     const found = findDb(entries);
     if (!found) throw new Error('No SQLite database was found inside this Tachimanga backup.');
     bytes = found;
