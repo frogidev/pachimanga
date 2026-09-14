@@ -6,7 +6,7 @@ import { MangaCard } from "@/components/manga-card";
 import { PachiMascot } from "@/components/pachi-mascot";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
 import { isTauriNative } from "@/lib/native/tauri-bridge";
-import { getLibraryEntries } from "@/lib/storage/reader-storage";
+import { getLibraryEntries, removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 
 type SortMode = "recent" | "title";
@@ -126,6 +126,28 @@ export function LibraryView() {
     return pairs;
   }, [entries, filter, query, sort]);
 
+  const unmatchedImports = useMemo(() => manga.filter((item) => item.manga.sourceId === "import"), [manga]);
+
+  async function removeEntry(entry: LibraryEntry, title: string) {
+    if (!window.confirm(`Remove "${title}" from your library?`)) return;
+    try {
+      await removeLibraryEntry(entry.mangaId);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not remove this title.");
+    }
+  }
+
+  async function purgeUnmatchedImports() {
+    const count = unmatchedImports.length;
+    if (!count) return;
+    if (!window.confirm(`Remove ${count} unmatched imported title${count === 1 ? "" : "s"} from your library? Matched titles are kept.`)) return;
+    try {
+      for (const item of unmatchedImports) await removeLibraryEntry(item.entry.mangaId);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not clear unmatched imports.");
+    }
+  }
+
   return (
     <div className="min-h-dvh pb-12">
       <PixelRoomBanner />
@@ -193,7 +215,12 @@ export function LibraryView() {
               <h2 className="mt-0.5 text-[1.65rem] font-bold tracking-[-.035em] text-white">Your Library</h2>
             </div>
           </div>
-          <span className="pb-1 text-xs text-zinc-500">{manga.length} title{manga.length === 1 ? "" : "s"}</span>
+          <div className="flex items-center gap-3 pb-1">
+            {unmatchedImports.length ? (
+              <button type="button" onClick={() => void purgeUnmatchedImports()} className="text-xs text-zinc-500 transition hover:text-red-300">Clear {unmatchedImports.length} unmatched import{unmatchedImports.length === 1 ? "" : "s"}</button>
+            ) : null}
+            <span className="text-xs text-zinc-500">{manga.length} title{manga.length === 1 ? "" : "s"}</span>
+          </div>
         </div>
 
         {loadError ? <div className="mt-4 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80">{loadError}</div> : null}
@@ -210,6 +237,7 @@ export function LibraryView() {
                 manga={title}
                 progress={entry.progress}
                 href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
+                onRemove={() => void removeEntry(entry, title.title)}
               />
             ))}
           </div>

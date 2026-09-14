@@ -52,8 +52,8 @@ export function ImportPanel() {
     setProgress(0);
     try {
       const titles = await extractTitlesFromImage(file, setProgress);
-      setItems(titles.map((title) => ({ title, favorite: true, selected: true })));
-      setStatus(`OCR found ${titles.length} candidate titles. Review and match them before importing.`);
+      setItems(titles.map((title) => ({ title, favorite: true, selected: false })));
+      setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed');
     }
@@ -131,6 +131,8 @@ export function ImportPanel() {
               <strong className="mt-1 block text-zinc-100">{items.length} candidates</strong>
             </div>
             <span className="flex-1" />
+            <button className="button-secondary px-4 py-2 text-sm" onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true })))}>Select all</button>
+            <button className="button-secondary px-4 py-2 text-sm" onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false })))}>Select none</button>
             <button disabled={matching} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match first 20'}</button>
             <button className="button-primary px-4 py-2 text-sm" onClick={() => void save()}>Import selected</button>
           </div>
@@ -144,6 +146,7 @@ export function ImportPanel() {
                   <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · WeebCentral` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
                 </div>
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
+                <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
               </div>
             ))}
           </div>
