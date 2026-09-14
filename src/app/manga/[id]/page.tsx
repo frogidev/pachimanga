@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { MangaDetail } from '@/features/manga/manga-detail';
-import { getMockChapters, getMockManga } from '@/lib/mock-data';
 import { comickSource } from '@/sources/comick/comick-source';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
 import { weebCentralSource } from '@/sources/weebcentral/weebcentral-source';
@@ -43,8 +42,7 @@ async function resolve(id: string) {
     }
   }
 
-  const manga = getMockManga(id);
-  return manga ? { manga, chapters: getMockChapters(manga.id) } : null;
+  return null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
