@@ -39,47 +39,51 @@ export function BrowseView() {
 
   useEffect(() => {
     let cancelled = false;
-    const native = isTauriNative();
-    setRuntime(native ? "native" : "web");
-    setStatus(native ? NATIVE_STATUS : WEB_STATUS);
-    setSourceHealth("checking");
+    const startupTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      const native = isTauriNative();
+      setRuntime(native ? "native" : "web");
+      setStatus(native ? NATIVE_STATUS : WEB_STATUS);
+      setSourceHealth("checking");
 
-    if (native) {
-      setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
-      void probeNativeWeebCentral().then((probe) => {
-        if (cancelled) return;
-        setSourceHealth(probe.ok ? "reachable" : "unreachable");
-        setSourceNotice(
-          probe.ok
-            ? "Native bridge connected · WeebCentral is reachable directly from this device."
-            : `Native bridge connected, but WeebCentral health failed: ${probe.error || "unknown native error"}`,
-        );
-      });
-    } else {
-      setSourceNotice("Checking private WeebCentral relay for PWA/web…");
-      void fetch("/api/source/weebcentral/status", { cache: "no-store" })
-        .then(async (response) => {
-          const body = (await response.json()) as WebRelayStatus;
+      if (native) {
+        setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
+        void probeNativeWeebCentral().then((probe) => {
           if (cancelled) return;
-          const relayReady = Boolean(body.configured && body.reachable && body.transport === "relay");
-          setSourceHealth(relayReady ? "reachable" : "unreachable");
+          setSourceHealth(probe.ok ? "reachable" : "unreachable");
           setSourceNotice(
-            relayReady
-              ? "Private WeebCentral relay connected · PWA/web has full WeebCentral access."
-              : body.configured
-                ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."} MangaDex remains available.`
-                : "Private WeebCentral relay is not configured yet · MangaDex fallback remains available.",
+            probe.ok
+              ? "Native bridge connected · WeebCentral is reachable directly from this device."
+              : `Native bridge connected, but WeebCentral health failed: ${probe.error || "unknown native error"}`,
           );
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          setSourceHealth("unreachable");
-          setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)} · MangaDex remains available.`);
         });
-    }
+      } else {
+        setSourceNotice("Checking private WeebCentral relay for PWA/web…");
+        void fetch("/api/source/weebcentral/status", { cache: "no-store" })
+          .then(async (response) => {
+            const body = (await response.json()) as WebRelayStatus;
+            if (cancelled) return;
+            const relayReady = Boolean(body.configured && body.reachable && body.transport === "relay");
+            setSourceHealth(relayReady ? "reachable" : "unreachable");
+            setSourceNotice(
+              relayReady
+                ? "Private WeebCentral relay connected · PWA/web has full WeebCentral access."
+                : body.configured
+                  ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."} MangaDex remains available.`
+                  : "Private WeebCentral relay is not configured yet · MangaDex fallback remains available.",
+            );
+          })
+          .catch((error) => {
+            if (cancelled) return;
+            setSourceHealth("unreachable");
+            setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)} · MangaDex remains available.`);
+          });
+      }
+    }, 0);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(startupTimer);
     };
   }, []);
 

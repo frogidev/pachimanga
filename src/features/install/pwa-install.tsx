@@ -27,8 +27,10 @@ export function PwaInstall() {
   const [installResult, setInstallResult] = useState<string | null>(null);
 
   useEffect(() => {
-    setAppleMobile(detectAppleMobile());
-    setInstalled(isStandalone());
+    const detectionTimer = window.setTimeout(() => {
+      setAppleMobile(detectAppleMobile());
+      setInstalled(isStandalone());
+    }, 0);
 
     const onPrompt = (event: Event) => {
       event.preventDefault();
@@ -43,6 +45,7 @@ export function PwaInstall() {
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
+      window.clearTimeout(detectionTimer);
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };

@@ -19,22 +19,25 @@ export function NativeReaderLoader({ chapterId }: { chapterId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!isTauriNative()) {
-      setError("This reader route requires the installed Pachimanga native app.");
-      return;
-    }
-    if (!chapterId.startsWith("wc-")) {
-      setError("This native route only supports WeebCentral chapters.");
-      return;
-    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (!isTauriNative()) {
+        setError("This reader route requires the installed Pachimanga native app.");
+        return;
+      }
+      if (!chapterId.startsWith("wc-")) {
+        setError("This native route only supports WeebCentral chapters.");
+        return;
+      }
 
-    void getNativeWeebCentralChapterContext(chapterId)
-      .then((context) => {
-        if (!cancelled) setData(context);
-      })
-      .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "WeebCentral is unavailable from this device.");
-      });
+      void getNativeWeebCentralChapterContext(chapterId)
+        .then((context) => {
+          if (!cancelled) setData(context);
+        })
+        .catch((reason) => {
+          if (!cancelled) setError(reason instanceof Error ? reason.message : "WeebCentral is unavailable from this device.");
+        });
+    });
 
     return () => {
       cancelled = true;

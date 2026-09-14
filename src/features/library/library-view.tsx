@@ -40,9 +40,10 @@ export function LibraryView() {
 
   useEffect(() => {
     let cancelled = false;
-    setNative(isTauriNative());
+    const nativeRuntime = isTauriNative();
     void seedLibrary(MOCK_MANGA.slice(0, 6).map((m) => m.id)).then((current) => {
       if (!cancelled) {
+        setNative(nativeRuntime);
         setEntries(current);
         setReady(true);
       }

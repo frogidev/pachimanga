@@ -16,25 +16,28 @@ export function NativeMangaView({ id }: { id: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    if (!isTauriNative()) {
-      setError("This WeebCentral route requires the installed Pachimanga native app.");
-      return;
-    }
-    if (!id.startsWith("wc-")) {
-      setError("This native route only supports WeebCentral titles.");
-      return;
-    }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (!isTauriNative()) {
+        setError("This WeebCentral route requires the installed Pachimanga native app.");
+        return;
+      }
+      if (!id.startsWith("wc-")) {
+        setError("This native route only supports WeebCentral titles.");
+        return;
+      }
 
-    void Promise.all([
-      getNativeWeebCentralManga(id),
-      getNativeWeebCentralChapters(id),
-    ])
-      .then(([manga, chapters]) => {
-        if (!cancelled) setData({ manga, chapters });
-      })
-      .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "WeebCentral is unavailable from this device.");
-      });
+      void Promise.all([
+        getNativeWeebCentralManga(id),
+        getNativeWeebCentralChapters(id),
+      ])
+        .then(([manga, chapters]) => {
+          if (!cancelled) setData({ manga, chapters });
+        })
+        .catch((reason) => {
+          if (!cancelled) setError(reason instanceof Error ? reason.message : "WeebCentral is unavailable from this device.");
+        });
+    });
 
     return () => {
       cancelled = true;
