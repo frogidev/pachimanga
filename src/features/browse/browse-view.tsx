@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PageHeading } from "@/components/page-heading";
 import { MOCK_MANGA } from "@/lib/mock-data";
-import { isTauriNative, nativeWeebCentralHealth, searchNativeWeebCentral } from "@/lib/native/tauri-bridge";
+import {
+  isTauriNative,
+  nativeErrorMessage,
+  probeNativeWeebCentral,
+  searchNativeWeebCentral,
+} from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
 const WEB_STATUS = "Search WeebCentral with MangaDex as an automatic fallback.";
@@ -34,13 +39,13 @@ export function BrowseView() {
     if (!native) return;
     setNativeHealth("checking");
     setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
-    void nativeWeebCentralHealth().then((ok) => {
+    void probeNativeWeebCentral().then((probe) => {
       if (cancelled) return;
-      setNativeHealth(ok ? "reachable" : "unreachable");
+      setNativeHealth(probe.ok ? "reachable" : "unreachable");
       setSourceNotice(
-        ok
+        probe.ok
           ? "Native bridge connected · WeebCentral homepage is reachable from this device."
-          : "Native bridge connected · WeebCentral did not accept the direct health request from this device.",
+          : `Native bridge connected, but the WeebCentral health request failed: ${probe.error || "unknown native error"}`,
       );
     });
 
@@ -80,7 +85,7 @@ export function BrowseView() {
           }
           setSourceNotice("WeebCentral answered the native search but returned no matching titles. Trying MangaDex…");
         } catch (error) {
-          nativeError = error instanceof Error ? error.message : "Native WeebCentral unavailable";
+          nativeError = nativeErrorMessage(error);
           setNativeHealth("unreachable");
           setSourceNotice(`Native WeebCentral failed: ${nativeError} · Trying MangaDex fallback…`);
         }
@@ -109,7 +114,7 @@ export function BrowseView() {
         setStatus(`${items.length} result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
       } catch (error) {
         if (!cancelled && (error as Error).name !== "AbortError") {
-          const message = error instanceof Error ? error.message : "Search unavailable";
+          const message = nativeErrorMessage(error);
           setStatus(message);
           if (runtime === "native") setSourceNotice(`Search failed: ${message}`);
         }
