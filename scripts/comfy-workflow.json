@@ -1,0 +1,42 @@
+{
+  "$comment": "ComfyUI API prompt graph (POST as {prompt: this object} to /prompt). $PROMPT is substituted by scripts/comfy-generate.mjs. Checkpoint file must exist in ComfyUI models/checkpoints.",
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "pixel-art-sd15.safetensors" }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "$PROMPT", "clip": ["1", 1] }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "blurry, photorealistic, watermark, text, logo, copyrighted character", "clip": ["1", 1] }
+  },
+  "4": {
+    "class_type": "EmptyLatentImage",
+    "inputs": { "width": 768, "height": 512, "batch_size": 1 }
+  },
+  "5": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["4", 0],
+      "seed": 7,
+      "steps": 20,
+      "cfg": 7,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1
+    }
+  },
+  "6": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["5", 0], "vae": ["1", 2] }
+  },
+  "7": {
+    "class_type": "SaveImage",
+    "inputs": { "images": ["6", 0], "filename_prefix": "pachi" }
+  }
+}
