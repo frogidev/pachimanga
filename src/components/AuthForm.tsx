@@ -36,15 +36,28 @@ export function AuthForm() {
   const [signedIn, setSignedIn] = useState<string | null>(null);
 
   useEffect(() => {
-    const sb = createClient();
-    void sb.auth.getUser().then(async ({ data }) => {
-      setSignedIn(data.user?.email || null);
-      if (data.user) await bindCurrentUserCache();
-    });
-    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(session?.user.email || null);
-    });
-    return () => subscription.unsubscribe();
+    let subscription: { unsubscribe: () => void } | null = null;
+    let cancelled = false;
+    try {
+      const sb = createClient();
+      void sb.auth.getUser().then(async ({ data }) => {
+        if (cancelled) return;
+        setSignedIn(data.user?.email || null);
+        if (data.user) await bindCurrentUserCache();
+      });
+      const listener = sb.auth.onAuthStateChange((_event, session) => {
+        if (!cancelled) setSignedIn(session?.user.email || null);
+      });
+      subscription = listener.data.subscription;
+    } catch {
+      void Promise.resolve().then(() => {
+        if (!cancelled) setOverride('Authentication is temporarily unavailable.');
+      });
+    }
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   async function submit(event: FormEvent) {

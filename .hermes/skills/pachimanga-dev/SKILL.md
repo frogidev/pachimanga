@@ -19,6 +19,15 @@ Work from the repository root and treat `AGENTS.md` as authoritative project con
 8. Review the final diff for accidental generated files, secrets, debug logging, unrelated formatting churn, and native-release changes.
 9. Summarize only what changed, what was validated, and any remaining blocker.
 
+## Local AI delegation
+
+`opencode run --model ollama/gpt-oss:20b` is the VRAM-safe local worker
+(qwen3-coder:30b exceeds the 16GB GPU and is banned). Scope it to one file
+and one concern per task with exact anchor lines: it handles copy/class edits
+well but produces broken JSX and abandoned half-edits on structural work.
+Always re-read its diff, repair by hand where needed, and run the quality gate
+yourself — never trust its self-report of completion.
+
 ## Git behavior
 
 - Prefer working on the currently designated work branch when one exists.
