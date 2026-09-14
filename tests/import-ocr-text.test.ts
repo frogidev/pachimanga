@@ -11,7 +11,11 @@ describe("ocr-text junk filter", () => {
     assert.equal(isOcrJunk("i 4"), true);
   });
 
-  it("drops app chrome words", () => {
+  it("drops status-bar, nav-rail debris and app chrome", () => {
+    assert.equal(isOcrJunk("PM Mon Sep 14 Tachimanga = @ 280% EM"), true);
+    assert.equal(isOcrJunk("(a) Library Cy = 4d"), true);
+    assert.equal(isOcrJunk("Bac G5"), true);
+    assert.equal(isOcrJunk("Library X Tie Baily % lg 35"), true);
     assert.equal(isOcrJunk("Library"), true);
     assert.equal(isOcrJunk("Browse"), true);
     assert.equal(isOcrJunk("Updates"), true);

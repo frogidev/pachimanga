@@ -16,7 +16,8 @@ export function isOcrJunk(value: string): boolean {
   if (letters < 3) return true;
   if (letters / value.length < 0.4) return true;
   if (/^chapter\b/i.test(value)) return true;
-  if (/[|;[\]{}<>]/.test(value)) return true;
+  if (/[|;[\]{}<>=%@]/.test(value)) return true;
+  if (value.length < 8 && /\d/.test(value)) return true;
   if (APP_CHROME.has(value.toLowerCase())) return true;
   return false;
 }
