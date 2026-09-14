@@ -82,6 +82,7 @@ export function ImportPanel() {
   const [importedCount, setImportedCount] = useState<number | null>(null);
   const [wiping, setWiping] = useState(false);
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
+  const [taskProgress, setTaskProgress] = useState<{ done: number; total: number } | null>(null);
 
   function refreshLibraryCount() {
     void Promise.resolve()
@@ -174,12 +175,14 @@ export function ImportPanel() {
     try {
       for (let n = 0; n < pending.length; n += 1) {
         setStatus(`Matching ${n + 1} of ${pending.length} titles…`);
+        setTaskProgress({ done: n + 1, total: pending.length });
         if (await findMatch(pending[n].index)) found += 1;
         await sleep(250);
       }
       setStatus(`Matched ${found} of ${pending.length} titles. Review the rest individually or import the remainder as-is.`);
     } finally {
       setMatching(false);
+      setTaskProgress(null);
     }
   }
 
@@ -195,6 +198,7 @@ export function ImportPanel() {
     try {
       for (let index = 0; index < chosen.length; index += 1) {
         setStatus(`Importing ${index + 1} of ${chosen.length} titles into your account…`);
+        setTaskProgress({ done: index + 1, total: chosen.length });
         try {
           const manga = importedManga(chosen[index], index);
           await addLibraryEntry(manga.id, manga.sourceId, manga);
@@ -216,6 +220,7 @@ export function ImportPanel() {
       );
     } finally {
       setImporting(false);
+      setTaskProgress(null);
       void refreshLibraryCount();
     }
   }
@@ -244,6 +249,11 @@ export function ImportPanel() {
       </div>
 
       {status ? <div className="rounded-xl border border-white/[.07] bg-white/[.03] px-4 py-3 text-sm text-zinc-400">{status}{importedCount !== null && importedCount > 0 ? <> <Link href="/library" className="text-pink-300 hover:text-pink-200">View your library →</Link></> : null}</div> : null}
+      {taskProgress ? (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.06]" role="progressbar" aria-valuenow={taskProgress.done} aria-valuemin={0} aria-valuemax={taskProgress.total} aria-label="Import progress">
+          <div className="h-full rounded-full bg-gradient-to-r from-pink-400 to-sky-300 transition-[width]" style={{ width: `${Math.round((taskProgress.done / Math.max(1, taskProgress.total)) * 100)}%` }} />
+        </div>
+      ) : null}
       {warnings.map((warning) => <div className="rounded-xl border border-amber-300/15 bg-amber-400/[.05] px-4 py-3 text-sm text-amber-300" key={warning}>{warning}</div>)}
 
       {items.length > 0 ? (
