@@ -66,6 +66,12 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Prepare Tauri icon fixture
+        shell: bash
+        run: |
+          mkdir -p src-tauri/icons
+          cp public/icons/icon-512.png src-tauri/icons/icon.png
+
       - name: Check Rust shell
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
