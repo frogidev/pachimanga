@@ -42,10 +42,10 @@ jobs:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      SIGN: ${{ runner.os == 'Linux' && '1' || '' }}
+      SIGN: "1"
       SIGN_KEY: ${{ secrets.LINUX_GPG_KEY_ID }}
       APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
-      APPIMAGETOOL_FORCE_SIGN: ${{ runner.os == 'Linux' && '1' || '' }}
+      APPIMAGETOOL_FORCE_SIGN: "1"
 
     steps:
       - uses: actions/checkout@v4
