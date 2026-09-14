@@ -1,10 +1,7 @@
 {
   "identifier": "remote-pachimanga",
-  "description": "Only the trusted Pachimanga production web app can invoke the narrow native WeebCentral bridge.",
+  "description": "Allows the configured Pachimanga production frontend to invoke the narrow native WeebCentral bridge.",
   "windows": ["main"],
-  "local": false,
-  "remote": {
-    "urls": ["https://pachimanga.frogilab.dev/*"]
-  },
+  "local": true,
   "permissions": ["native-weebcentral"]
 }
