@@ -33,6 +33,19 @@ export function isTauriNative() {
   return Boolean(getInvoke());
 }
 
+export function nativeErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // Fall through to String below.
+    }
+  }
+  return String(error || 'Native WeebCentral unavailable');
+}
+
 function rawId(value: string, prefixes: string[]) {
   let id = value;
   for (const prefix of prefixes) {
@@ -52,15 +65,19 @@ async function nativeRequest(operation: NativeOperation, input: { query?: string
   });
 }
 
-export async function nativeWeebCentralHealth() {
+export async function probeNativeWeebCentral(): Promise<{ ok: boolean; error?: string }> {
   const invoke = getInvoke();
-  if (!invoke) return false;
+  if (!invoke) return { ok: false, error: 'Native Pachimanga bridge is unavailable.' };
   try {
     await nativeRequest('health');
-    return true;
-  } catch {
-    return false;
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: nativeErrorMessage(error) };
   }
+}
+
+export async function nativeWeebCentralHealth() {
+  return (await probeNativeWeebCentral()).ok;
 }
 
 export async function searchNativeWeebCentral(query: string): Promise<Manga[]> {
