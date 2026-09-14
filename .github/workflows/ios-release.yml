@@ -1,0 +1,79 @@
+name: iOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without v prefix (for example 0.4.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify release version
+        run: node scripts/check-native-version.mjs
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.11" --locked
+
+      - name: Require iOS signing credentials
+        shell: bash
+        run: |
+          test -n "$IOS_CERTIFICATE"
+          test -n "$IOS_CERTIFICATE_PASSWORD"
+          test -n "$IOS_MOBILE_PROVISION"
+
+      - name: Generate native icons
+        run: cargo tauri icon public/icons/icon-512.png
+
+      - name: Initialize iOS project
+        run: cargo tauri ios init
+
+      - name: Build signed App Store IPA
+        run: cargo tauri ios build --ci --export-method app-store-connect
+
+      - name: Collect IPA
+        shell: bash
+        run: |
+          mkdir -p dist/ios
+          find src-tauri/gen/apple -type f -name '*.ipa' -exec cp {} dist/ios/ \;
+          test -n "$(find dist/ios -type f -name '*.ipa' -print -quit)"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: pachimanga-ios-${{ env.RELEASE_VERSION }}
+          path: dist/ios/*.ipa
+          if-no-files-found: error
+          retention-days: 30
