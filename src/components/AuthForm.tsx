@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState, useSyncExternalStore } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { bindCurrentUserCache, clearLocalUserCache } from '@/lib/storage/reader-storage';
 
@@ -20,12 +20,18 @@ function initialAuthMessage() {
   return '';
 }
 
+function subscribeAuthMessage() {
+  return () => {};
+}
+
 export function AuthForm() {
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState(initialAuthMessage);
+  const urlMessage = useSyncExternalStore(subscribeAuthMessage, initialAuthMessage, () => '');
+  const [override, setOverride] = useState<string | null>(null);
+  const message = override ?? urlMessage;
   const [busy, setBusy] = useState(false);
   const [signedIn, setSignedIn] = useState<string | null>(null);
 
@@ -44,7 +50,7 @@ export function AuthForm() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setMessage('');
+    setOverride('');
     try {
       const sb = createClient();
       if (mode === 'signup') {
@@ -63,7 +69,7 @@ export function AuthForm() {
           router.refresh();
           return;
         }
-        setMessage('Account created. Check your email to confirm the account, then sign in.');
+        setOverride('Account created. Check your email to confirm the account, then sign in.');
       } else {
         const { error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -72,7 +78,7 @@ export function AuthForm() {
         router.refresh();
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Authentication failed');
+      setOverride(error instanceof Error ? error.message : 'Authentication failed');
     } finally {
       setBusy(false);
     }
@@ -80,13 +86,13 @@ export function AuthForm() {
 
   async function reset() {
     if (!email) {
-      setMessage('Enter your email first.');
+      setOverride('Enter your email first.');
       return;
     }
     setBusy(true);
     const sb = createClient();
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth` });
-    setMessage(error ? error.message : 'Password reset email sent.');
+    setOverride(error ? error.message : 'Password reset email sent.');
     setBusy(false);
   }
 
@@ -96,7 +102,7 @@ export function AuthForm() {
     await sb.auth.signOut();
     await clearLocalUserCache();
     setSignedIn(null);
-    setMessage('Signed out on this device.');
+    setOverride('Signed out on this device.');
     router.replace('/auth');
     router.refresh();
     setBusy(false);

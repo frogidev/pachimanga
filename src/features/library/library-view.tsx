@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PachiMascot } from "@/components/pachi-mascot";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
@@ -27,6 +27,10 @@ function ListIcon() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="18" r="1" fill="currentColor" stroke="none"/></svg>;
 }
 
+function subscribeNative() {
+  return () => {};
+}
+
 export function LibraryView() {
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -34,7 +38,7 @@ export function LibraryView() {
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
   const [view, setView] = useState<ViewMode>("grid");
-  const [native] = useState(() => isTauriNative());
+  const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 

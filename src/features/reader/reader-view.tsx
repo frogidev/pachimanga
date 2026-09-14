@@ -3,13 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
-import { prefersReducedMotion } from "@/features/reader/prefers-reduced-motion";
+import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer } from "@/features/reader/reader-state";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
-import { getProgress, getReaderSettings, saveProgress, saveReaderSettings } from "@/lib/storage/reader-storage";
+import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
 import type { Chapter, Manga, Page, ReaderSettings } from "@/types/models";
 
 export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/reader", mangaBasePath = "/manga" }: {
@@ -17,7 +17,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 }) {
   const router = useRouter();
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
-  const [settings, setSettings] = useState<ReaderSettings>(() => getReaderSettings());
+  const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
+  const reducedMotion = useReducedMotion();
   const [hydrated, setHydrated] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const scrollFrame = useRef<number | undefined>(undefined);
@@ -27,7 +28,6 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const previousChapter = chapterIndex >= 0 && chapterIndex < chapters.length - 1 ? chapters[chapterIndex + 1] : undefined;
   const nextChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : undefined;
   const speed = useMemo(() => effectiveSpeed(settings.baseSpeedPxPerSecond, settings.autoScrollMultiplier), [settings]);
-  const reducedMotion = useMemo(() => prefersReducedMotion(), []);
   const pause = useCallback(() => dispatch({ type: "pause" }), []);
   useAutoScroll({ playing: state.autoScrollPlaying && !reducedMotion, speedPxPerSecond: speed, onEnd: pause });
 
@@ -97,7 +97,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   }, [pause, state.autoScrollPlaying]);
 
   const updateSettings = useCallback((patch: Partial<ReaderSettings>) => {
-    setSettings((current) => { const next = { ...current, ...patch }; saveReaderSettings(next); return next; });
+    saveReaderSettings({ ...getReaderSettingsSnapshot(), ...patch });
   }, []);
 
   useEffect(() => {

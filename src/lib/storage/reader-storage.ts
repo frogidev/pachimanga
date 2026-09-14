@@ -266,8 +266,27 @@ export async function loadReaderSettings() {
   return settings;
 }
 
+let settingsVersion = 0;
+let cachedSettings: ReaderSettings | null = null;
+let cachedSettingsVersion = -1;
+
+export function subscribeReaderSettings(listener: () => void) {
+  window.addEventListener("pachimanga:settings-change", listener);
+  return () => window.removeEventListener("pachimanga:settings-change", listener);
+}
+
+export function getReaderSettingsSnapshot(): ReaderSettings {
+  if (!cachedSettings || cachedSettingsVersion !== settingsVersion) {
+    cachedSettings = getReaderSettings();
+    cachedSettingsVersion = settingsVersion;
+  }
+  return cachedSettings;
+}
+
 export function saveReaderSettings(settings: ReaderSettings) {
   localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
+  settingsVersion += 1;
+  window.dispatchEvent(new CustomEvent("pachimanga:settings-change"));
   void (async () => {
     const auth = await requireSignedIn();
     await bindCacheToUser(auth.user.id);
