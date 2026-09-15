@@ -1,6 +1,8 @@
 import type { Chapter, Manga, MangaStatus, Page } from '@/types/models';
 import type { MangaSource } from '@/sources/core/manga-source';
 import { SourceUnavailableError } from '@/sources/core/manga-source';
+import { collectSourcePages } from '@/sources/core/pagination';
+import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 
 const API = 'https://api.mangadex.org';
 const SITE = 'https://mangadex.org';
@@ -106,7 +108,7 @@ async function mdFetch<T>(path: string, revalidate = 300): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12_000);
   try {
-    const response = await fetch(`${API}${path}`, {
+    const response = await fetchWithSourceRetry(`${API}${path}`, {
       headers: {
         Accept: 'application/json',
         'User-Agent': 'Pachimanga/0.4 (+https://pachimanga.frogilab.dev)',
@@ -166,17 +168,26 @@ export class MangaDexSource implements MangaSource {
 
   async getChapters(mangaId: string): Promise<Chapter[]> {
     const rid = rawMangaId(mangaId);
-    const params = new URLSearchParams({ limit: '100' });
-    params.append('translatedLanguage[]', 'en');
-    params.append('order[chapter]', 'desc');
-    params.append('contentRating[]', 'safe');
-    params.append('contentRating[]', 'suggestive');
+    const all = await collectSourcePages<MangaDexChapter>(
+      async (_page, offset, limit) => {
+        const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+        params.append('translatedLanguage[]', 'en');
+        params.append('order[chapter]', 'desc');
+        params.append('contentRating[]', 'safe');
+        params.append('contentRating[]', 'suggestive');
+        const payload = await mdFetch<{ data?: MangaDexChapter[]; total?: number }>(
+          `/manga/${rid}/feed?${params.toString()}`,
+          120,
+        );
+        return { items: payload.data || [], total: payload.total };
+      },
+      { pageSize: 100, maxPages: 5 },
+    );
 
-    const payload = await mdFetch<{ data?: MangaDexChapter[] }>(`/manga/${rid}/feed?${params.toString()}`, 120);
     const seen = new Set<string>();
     const chapters: Chapter[] = [];
 
-    for (const item of payload.data || []) {
+    for (const item of all) {
       const chapterText = item.attributes.chapter || '';
       const volumeText = item.attributes.volume || '';
       const dedupeKey = `${volumeText}:${chapterText || item.id}`;
@@ -209,6 +220,7 @@ export class MangaDexSource implements MangaSource {
 
     const files = payload.chapter.data?.length ? payload.chapter.data : payload.chapter.dataSaver || [];
     const quality = payload.chapter.data?.length ? 'data' : 'data-saver';
+    if (!files.length) throw new SourceUnavailableError('MangaDex', 'no readable page images were found');
     return files.map((fileName, index) => ({
       index,
       imageUrl: `${payload.baseUrl}/${quality}/${payload.chapter.hash}/${fileName}`,
