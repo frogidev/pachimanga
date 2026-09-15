@@ -52,10 +52,11 @@ try {
     Write-Host '  3. Token (read role): https://huggingface.co/settings/tokens'
     $Token = Read-Host 'Paste HF token (empty skips download)'
     if ($Token) {
-      Write-Host 'Downloading (~6.9GB, resumable-ish, be patient)...'
-      Invoke-WebRequest -Uri 'https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors' `
-        -Headers @{ Authorization = "Bearer $Token" } -OutFile "$Ckpt.part" -UseBasicParsing
-      Move-Item -Force "$Ckpt.part" $Ckpt
+      Write-Host 'Downloading (~6.9GB, parallel + resumable, be patient)...'
+      & $Py -m pip install -q huggingface_hub hf_transfer
+      $env:HF_HUB_ENABLE_HF_TRANSFER = '1'
+      & $Py -c "from huggingface_hub import snapshot_download; snapshot_download('stabilityai/stable-diffusion-xl-base-1.0', local_dir='$CkptDir', local_dir_use_symlinks=False, allow_patterns=['sd_xl_base_1.0.safetensors'], token='$Token')"
+      if ($LASTEXITCODE -ne 0) { throw 'Model download failed. Re-run to resume it.' }
       Write-Host 'Checkpoint saved.'
     } else {
       Write-Host 'Skipped. Drop any SDXL/SD1.5 .safetensors into models\checkpoints later.'
