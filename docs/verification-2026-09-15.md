@@ -6,12 +6,30 @@ This file records concrete verification evidence from the current PWA release-ha
 
 Verified during this pass:
 
-- `main` reached `973feba1aa8f308b905955f7ade526a022f25c26` after the offline/account-sync hardening merge.
+- `main` reached `33866e3700ebbe86518f0648db32d1d6e309a58a` after PR #33.
 - `Repository Hygiene` runs on every pull request and every push to `main`.
-- The `main` push for `973feba...` passed `Repository Hygiene` and `Web Quality`.
-- `Web Quality` includes unit tests, lint, typecheck, and a production Next.js build.
-- Active `checkout`/`setup-node` actions were upgraded to v7 while the project runtime remains Node 22.
-- GitHub still has no repository ruleset for `main`; administration work is tracked in issue #10.
+- `Web Quality` now runs on every pull request and every push to `main` so its `quality` result can be used as a stable required check.
+- For hosted-runtime changes, Web Quality runs unit tests, lint, typecheck, and a production Next.js build on Node 22.
+- For docs/agent/native-only changes, Web Quality still reports the `quality` check but skips unnecessary npm/build work.
+- Active `checkout`/`setup-node` actions use v7 while the project runtime remains Node 22.
+
+### `main` ruleset
+
+GitHub ruleset `Protect main` was verified active for the default branch.
+
+Current rules:
+
+- branch deletion blocked;
+- non-fast-forward/force pushes blocked;
+- pull requests required;
+- zero approving reviews required for this single-maintainer/private workflow;
+- review-thread resolution required;
+- squash is the only allowed merge method;
+- branches must be up to date before merge;
+- no bypass actors are configured;
+- `hygiene` is currently required.
+
+PR #33 made `quality` an always-present safe merge check. Add `quality` to the ruleset as the second required check before considering Phase 2 fully complete.
 
 ## Supabase production audit
 
@@ -27,7 +45,8 @@ Verified read-only against production:
 - Repository migration `003_drop_redundant_library_index.sql` matches the cleaned production state.
 - Supabase performance advisor returns no lints.
 - Supabase security advisor has one remaining warning: leaked-password protection is disabled.
-- Enabling leaked-password protection requires an Auth/admin setting not exposed by the connected tools; tracked in issue #14.
+
+The current Supabase plan does not include leaked-password protection. Issue #14 was closed as `not planned` for the current plan. The warning is accepted rather than treated as a release blocker; mandatory accounts, RLS/owner isolation, publishable-key-only browser access, strict recovery redirects, and the existing password minimum remain compensating controls.
 
 No production schema, RLS, auth configuration, or user data was mutated during this audit.
 
@@ -49,9 +68,22 @@ Observed behavior:
 
 The route/session guard implementation also confirms only `/auth...` and `/offline` are intentionally public application paths.
 
+## WeebCentral relay
+
+The relay container image is `ghcr.io/frogidev/pachimanga-weebcentral-relay:latest` and the application expects the relay service on local port `127.0.0.1:8787` behind the Cloudflare tunnel.
+
+Operator follow-up on 2026-09-15:
+
+- the Portainer `pachimanga-relay` stack was updated/redeployed;
+- `pachimanga-weebcentral-relay` reports `healthy` in Portainer;
+- the existing relay token was retained rather than rotated;
+- the Cloudflare relay path was checked as part of the operator rollout.
+
+The authenticated application route for relay status remains intentionally behind the account boundary, so anonymous verification continues to resolve to `/auth`.
+
 ## Sync/account hardening
 
-Merged in PR #22:
+Merged earlier in this pass:
 
 - progress outbox entries record the authenticated `userId`;
 - outbox flush accepts only entries owned by the active user;
@@ -66,18 +98,18 @@ This is defense in depth, not final server-side multi-device conflict prevention
 
 ## Vercel state
 
-The most recent confirmed production deployment before the sync merge was READY for `0942182fe2e9cfb29867ad5f0d28095d7fff2217`.
+The most recent confirmed production deployment remains a READY deployment from before the latest runtime changes.
 
-The Vercel status attached to `973feba1aa8f308b905955f7ade526a022f25c26` currently reports failure with `upgradeToPro=build-rate-limit`. GitHub application CI is green; this is a Vercel Hobby build-rate-limit condition, not an application compile/test failure.
+Subsequent Vercel attempts have encountered the Hobby account rolling build-rate limit. GitHub application CI remains green; this is a Vercel quota condition, not an application compile/test failure.
 
-Do not claim the sync hardening is live in production until a production deployment for `973feba...` or a later descendant reaches READY and receives a post-deploy smoke check.
+The repository now contains ignored-build handling so non-runtime-only changes do not unnecessarily consume Vercel builds. Do not claim later runtime changes are live until a descendant production deployment reaches READY and receives a post-deploy smoke check.
 
 ## Remaining external/manual blockers
 
-The following cannot be completed through the currently connected automation without additional account-level action or real test credentials/devices:
+The remaining manual/external work is intentionally narrow:
 
-1. Enable GitHub `main` branch protection/ruleset — issue #10.
-2. Enable Supabase leaked-password protection — issue #14.
-3. Complete fresh-account email confirmation/password-reset and two-account/two-device production E2E using real accounts.
-4. Complete real-device installed-PWA validation across iOS/iPadOS/Android/desktop.
-5. Re-verify production runtime after the Vercel build-rate limit clears and the current `main` deployment reaches READY.
+1. Add `quality` as the second required status check in the active `Protect main` ruleset. `hygiene` is already required.
+2. Complete fresh-account email confirmation/password-reset and two-account/two-device production E2E using real accounts.
+3. Complete real-device installed-PWA validation across iOS/iPadOS/Android/desktop.
+4. Re-verify the latest runtime changes in production after Vercel build capacity becomes available.
+5. Reconcile the documented production Supabase migration provenance/bootstrap mismatch tracked separately in issue #26.
