@@ -8,17 +8,23 @@ on:
         required: true
         type: string
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 permissions:
   contents: read
 =======
+=======
+>>>>>>> origin/ci/native-release-pipeline
   push:
     tags:
       - "v*"
 
 permissions:
   contents: write
+<<<<<<< HEAD
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+>>>>>>> origin/ci/native-release-pipeline
 
 concurrency:
   group: desktop-release-${{ github.ref }}
@@ -40,10 +46,14 @@ jobs:
     timeout-minutes: 60
     env:
 <<<<<<< HEAD
+<<<<<<< HEAD
       RELEASE_VERSION: ${{ inputs.version }}
 =======
       RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+      RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+>>>>>>> origin/ci/native-release-pipeline
       WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -61,7 +71,10 @@ jobs:
       - uses: actions/checkout@v4
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/ci/native-release-pipeline
       - name: Normalize release version (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -74,7 +87,10 @@ jobs:
           $v = $env:RELEASE_VERSION -replace '^v',''
           "RELEASE_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+<<<<<<< HEAD
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+>>>>>>> origin/ci/native-release-pipeline
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -188,7 +204,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/ci/native-release-pipeline
 
       - name: Attach artifacts to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -204,4 +223,7 @@ jobs:
             src-tauri/target/release/bundle/**/*.exe
             src-tauri/target/release/bundle/**/*.dmg
             src-tauri/target/release/bundle/**/*.app.tar.gz
+<<<<<<< HEAD
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+>>>>>>> origin/ci/native-release-pipeline

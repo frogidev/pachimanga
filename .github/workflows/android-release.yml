@@ -8,11 +8,17 @@ on:
         required: true
         type: string
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   push:
     tags:
       - "v*"
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+  push:
+    tags:
+      - "v*"
+>>>>>>> origin/ci/native-release-pipeline
 
 permissions:
   contents: write
@@ -28,21 +34,31 @@ jobs:
     env:
       NDK_VERSION: "27.2.12479018"
 <<<<<<< HEAD
+<<<<<<< HEAD
       RELEASE_VERSION: ${{ inputs.version }}
 =======
       RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+      RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+>>>>>>> origin/ci/native-release-pipeline
 
     steps:
       - uses: actions/checkout@v4
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/ci/native-release-pipeline
       - name: Normalize release version
         shell: bash
         run: echo "RELEASE_VERSION=${RELEASE_VERSION#v}" >> "$GITHUB_ENV"
 
+<<<<<<< HEAD
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+>>>>>>> origin/ci/native-release-pipeline
       - name: Verify release version
         run: node scripts/check-native-version.mjs
 
@@ -117,7 +133,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/ci/native-release-pipeline
 
       - name: Attach artifacts to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -126,4 +145,7 @@ jobs:
           files: |
             src-tauri/gen/android/app/build/outputs/apk/**/*.apk
             src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
+<<<<<<< HEAD
 >>>>>>> origin/ci/native-release-pipeline-v2
+=======
+>>>>>>> origin/ci/native-release-pipeline
