@@ -1,6 +1,6 @@
 # Supabase schema and migration provenance
 
-Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. This directory contains historical SQL used during development, but it is not currently a complete fresh-project Supabase CLI bootstrap.
+Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active migration chain in `supabase/migrations/` now mirrors production migration history and is the canonical clean-room bootstrap for local/test Supabase environments.
 
 ## Production migration history
 
@@ -8,43 +8,76 @@ Verified against production on 2026-09-15:
 
 | Version | Name | Purpose |
 | --- | --- | --- |
-| `20260913122954` | `initial_pachimanga_user_sync` | Creates the current account-sync baseline: `profiles`, `library_entries`, `reading_progress`, `user_settings`, RLS, policies, grants, and supporting constraints/indexes. |
-| `20260913124558` | `pachimanga_sync_history` | Adds `reading_history` and supplemental synchronization indexes/policies. |
-| `20260915053221` | `drop_redundant_library_index` | Removes redundant standalone `library_entries_user_source_manga_idx` while retaining the unique constraint-backed index used by library upserts. |
+| `20260913122954` | `initial_pachimanga_user_sync` | Creates `profiles`, `library_entries`, `reading_progress`, `user_settings`, owner RLS policies, grants, constraints, and identity sequences. |
+| `20260913124558` | `pachimanga_sync_history` | Adds `reading_history` plus supplemental synchronization indexes and owner policies. |
+| `20260915053221` | `drop_redundant_library_index` | Removes redundant `library_entries_user_source_manga_idx` while retaining the unique constraint-backed library upsert index. |
+| `20260915080009` | `revoke_anon_account_table_privileges` | Removes anonymous table privileges and prevents future public-table auto-grants to `anon`. |
+| `20260915080109` | `tighten_account_role_privileges` | Removes anonymous sequence access and reduces `authenticated` table/sequence grants to the privileges required by Pachimanga. |
 
-Production currently has RLS enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`.
+Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`.
 
-## Repository files
+The production account-data role contract is:
 
-The numbered SQL files in `supabase/migrations/` predate the canonical production migration sequence:
+- `anon`: no table or identity-sequence privileges on Pachimanga account tables;
+- `authenticated`: `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`; `SELECT/INSERT/UPDATE/DELETE` on library/progress/history; `USAGE/SELECT` on identity sequences;
+- row ownership is still enforced by RLS policies using `auth.uid()`; grants do not replace RLS.
 
-- `001_auth_library.sql` is an older bootstrap centered on `user_library`; it does not represent the current production baseline.
-- `002_sync_tables.sql` assumes current synchronization tables already exist and therefore is not independently replayable from an empty database.
-- `003_drop_redundant_library_index.sql` corresponds to the production duplicate-index cleanup.
+## Repository layout
 
-Do not rewrite or delete `001` or `002` to make history appear cleaner. Treat them as historical artifacts until migration provenance is deliberately reconciled.
+- `config.toml` — local Supabase project configuration, pinned to Postgres 17 and migrations enabled.
+- `migrations/` — active timestamped migration chain. This directory is the only migration directory that `supabase db reset` should replay.
+- `legacy-migrations/` — preserved pre-canonical SQL artifacts (`001`/`002`/`003`). They are retained for provenance only and must never be copied back into the active migration chain.
 
-## Important restriction
+The legacy files were moved without rewriting their contents. They do not correspond one-for-one with the production migration history and are intentionally excluded from local resets and future `db push` operations.
 
-Do not run `supabase db reset` or treat this directory as a safe clean-room bootstrap until issue #26 is resolved and a canonical local/test baseline has been established.
+## Local clean-room bootstrap
 
-There is currently no committed `supabase/config.toml`. Adding one alone does not make the historical migration set replayable.
+Prerequisites: Docker-compatible runtime and a current Supabase CLI.
+
+From the repository root:
+
+```bash
+supabase start
+supabase db reset
+```
+
+`db reset` is local by default and replays only `supabase/migrations/`. `supabase/config.toml` disables seed execution because Pachimanga does not commit production-derived user data or credentials.
+
+After reset, verify the migration chain:
+
+```bash
+supabase migration list --local
+```
+
+Expected baseline versions are the five production versions listed above. Future forward migrations may add later versions.
+
+Do not use `supabase db reset --linked` against production. It is destructive.
+
+## Linking to production
+
+Only link when intentionally inspecting or deploying database changes:
+
+```bash
+supabase login
+supabase link --project-ref gwpgaojsemcfikgynxwv
+supabase migration list --linked
+```
+
+Before a production push, review the pending migration list and SQL. Production mutation requires explicit intent under `AGENTS.md` and `.hermes/skills/pachimanga-supabase/SKILL.md`.
 
 ## Safe schema-change workflow
 
-For future schema changes:
+1. Start from current `main` and read `AGENTS.md`, `docs/WORKPLAN.md`, `docs/architecture.md`, and the Supabase Hermes skill.
+2. Inspect current production schema, migration history, RLS, grants, and advisors before changing account data behavior.
+3. Create a new timestamped forward migration; never edit an applied production migration.
+4. Keep RLS enabled and preserve `auth.uid()` owner policies for account-owned tables.
+5. Grant only the minimum Data API privileges required by the authenticated application; do not restore anonymous table/sequence grants.
+6. Preserve unique constraints/conflict targets used by application upserts.
+7. Verify the clean local chain with `supabase db reset` when a local Docker environment is available.
+8. Run application tests/lint/typecheck/build for application-impacting changes.
+9. Apply production migrations only when production mutation is explicitly intended.
+10. Re-inspect grants/RLS and rerun Supabase security/performance advisors after production DDL.
 
-1. Verify current production schema and migration history first.
-2. Add a new forward-only migration; never edit an already-applied production migration.
-3. Preserve RLS and `auth.uid()` ownership policies for every account-owned table.
-4. Preserve unique constraints/conflict targets used by application upserts.
-5. Validate the new migration in a disposable/local Supabase environment once the canonical bootstrap is available.
-6. Apply production migrations only when production mutation is explicitly intended.
-7. Re-run Supabase security/performance advisors and relevant application tests afterward.
+## Current known plan limitation
 
-## Current tracked follow-ups
-
-- GitHub issue #26: reconcile repository migration provenance and define a reproducible local/test bootstrap.
-- GitHub issue #14: enable Supabase leaked-password protection in Auth settings; this is an account-level Auth configuration change, not SQL migration work.
-
-Until those are resolved, production schema inspection is authoritative for current state and `docs/architecture.md` / `docs/verification-2026-09-15.md` describe the active data/security boundaries.
+Supabase security advisor reports leaked-password protection as disabled. The current plan does not include that feature, so the warning is documented and accepted rather than treated as a release blocker. Mandatory authentication, owner-scoped RLS, account-bound local storage, restricted redirects, and publishable-key-only browser access remain the compensating controls.
