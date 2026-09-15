@@ -28,10 +28,10 @@ function collectMarkers(dir: string, offenders: string[]) {
 
 test("repo contains no committed merge-conflict markers", () => {
   const offenders: string[] = [];
-  for (const dir of ["src", "docs", ".github", "scripts", "src-tauri", "supabase"]) {
+  for (const dir of ["src", "docs", ".github", ".hermes", "scripts", "src-tauri", "supabase"]) {
     collectMarkers(dir, offenders);
   }
-  for (const file of ["public/sw.js", "next.config.ts", "package.json", "README.md", "AGENTS.md"]) {
+  for (const file of ["public/sw.js", "next.config.ts", "package.json", "README.md", "AGENTS.md", "NATIVE.md"]) {
     try {
       if (readFileSync(join(ROOT, file), "utf8").includes(MARKER)) offenders.push(file);
     } catch {
