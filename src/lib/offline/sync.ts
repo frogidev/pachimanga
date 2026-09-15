@@ -1,11 +1,20 @@
 /** Pure offline-sync helpers (no browser or Supabase imports, unit-testable). */
 
 /** IndexedDB stores that contain authenticated account-owned state. */
-export const ACCOUNT_BOUND_IDB_STORES = ["library", "progress", "history", "outbox"] as const;
+export const ACCOUNT_BOUND_IDB_STORES = ["library", "progress", "history", "outbox", "settingsOutbox"] as const;
 
 /** Order queued progress oldest-first so last-write-wins on flush. */
 export function sortOutboxByTime<T extends { updatedAt: string }>(entries: T[]): T[] {
   return [...entries].sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt));
+}
+
+/** True only when left contains a valid timestamp strictly newer than right. */
+export function isStrictlyNewerTimestamp(left: string, right?: string | null) {
+  const leftTime = Date.parse(left);
+  const rightTime = right ? Date.parse(right) : Number.NaN;
+  if (Number.isNaN(leftTime)) return false;
+  if (Number.isNaN(rightTime)) return true;
+  return leftTime > rightTime;
 }
 
 /**

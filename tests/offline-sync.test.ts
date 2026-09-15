@@ -3,6 +3,7 @@ import test from "node:test";
 import { uniquePageUrls } from "../src/lib/offline/chapter-cache.ts";
 import {
   ACCOUNT_BOUND_IDB_STORES,
+  isStrictlyNewerTimestamp,
   newestByUpdatedAt,
   sortOutboxByTime,
   splitOutboxByUser,
@@ -18,8 +19,8 @@ test("uniquePageUrls dedupes and drops blanks, preserving order", () => {
   assert.deepEqual(urls, ["https://cdn.example/p1.jpg", "https://cdn.example/p2.jpg"]);
 });
 
-test("account-bound cache stores include the sync outbox", () => {
-  assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox"]);
+test("account-bound cache stores include progress and settings sync outboxes", () => {
+  assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox", "settingsOutbox"]);
 });
 
 test("sortOutboxByTime orders oldest-first for last-write-wins flush", () => {
@@ -32,6 +33,14 @@ test("sortOutboxByTime orders oldest-first for last-write-wins flush", () => {
     sorted.map((e) => e.updatedAt),
     ["2026-09-15T10:00:01Z", "2026-09-15T10:00:02Z", "2026-09-15T10:00:03Z"],
   );
+});
+
+test("strict freshness accepts only valid timestamps newer than the remote value", () => {
+  assert.equal(isStrictlyNewerTimestamp("2026-09-15T10:00:03Z", "2026-09-15T10:00:02Z"), true);
+  assert.equal(isStrictlyNewerTimestamp("2026-09-15T10:00:02Z", "2026-09-15T10:00:02Z"), false);
+  assert.equal(isStrictlyNewerTimestamp("2026-09-15T10:00:01Z", "2026-09-15T10:00:02Z"), false);
+  assert.equal(isStrictlyNewerTimestamp("2026-09-15T10:00:03Z", null), true);
+  assert.equal(isStrictlyNewerTimestamp("not-a-date", "2026-09-15T10:00:02Z"), false);
 });
 
 test("newestByUpdatedAt keeps a newer pending local progress value", () => {
@@ -57,4 +66,14 @@ test("splitOutboxByUser never assigns another account or legacy queue entry", ()
   const { owned, stale } = splitOutboxByUser(entries, "user-a");
   assert.deepEqual(owned.map((entry) => entry.chapterId), ["a"]);
   assert.deepEqual(stale.map((entry) => entry.chapterId), ["b", "legacy"]);
+});
+
+test("splitOutboxByUser also isolates settings entries by account", () => {
+  const entries = [
+    { userId: "user-a", settings: "a" },
+    { userId: "user-b", settings: "b" },
+  ];
+  const { owned, stale } = splitOutboxByUser(entries, "user-a");
+  assert.deepEqual(owned.map((entry) => entry.settings), ["a"]);
+  assert.deepEqual(stale.map((entry) => entry.settings), ["b"]);
 });

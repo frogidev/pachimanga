@@ -1,7 +1,7 @@
-type StoreName = "library" | "progress" | "history" | "outbox";
+type StoreName = "library" | "progress" | "history" | "outbox" | "settingsOutbox";
 
 const DB_NAME = "pachimanga";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 function hasIndexedDb() {
   return typeof window !== "undefined" && "indexedDB" in window;
@@ -9,6 +9,12 @@ function hasIndexedDb() {
 
 function fallbackKey(store: StoreName) {
   return `pachimanga:${store}`;
+}
+
+function storeKeyField(store: StoreName) {
+  if (store === "library" || store === "history") return "mangaId";
+  if (store === "settingsOutbox") return "userId";
+  return "chapterId";
 }
 
 function readFallback<T>(store: StoreName): T[] {
@@ -60,6 +66,9 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("outbox")) {
         db.createObjectStore("outbox", { keyPath: "chapterId" });
       }
+      if (!db.objectStoreNames.contains("settingsOutbox")) {
+        db.createObjectStore("settingsOutbox", { keyPath: "userId" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -83,8 +92,8 @@ export async function idbGetAll<T>(store: StoreName): Promise<T[]> {
 }
 
 export async function idbGet<T>(store: StoreName, key: IDBValidKey): Promise<T | undefined> {
+  const keyField = storeKeyField(store);
   if (!hasIndexedDb()) {
-    const keyField = store === "library" || store === "history" ? "mangaId" : "chapterId";
     return readFallback<Record<string, unknown>>(store).find((item) => item[keyField] === key) as
       | T
       | undefined;
@@ -99,7 +108,9 @@ export async function idbGet<T>(store: StoreName, key: IDBValidKey): Promise<T |
       tx.oncomplete = () => db.close();
     });
   } catch {
-    return undefined;
+    return readFallback<Record<string, unknown>>(store).find((item) => item[keyField] === key) as
+      | T
+      | undefined;
   }
 }
 
@@ -107,7 +118,7 @@ export async function idbPut<T extends Record<string, unknown>>(
   store: StoreName,
   value: T,
 ): Promise<void> {
-  const keyField = (store === "library" || store === "history" ? "mangaId" : "chapterId") as keyof T;
+  const keyField = storeKeyField(store) as keyof T;
   if (!hasIndexedDb()) {
     writeFallback(store, keyField, value);
     return;
@@ -132,7 +143,7 @@ export async function idbDelete(
   store: StoreName,
   key: IDBValidKey,
 ): Promise<void> {
-  const keyField = store === "library" || store === "history" ? "mangaId" : "chapterId";
+  const keyField = storeKeyField(store);
   if (!hasIndexedDb()) {
     deleteFallback(store, keyField, key);
     return;

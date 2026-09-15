@@ -18,6 +18,12 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 
 const CACHE_OWNER_KEY = 'pachimanga:cache-owner';
 
+type SettingsOutboxEntry = {
+  userId: string;
+  settings: ReaderSettings;
+  updatedAt: string;
+};
+
 async function clearAccountBoundIdb() {
   await Promise.all(ACCOUNT_BOUND_IDB_STORES.map((store) => idbClear(store)));
 }
@@ -333,6 +339,20 @@ function readerSettingsKey() {
   return owner ? `pachimanga:reader-settings:${owner}` : 'pachimanga:reader-settings:unbound';
 }
 
+function normalizeReaderSettings(value: unknown): ReaderSettings | null {
+  if (!value || typeof value !== 'object' || !('reader' in value)) return null;
+  const reader = (value as { reader?: Partial<ReaderSettings> }).reader;
+  return reader ? { ...DEFAULT_READER_SETTINGS, ...reader } : null;
+}
+
+function isStrictlyNewer(left: string, right?: string | null) {
+  const leftTime = Date.parse(left);
+  const rightTime = right ? Date.parse(right) : Number.NaN;
+  if (Number.isNaN(leftTime)) return false;
+  if (Number.isNaN(rightTime)) return true;
+  return leftTime > rightTime;
+}
+
 export function getReaderSettings(): ReaderSettings {
   if (typeof window === 'undefined') return DEFAULT_READER_SETTINGS;
   try {
@@ -347,17 +367,25 @@ export async function loadReaderSettings() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
   const local = getReaderSettings();
+  const pending = await idbGet<SettingsOutboxEntry>('settingsOutbox', auth.user.id);
   const { data, error } = await auth.sb
     .from('user_settings')
-    .select('settings')
+    .select('settings,updated_at')
     .eq('user_id', auth.user.id)
     .maybeSingle();
-  if (error) return local;
+  if (error) return pending?.settings || local;
 
-  const remote = data?.settings && typeof data.settings === 'object' && 'reader' in data.settings
-    ? (data.settings as { reader?: Partial<ReaderSettings> }).reader
-    : undefined;
-  const settings = remote ? { ...DEFAULT_READER_SETTINGS, ...remote } : local;
+  const remote = normalizeReaderSettings(data?.settings);
+  if (pending && isStrictlyNewer(pending.updatedAt, data?.updated_at)) {
+    localStorage.setItem(readerSettingsKey(), JSON.stringify(pending.settings));
+    void flushSettingsOutbox().catch(() => {});
+    return pending.settings;
+  }
+
+  if (pending && data?.updated_at && !isStrictlyNewer(pending.updatedAt, data.updated_at)) {
+    await idbDelete('settingsOutbox', auth.user.id);
+  }
+  const settings = remote || pending?.settings || local;
   localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
   return settings;
 }
@@ -379,6 +407,37 @@ export function getReaderSettingsSnapshot(): ReaderSettings {
   return cachedSettings;
 }
 
+/** Push the newest account-owned reader settings on boot/reconnect. */
+export async function flushSettingsOutbox(): Promise<{ synced: number; pending: number }> {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const allQueued = await idbGetAll<SettingsOutboxEntry>('settingsOutbox');
+  const { owned, stale } = splitOutboxByUser(allQueued, auth.user.id);
+  await Promise.all(stale.map((entry) => idbDelete('settingsOutbox', entry.userId)));
+
+  let synced = 0;
+  for (const entry of owned) {
+    const { data, error } = await auth.sb.from('user_settings').upsert({
+      user_id: auth.user.id,
+      settings: { reader: entry.settings },
+      updated_at: entry.updatedAt,
+    }, { onConflict: 'user_id' }).select('settings,updated_at').single();
+    if (error) break;
+
+    const remote = normalizeReaderSettings(data?.settings);
+    if (remote) {
+      localStorage.setItem(readerSettingsKey(), JSON.stringify(remote));
+      settingsVersion += 1;
+      window.dispatchEvent(new CustomEvent('pachimanga:settings-change'));
+    }
+    await idbDelete('settingsOutbox', entry.userId);
+    synced += 1;
+  }
+
+  const pending = (await idbGetAll<SettingsOutboxEntry>('settingsOutbox')).length;
+  return { synced, pending };
+}
+
 export function saveReaderSettings(settings: ReaderSettings) {
   localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
   settingsVersion += 1;
@@ -386,12 +445,14 @@ export function saveReaderSettings(settings: ReaderSettings) {
   void (async () => {
     const auth = await requireSignedIn();
     await bindCacheToUser(auth.user.id);
-    await auth.sb.from('user_settings').upsert({
-      user_id: auth.user.id,
-      settings: { reader: settings },
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
+    const entry: SettingsOutboxEntry = {
+      userId: auth.user.id,
+      settings,
+      updatedAt: new Date().toISOString(),
+    };
+    await idbPut('settingsOutbox', entry as unknown as Record<string, unknown>);
+    await flushSettingsOutbox();
   })().catch(() => {
-    // Settings stay available in the account-bound local cache while offline.
+    // Settings stay in the owner-bound outbox and local cache until reconnect.
   });
 }
