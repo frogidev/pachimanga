@@ -54,3 +54,38 @@ test("production source registry excludes the mock provider", () => {
   assert.match(registry, /comickSource/);
   assert.doesNotMatch(registry, /sources\/mock|mockSource/);
 });
+
+test("native artifact and release workflows remain manual-only during the PWA phase", () => {
+  const workflows = [
+    "android-apk.yml",
+    "android-release.yml",
+    "desktop-release.yml",
+    "ios-release.yml",
+  ];
+
+  for (const workflow of workflows) {
+    const source = readFileSync(join(ROOT, ".github/workflows", workflow), "utf8");
+    assert.match(source, /^\s{2}workflow_dispatch:\s*$/m, `${workflow} must keep workflow_dispatch`);
+    assert.doesNotMatch(source, /^\s{2}push:\s*$/m, `${workflow} must not run on push`);
+    assert.doesNotMatch(source, /^\s{2}pull_request:\s*$/m, `${workflow} must not run on pull_request`);
+    assert.doesNotMatch(source, /^\s{2}schedule:\s*$/m, `${workflow} must not run on a schedule`);
+  }
+});
+
+test("browser-visible runtime code contains no public relay or service-role secret variable", () => {
+  const forbidden = [
+    "NEXT_PUBLIC_WEEBCENTRAL_RELAY_TOKEN",
+    "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE",
+  ];
+  const offenders: string[] = [];
+
+  for (const dir of ["src", "public"]) {
+    for (const file of walk(join(ROOT, dir))) {
+      const source = readFileSync(file, "utf8");
+      if (forbidden.some((name) => source.includes(name))) offenders.push(file);
+    }
+  }
+
+  assert.deepEqual(offenders, []);
+});
