@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { uniquePageUrls } from "../src/lib/offline/chapter-cache.ts";
-import { ACCOUNT_BOUND_IDB_STORES, sortOutboxByTime } from "../src/lib/offline/sync.ts";
+import {
+  ACCOUNT_BOUND_IDB_STORES,
+  newestByUpdatedAt,
+  sortOutboxByTime,
+  splitOutboxByUser,
+} from "../src/lib/offline/sync.ts";
 
 test("uniquePageUrls dedupes and drops blanks, preserving order", () => {
   const urls = uniquePageUrls([
@@ -27,4 +32,29 @@ test("sortOutboxByTime orders oldest-first for last-write-wins flush", () => {
     sorted.map((e) => e.updatedAt),
     ["2026-09-15T10:00:01Z", "2026-09-15T10:00:02Z", "2026-09-15T10:00:03Z"],
   );
+});
+
+test("newestByUpdatedAt keeps a newer pending local progress value", () => {
+  const local = { updatedAt: "2026-09-15T10:00:03Z", value: "local" };
+  const remote = { updatedAt: "2026-09-15T10:00:02Z", value: "remote" };
+  assert.equal(newestByUpdatedAt(local, remote)?.value, "local");
+});
+
+test("newestByUpdatedAt adopts a newer remote value and remote wins ties", () => {
+  const local = { updatedAt: "2026-09-15T10:00:02Z", value: "local" };
+  const newerRemote = { updatedAt: "2026-09-15T10:00:03Z", value: "remote-newer" };
+  const tiedRemote = { updatedAt: "2026-09-15T10:00:02Z", value: "remote-tie" };
+  assert.equal(newestByUpdatedAt(local, newerRemote)?.value, "remote-newer");
+  assert.equal(newestByUpdatedAt(local, tiedRemote)?.value, "remote-tie");
+});
+
+test("splitOutboxByUser never assigns another account or legacy queue entry", () => {
+  const entries = [
+    { userId: "user-a", chapterId: "a" },
+    { userId: "user-b", chapterId: "b" },
+    { chapterId: "legacy" },
+  ];
+  const { owned, stale } = splitOutboxByUser(entries, "user-a");
+  assert.deepEqual(owned.map((entry) => entry.chapterId), ["a"]);
+  assert.deepEqual(stale.map((entry) => entry.chapterId), ["b", "legacy"]);
 });
