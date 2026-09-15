@@ -2,43 +2,71 @@
 
 **Your manga. Everywhere.**
 
-Pachimanga is a private, account-based manga reader built with Next.js, Supabase, and an optional Tauri native shell. It is local-first for responsiveness, but library data, reading progress, history, and reader settings are synchronized under the signed-in user's account.
+Pachimanga is a private, account-based manga reader built with Next.js, Supabase, and an optional Tauri 2 shell. It is local-first for reader responsiveness while library state, reading progress, history, and reader settings synchronize under the authenticated account.
 
 Production: `https://pachimanga.frogilab.dev`
 
-## Access model
+## Current delivery target
+
+The production PWA/web app is the only active delivery target until the PWA release-candidate gate in `docs/WORKPLAN.md` is complete.
+
+- Vercel deploys `main` automatically.
+- Android, Windows, Linux, macOS, and iOS source remains in the repository.
+- Native test/release workflows are manual-only during the PWA phase.
+- Do not spend product time on platform packaging or distribution unless the workplan reaches the final native phase or the user explicitly changes priority.
+
+## Product contract
 
 Pachimanga has no guest, demo, or anonymous reader mode.
 
-- Email/password login or registration is mandatory.
-- Unauthenticated application routes are redirected to `/auth`.
-- The only intentionally public application pages are authentication flows and the offline fallback.
-- Library data, progress, history, settings, and imports belong to the authenticated user.
+- Email/password authentication through Supabase is mandatory.
+- Unauthenticated application routes resolve to the authentication experience.
+- Only authentication flows and `/offline` are intentionally anonymous application paths.
+- Library, progress, history, settings, imports, and local cache state belong to the signed-in user.
 - Supabase Row Level Security is the final database isolation boundary.
-- Browser-local caches are rebound to the current account and cleared when account ownership changes.
+- Browser-local caches are bound to the current account and cleared/rebound across account changes.
+- Mock providers/data may support tests and local development but must not become a production fallback.
 
-Mock source/data code can remain for tests or development, but it must never be exposed as a user-facing demo experience.
+## Current capabilities
 
-## Features
-
-- Mandatory Supabase email/password authentication
-- Per-user manga library with cloud synchronization
-- Per-user reading progress, history, and reader preferences
+- Supabase email/password registration, login, confirmation, reset, and account-scoped data
+- Per-user manga library and synchronized reading state
 - Installable PWA for iPhone, iPad, Android, and desktop browsers
-- MangaDex and ComicK source integrations
-- WeebCentral integration through either a locked-down private relay on web/PWA or a narrow on-device Tauri bridge in native builds
-- Screenshot/image OCR import with review before matching
-- Tachiyomi / Mihon backup import (`.tachibk`, `.proto.gz`)
+- MangaDex, ComicK, and WeebCentral integrations
+- Locked-down private WeebCentral relay for browser/PWA use when configured
+- Narrow device-side `weebcentral_request` bridge for Tauri builds
+- Manga detail pages with chapter pagination and read-state controls
+- Conventional page and long-strip/manhwa reader layouts
+- Elapsed-time auto-scroll, progress restore/save, preload controls, and reduced-motion handling
+- Local-first progress/history outbox that retries on reconnect
+- OCR/image import with review
+- Tachiyomi/Mihon backup import (`.tachibk`, `.proto.gz`)
 - Tachimanga backup import (`.tmb`)
 - JSON import fallback
-- Long-strip/manhwa reader with auto-scroll and account-synced progress
-- Tauri 2 native shell for Android and future desktop/iOS distribution
+- Offline fallback shell without caching authenticated application HTML as public content
 
 ## Runtime architecture
 
-The hosted UI is a Next.js App Router application deployed to Vercel. Supabase provides authentication and private per-user data. The browser/PWA can optionally use the Frogilab WeebCentral relay. Tauri builds load the same production UI and expose only the dedicated `weebcentral_request` native command to the production origin.
+```text
+Browser / installed PWA
+        |
+        v
+Next.js 16 App Router on Vercel
+        |
+        +--> Supabase Auth + Postgres/RLS
+        +--> MangaDex / ComicK
+        +--> optional private WeebCentral relay
 
-See [`docs/architecture.md`](docs/architecture.md) for the current boundaries and data flow.
+Tauri 2 shell
+        |
+        v
+same production web UI
+        |
+        +--> same Supabase account model
+        +--> dedicated native WeebCentral command
+```
+
+See `docs/architecture.md` for the detailed boundaries and data flow.
 
 ## Local setup
 
@@ -46,7 +74,7 @@ Requirements:
 
 - Node.js 22+
 - npm
-- Supabase project values for authenticated app development
+- Supabase project values for authenticated development
 
 ```bash
 npm install
@@ -54,7 +82,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Required values:
+Required browser-visible values:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL=
@@ -68,11 +96,11 @@ WEEBCENTRAL_RELAY_URL=
 WEEBCENTRAL_RELAY_TOKEN=
 ```
 
-Never commit service-role keys, relay tokens, signing certificates, provisioning profiles, or private keys.
+Never commit service-role keys, relay tokens, signing certificates, provisioning profiles, keystores, GPG keys, or passwords.
 
-## Quality checks
+## Quality gate
 
-Before merging application changes, run:
+For application changes, the default merge gate is:
 
 ```bash
 npm test
@@ -81,40 +109,44 @@ npm run typecheck
 npm run build
 ```
 
-`npm run verify` runs the same web checks in sequence. Native changes should also pass:
+Or:
+
+```bash
+npm run verify
+```
+
+Native-impacting changes additionally require:
 
 ```bash
 cargo check --manifest-path src-tauri/Cargo.toml
 node scripts/check-native-version.mjs
 ```
 
-GitHub Actions also contains separate web and native quality workflows.
+Do not hide, broadly disable, or route around a failing check. Fix the issue or document a verified pre-existing blocker.
+
+## Documentation and agent guidance
+
+AI/Hermes sessions must read `AGENTS.md` first and `docs/WORKPLAN.md` second.
+
+Documentation index: `docs/README.md`.
+
+Key documents:
+
+- `AGENTS.md` — hard engineering/security/git/deployment contract
+- `docs/WORKPLAN.md` — detailed execution plan and release gates
+- `docs/architecture.md` — production architecture and invariants
+- `docs/art-direction.md` — visual language and UI rules
+- `docs/hermes-local.md` — Hermes setup and project-local skills
+- `docs/free-pwa-distribution.md` — PWA and private relay operations
+- `NATIVE.md` — retained Tauri runtime and native boundary
+- `docs/native-release-pipeline.md` — deferred/manual native release procedures
 
 ## Distribution
 
-For a small private group, the current practical distribution model is:
+Current supported delivery is the authenticated PWA at `https://pachimanga.frogilab.dev`.
 
-- Web/PWA: production URL, account required
-- Android: direct signed APK when release signing is configured
-- Windows/Linux: direct desktop packages from the native release workflow
-- macOS: direct package, ideally Developer ID signed/notarized if an Apple Developer membership is used
-- iPhone/iPad: PWA at zero Apple cost, or TestFlight once Apple Developer distribution is enabled
-
-See [`docs/free-pwa-distribution.md`](docs/free-pwa-distribution.md), [`NATIVE.md`](NATIVE.md), and [`docs/native-release-pipeline.md`](docs/native-release-pipeline.md).
-
-## Repository guidance
-
-AI agents and future development sessions should read [`AGENTS.md`](AGENTS.md) first, then [`docs/WORKPLAN.md`](docs/WORKPLAN.md).
-
-Important project documentation:
-
-- [`AGENTS.md`](AGENTS.md) — engineering invariants and handoff instructions
-- [`docs/WORKPLAN.md`](docs/WORKPLAN.md) — current priorities and next-session checklist
-- [`docs/architecture.md`](docs/architecture.md) — current runtime, auth, storage, source, and deployment architecture
-- [`NATIVE.md`](NATIVE.md) — Tauri/native bridge model
-- [`docs/native-release-pipeline.md`](docs/native-release-pipeline.md) — native release workflows and signing
-- [`docs/free-pwa-distribution.md`](docs/free-pwa-distribution.md) — PWA plus private WeebCentral relay
+Native distribution is intentionally deferred. When the PWA reaches release-candidate status, the final phase will validate signing, upgrade behavior, desktop packaging, Android artifacts, and the Apple/TestFlight decision before native distribution is treated as supported.
 
 ## Brand
 
-Pachimanga uses a dark plum + coral-pink visual system with Pachi, the cat mascot, for onboarding, empty states, install surfaces, and account flows.
+Pachimanga uses a dark plum night-room visual system with coral/pink accents and Pachi, the original cat mascot. The canonical visual rules are in `docs/art-direction.md`; do not introduce copyrighted manga/franchise artwork.
