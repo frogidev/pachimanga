@@ -2,37 +2,12 @@ name: Web Quality
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/web-quality.yml"
-      - "src/**"
-      - "public/**"
-      - "relay/**"
-      - "tests/**"
-      - "next.config.*"
-      - "postcss.config.*"
-      - "tsconfig.json"
-      - "eslint.config.*"
-      - "vercel.json"
-      - "package.json"
-      - "package-lock.json"
   push:
     branches: [main]
-    paths:
-      - ".github/workflows/web-quality.yml"
-      - "src/**"
-      - "public/**"
-      - "relay/**"
-      - "tests/**"
-      - "next.config.*"
-      - "postcss.config.*"
-      - "tsconfig.json"
-      - "eslint.config.*"
-      - "vercel.json"
-      - "package.json"
-      - "package-lock.json"
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: web-quality-${{ github.ref }}
@@ -45,22 +20,87 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Detect runtime-impacting changes
+        id: changes
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const runtimePatterns = [
+              /^src\//,
+              /^public\//,
+              /^relay\//,
+              /^tests\//,
+              /^next\.config\./,
+              /^postcss\.config\./,
+              /^tsconfig\.json$/,
+              /^eslint\.config\./,
+              /^vercel\.json$/,
+              /^package\.json$/,
+              /^package-lock\.json$/,
+              /^\.github\/workflows\/web-quality\.yml$/,
+            ];
+
+            let files = [];
+            if (context.eventName === 'pull_request') {
+              files = await github.paginate(
+                github.rest.pulls.listFiles,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  per_page: 100,
+                },
+                (response) => response.data.map((file) => file.filename),
+              );
+            } else {
+              const before = context.payload.before;
+              const after = context.sha;
+              if (!before || /^0+$/.test(before)) {
+                core.info('No comparable previous commit; running full Web Quality.');
+                core.setOutput('runtime', 'true');
+                return;
+              }
+
+              const comparison = await github.rest.repos.compareCommitsWithBasehead({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                basehead: `${before}...${after}`,
+                per_page: 100,
+              });
+              files = (comparison.data.files || []).map((file) => file.filename);
+            }
+
+            const runtime = files.some((file) => runtimePatterns.some((pattern) => pattern.test(file)));
+            core.info(`Changed files: ${files.join(', ') || '(none)'}`);
+            core.info(`Runtime-impacting change: ${runtime}`);
+            core.setOutput('runtime', runtime ? 'true' : 'false');
+
+      - name: No runtime-impacting changes
+        if: steps.changes.outputs.runtime != 'true'
+        run: echo "No hosted-runtime paths changed; required Web Quality status is satisfied without an unnecessary build."
+
       - uses: actions/setup-node@v7
+        if: steps.changes.outputs.runtime == 'true'
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.changes.outputs.runtime == 'true'
         run: npm ci
 
       - name: Unit tests
+        if: steps.changes.outputs.runtime == 'true'
         run: npm test
 
       - name: Lint
+        if: steps.changes.outputs.runtime == 'true'
         run: npm run lint
 
       - name: Typecheck
+        if: steps.changes.outputs.runtime == 'true'
         run: npm run typecheck
 
       - name: Production build
+        if: steps.changes.outputs.runtime == 'true'
         run: npm run build
