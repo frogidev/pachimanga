@@ -22,3 +22,4 @@ Thumbs.db
 
 # generated wasm binary (copied on postinstall)
 public/sql-wasm.wasm
+scripts/calico-icons.stamp
