@@ -1,11 +1,10 @@
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
+import { relayOperationFromUrl, WEEBCENTRAL_ORIGIN } from './policy.mjs';
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT || 8787);
 const TOKEN = process.env.RELAY_TOKEN?.trim();
-const BASE = 'https://weebcentral.com';
-const ID = /^[0-9A-Z]{20,32}$/;
 const CACHE_LIMIT = 512;
 const RATE_LIMIT = Number(process.env.RATE_LIMIT_PER_MINUTE || 600);
 
@@ -49,69 +48,6 @@ function allowRate(request) {
   return current.count <= RATE_LIMIT;
 }
 
-function sanitizeQuery(value) {
-  return String(value || '')
-    .trim()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .slice(0, 100);
-}
-
-function operationFromUrl(url) {
-  if (url.pathname === '/v1/search') {
-    const query = sanitizeQuery(url.searchParams.get('q'));
-    if (!query) return null;
-    const params = new URLSearchParams({
-      text: query,
-      sort: 'Best Match',
-      order: 'Descending',
-      official: 'Any',
-      anime: 'Any',
-      adult: 'Any',
-      display_mode: 'Full Display',
-      offset: '0',
-    });
-    return {
-      key: `search:${query.toLowerCase()}`,
-      ttl: 60_000,
-      url: `${BASE}/search/data?${params.toString()}`,
-      referer: `${BASE}/search?text=${encodeURIComponent(query)}`,
-      hx: true,
-      hxTarget: undefined,
-    };
-  }
-
-  const match = url.pathname.match(/^\/v1\/(manga|chapters|chapter|pages)\/([0-9A-Z]{20,32})$/);
-  if (!match) return null;
-  const [, operation, id] = match;
-  if (!ID.test(id)) return null;
-
-  if (operation === 'manga') {
-    return { key: `manga:${id}`, ttl: 300_000, url: `${BASE}/series/${id}` };
-  }
-  if (operation === 'chapters') {
-    return {
-      key: `chapters:${id}`,
-      ttl: 120_000,
-      url: `${BASE}/series/${id}/full-chapter-list`,
-      referer: `${BASE}/series/${id}`,
-      hx: true,
-      hxTarget: 'chapter-list',
-    };
-  }
-  if (operation === 'chapter') {
-    return { key: `chapter:${id}`, ttl: 3_600_000, url: `${BASE}/chapters/${id}` };
-  }
-  return {
-    key: `pages:${id}`,
-    ttl: 3_600_000,
-    url: `${BASE}/chapters/${id}/images?is_prev=False&reading_style=long_strip&current_page=1`,
-    referer: `${BASE}/chapters/${id}`,
-    hx: true,
-    hxTarget: 'chapter-images',
-  };
-}
-
 function upstreamHeaders(spec) {
   const headers = {
     Accept: 'text/html,application/xhtml+xml',
@@ -120,7 +56,7 @@ function upstreamHeaders(spec) {
   if (spec.referer) headers.Referer = spec.referer;
   if (spec.hx) {
     headers['HX-Request'] = 'true';
-    headers['HX-Current-URL'] = spec.referer || `${BASE}/`;
+    headers['HX-Current-URL'] = spec.referer || `${WEEBCENTRAL_ORIGIN}/`;
   }
   if (spec.hxTarget) headers['HX-Target'] = spec.hxTarget;
   return headers;
@@ -175,7 +111,7 @@ async function fetchUpstream(spec) {
 
 async function upstreamHealth() {
   try {
-    const response = await fetch(BASE, {
+    const response = await fetch(WEEBCENTRAL_ORIGIN, {
       headers: { 'User-Agent': 'PachimangaRelay/0.1 (+https://pachimanga.frogilab.dev)' },
       redirect: 'follow',
       signal: AbortSignal.timeout(8_000),
@@ -207,7 +143,7 @@ const server = createServer(async (request, response) => {
       return sendJson(response, result.ok ? 200 : 503, result);
     }
 
-    const spec = operationFromUrl(url);
+    const spec = relayOperationFromUrl(url);
     if (!spec) return sendJson(response, 404, { error: 'unsupported_operation' });
 
     const cached = getCached(spec.key);
