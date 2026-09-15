@@ -39,7 +39,7 @@ Primary code areas:
 - `src/components` — shared application shell/navigation/UI primitives.
 - `src/features` — feature-owned UI for browse, library, manga detail, reader, history, install, and native-specific views.
 - `src/lib/storage` — account-bound IndexedDB/localStorage persistence plus Supabase synchronization.
-- `src/lib/offline` — offline/reconnect ordering helpers.
+- `src/lib/offline` — offline/reconnect ordering, cache ownership, and freshness helpers.
 - `src/lib/imports` — OCR/backup/JSON import parsing and migration helpers.
 - `src/sources/core` — normalized source contract/registry.
 - `src/sources/mangadex` — MangaDex integration.
@@ -99,43 +99,61 @@ Existing migrations are append-only history. New schema changes must be new migr
 
 ## Local cache ownership
 
-IndexedDB currently stores local copies of library entries, reading progress, reading history, and the progress outbox. Reader settings are cached in localStorage under an account-specific key.
+IndexedDB stores account-owned local copies of library entries, reading progress, reading history, and the progress outbox. Reader settings are cached in localStorage under an account-specific key.
 
-`src/lib/storage/reader-storage.ts` binds local state to the authenticated Supabase user ID. When the stored owner differs from the current user, Pachimanga clears account-owned local library/progress/history state and legacy reader-setting keys before rebinding.
+`src/lib/storage/reader-storage.ts` binds local state to the authenticated Supabase user ID. When the stored owner differs from the current user, Pachimanga clears every account-bound IndexedDB store (`library`, `progress`, `history`, and `outbox`) plus legacy reader-setting keys before rebinding.
 
-This is a security boundary for shared browsers/devices. Do not remove it unless replaced by an equivalent or stronger isolation mechanism.
+Every new progress outbox entry also records the authenticated `userId`. Before flushing, Pachimanga accepts only entries explicitly owned by the active account; legacy, unowned, or other-account entries are discarded instead of being replayed under the wrong user.
+
+This is a security boundary for shared browsers/devices. Do not remove or weaken it unless replaced by an equivalent or stronger isolation mechanism.
 
 ## Synchronization semantics
 
-The local cache is an optimization/offline layer, not the authorization source.
-
-Current behavior is intentionally mixed by operation and must not be over-generalized:
+The local cache is an optimization/offline layer, not the authorization source. Current behavior intentionally differs by operation.
 
 ### Library
 
-- Library reads fetch the authenticated user's remote rows and reconcile them into IndexedDB.
-- Add/remove writes Supabase first, then updates IndexedDB.
-- Library mutation is therefore not currently a fully offline-first queue.
+- Online reads fetch the authenticated user's remote rows and reconcile them into IndexedDB.
+- If the remote read is temporarily unavailable, the current account's bound IndexedDB library is returned instead of exposing another account or inventing mock data.
+- Add/remove mutations are remote-first and then update IndexedDB.
+- Library mutation is therefore not a fully offline-first queue.
 
-### Reading progress and history
+### Reading progress
 
 `saveProgress` is local-first:
 
 1. progress is written to IndexedDB;
 2. history is written to IndexedDB;
-3. a per-chapter entry is written to the IndexedDB `outbox`;
-4. `flushProgressOutbox` attempts Supabase progress/history upserts;
-5. successful queued items are deleted; failures remain queued for later retry.
+3. a per-chapter outbox entry is written with the active `userId`;
+4. `flushProgressOutbox` filters the queue to the active account and attempts Supabase progress/history upserts;
+5. successful queued items are deleted; failed owned items remain queued for later retry;
+6. stale legacy/cross-account items are deleted without being sent.
 
-Queued progress is ordered oldest-first so the final write for a chapter wins when a batch is flushed.
+Queued progress is ordered oldest-first so the final queued write for a chapter wins within one flush batch.
+
+When loading chapter progress, Pachimanga compares the cached and remote `updatedAt` timestamps. The newer value wins; the remote value wins exact ties. This prevents a newer pending local value from being immediately overwritten by an older remote snapshot and allows a newer remote-device value to replace stale cache state.
+
+This is client-side freshness reconciliation, not a database-level compare-and-swap. A later stale write from another device can still require stronger server-side conflict semantics before Phase 10 is considered complete.
+
+### Reading history
+
+- Online reads come from the authenticated user's remote history and refresh the local cache.
+- If the remote read fails temporarily, the bound local history is returned in reverse chronological order.
+- Progress saves update local history immediately and upsert the remote history record during outbox flush.
+- Current database conflict semantics keep the latest row per configured history conflict target; this still needs explicit multi-device policy review in `WORKPLAN.md`.
 
 ### Reader settings
 
 Reader settings are cached under the current account-specific localStorage key and asynchronously upserted to `user_settings`.
 
+- Remote settings replace the local cache when successfully loaded.
+- If the remote read fails, the account-bound local settings remain usable.
+- Background save failures do not destroy the local value.
+- Settings do not currently use an IndexedDB outbox, so guaranteed eventual remote delivery is not yet equivalent to progress sync.
+
 ### Work still required
 
-Cross-device conflict semantics, stale-write ordering, reconnect coverage, and consistency between library/settings/progress offline behavior require further hardening. `WORKPLAN.md` defines the release work.
+Phase 10 remains open for stronger cross-device stale-write rejection, explicit settings conflict/retry semantics, library offline-mutation policy, and end-to-end reconnect/account-switch validation. See `WORKPLAN.md`.
 
 ## Service worker and offline boundary
 
@@ -147,6 +165,7 @@ Current service-worker behavior:
 - leaves API requests alone;
 - uses network-first navigation with `/offline` fallback;
 - may cache same-origin images and `/_next/static/` assets;
+- evicts stale Pachimanga-owned cache versions on service-worker activation while leaving unrelated caches alone;
 - does not intentionally cache authenticated application HTML as a reusable public shell.
 
 The offline page is a fallback surface, not an anonymous copy of the authenticated application.
@@ -187,6 +206,8 @@ Supported import paths include:
 Import parsing belongs under `src/lib/imports`. Imported titles resolve into the normal signed-in library model; there is no parallel anonymous import store.
 
 ## Source architecture
+
+The production source registry must never register the mock provider. Repository hygiene tests guard this boundary.
 
 ### MangaDex and ComicK
 
@@ -257,13 +278,15 @@ Vercel serves the Next.js product. Supabase owns account authentication and sync
 
 ## CI/deployment behavior
 
-- `Web Quality` validates tests/lint/typecheck for relevant web changes.
+- `Repository Hygiene` runs on every pull request and every push to `main`, including docs-only changes. It covers merge-marker hygiene plus selected repository security/regression invariants.
+- `Web Quality` validates unit tests, lint, typecheck, and production build for relevant web/runtime changes.
 - `Native Quality` validates JS gates plus Rust/version consistency for relevant native/workflow changes.
-- Vercel builds previews and production from Git integration.
+- Active checkout/setup-node actions use the Node 24 action runtime while the Pachimanga application test/build runtime stays pinned to Node 22.
+- Vercel builds previews and production from Git integration; Vercel account/build-rate limits are operational failures and must not be mistaken for application build failures.
 - Native artifact/release workflows remain manual-only during the PWA phase.
-- Production runtime changes require post-deploy smoke validation before a release-ready claim.
+- Production runtime changes require a READY deployment plus post-deploy smoke validation before a release-ready claim.
 
-Branch protection/ruleset hardening is tracked as P0 operational work in `WORKPLAN.md`.
+Branch protection/ruleset hardening is tracked in GitHub issue #10 and `WORKPLAN.md`.
 
 ## Security invariants
 
@@ -272,7 +295,7 @@ Every change must preserve:
 1. No guest/demo application path.
 2. Server-side session enforcement for protected routes.
 3. RLS on account-owned tables.
-4. Account-bound local cache ownership.
+4. Account-bound local cache and outbox ownership.
 5. No server secret in `NEXT_PUBLIC_*` variables or client bundles.
 6. Operation-limited relay; no arbitrary HTTP proxy.
 7. Source-specific Tauri bridge and constrained IPC origin.
@@ -298,4 +321,4 @@ cargo check --manifest-path src-tauri/Cargo.toml
 node scripts/check-native-version.mjs
 ```
 
-Production changes should also smoke-test anonymous auth enforcement and inspect runtime errors after deployment.
+Production changes should also smoke-test anonymous auth enforcement and inspect runtime errors after deployment. A green GitHub build is not a substitute for confirming the corresponding Vercel production deployment reached `READY`.
