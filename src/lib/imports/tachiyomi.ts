@@ -1,5 +1,8 @@
 import protobuf from 'protobufjs';
-import type { ImportResult } from './types';
+import type { ImportResult, ImportManga } from './types';
+
+const MAX_COMPRESSED_BYTES = 128 * 1024 * 1024;
+const MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024;
 
 const schema = `syntax = "proto2";
 message Backup { repeated BackupManga backupManga = 1; repeated BackupCategory backupCategories = 2; }
@@ -34,48 +37,114 @@ interface RawBackup {
   backupManga?: RawBackupManga[];
 }
 
-async function ungzip(bytes: Uint8Array) {
+function finiteNonNegative(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) && number >= 0 ? number : 0;
+}
+
+export async function gunzipWithLimit(bytes: Uint8Array, maxBytes = MAX_DECOMPRESSED_BYTES) {
   if (typeof DecompressionStream === 'undefined') {
     throw new Error('This browser cannot decompress Tachiyomi backups.');
   }
-  const ds = new DecompressionStream('gzip');
-  const stream = new Blob([bytes as unknown as BlobPart]).stream().pipeThrough(ds);
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const stream = new Blob([bytes as unknown as BlobPart])
+    .stream()
+    .pipeThrough(new DecompressionStream('gzip'));
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      total += chunk.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel('decompressed backup exceeds safety limit');
+        throw new Error(`Tachiyomi backup expands beyond the ${Math.round(maxBytes / 1024 / 1024)} MiB safety limit.`);
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('safety limit')) throw error;
+    throw new Error(`Tachiyomi backup could not be decompressed${error instanceof Error ? `: ${error.message}` : '.'}`);
+  }
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
+}
+
+function mapBackup(decoded: RawBackup): { manga: ImportManga[]; warnings: string[] } {
+  const categoryNames = (decoded.backupCategories || []).map((item) => item.name?.trim() || '');
+  const manga: ImportManga[] = [];
+  const warnings: string[] = [];
+
+  for (const [index, raw] of (decoded.backupManga || []).entries()) {
+    const title = raw.title?.trim();
+    if (!title) {
+      warnings.push(`Skipped Tachiyomi record ${index + 1}: missing title.`);
+      continue;
+    }
+
+    const chapters = raw.chapters || [];
+    const read = chapters.filter((chapter) => chapter.read);
+    const partial = chapters.filter((chapter) => finiteNonNegative(chapter.lastPageRead) > 0);
+    const lastRead = Math.max(
+      0,
+      ...read.map((chapter) => finiteNonNegative(chapter.chapterNumber)),
+      ...partial.map((chapter) => finiteNonNegative(chapter.chapterNumber)),
+    );
+    const lastPage = partial
+      .slice()
+      .sort((a, b) => finiteNonNegative(b.chapterNumber) - finiteNonNegative(a.chapterNumber))[0]?.lastPageRead;
+    const total = Math.max(0, ...chapters.map((chapter) => finiteNonNegative(chapter.chapterNumber)));
+    const categories = (raw.categories || [])
+      .map((categoryIndex) => categoryNames[categoryIndex])
+      .filter((name): name is string => Boolean(name));
+
+    manga.push({
+      title,
+      sourceUrl: raw.url?.trim() || undefined,
+      favorite: Boolean(raw.favorite),
+      lastChapterRead: lastRead,
+      lastPageRead: finiteNonNegative(lastPage),
+      totalChapters: total || undefined,
+      categories,
+    });
+  }
+
+  return { manga, warnings };
 }
 
 export async function parseTachiyomi(file: File): Promise<ImportResult> {
+  if (file.size > MAX_COMPRESSED_BYTES) {
+    throw new Error(`Tachiyomi backup is larger than the ${Math.round(MAX_COMPRESSED_BYTES / 1024 / 1024)} MiB compressed safety limit.`);
+  }
+
   const raw = new Uint8Array(await file.arrayBuffer());
-  const data = await ungzip(raw);
+  const data = await gunzipWithLimit(raw);
   const root = protobuf.parse(schema).root;
   const Backup = root.lookupType('Backup');
-  const decoded = Backup.toObject(Backup.decode(data), {
-    longs: Number,
-    defaults: false,
-    arrays: true,
-  }) as unknown as RawBackup;
 
-  const categories = (decoded.backupCategories || []).map((x) => x.name || '').filter(Boolean);
-  const manga = (decoded.backupManga || []).map((m) => {
-    const chapters = m.chapters || [];
-    const read = chapters.filter((c) => c.read);
-    const partial = chapters.filter((c) => Number(c.lastPageRead || 0) > 0);
-    const lastRead = Math.max(
-      0,
-      ...read.map((c) => Number(c.chapterNumber || 0)),
-      ...partial.map((c) => Number(c.chapterNumber || 0))
-    );
-    const lastPage =
-      partial.slice().sort((a, b) => Number(b.chapterNumber || 0) - Number(a.chapterNumber || 0))[0]?.lastPageRead || 0;
-    const total = Math.max(0, ...chapters.map((c) => Number(c.chapterNumber || 0)));
-    return {
-      title: String(m.title || 'Untitled'),
-      sourceUrl: m.url ? String(m.url) : undefined,
-      favorite: Boolean(m.favorite),
-      lastChapterRead: lastRead,
-      lastPageRead: Number(lastPage),
-      totalChapters: total || undefined,
-      categories: (m.categories || []).map((i: number) => categories[i]).filter(Boolean),
-    };
-  });
-  return { format: 'tachiyomi', manga, warnings: [] };
+  let decoded: RawBackup;
+  try {
+    decoded = Backup.toObject(Backup.decode(data), {
+      longs: Number,
+      defaults: false,
+      arrays: true,
+    }) as unknown as RawBackup;
+  } catch {
+    throw new Error('Tachiyomi/Mihon backup protobuf is corrupt or unsupported.');
+  }
+
+  const mapped = mapBackup(decoded);
+  if (!mapped.manga.length && (decoded.backupManga?.length || 0) > 0) {
+    throw new Error('Tachiyomi/Mihon backup contains no valid manga records.');
+  }
+  return { format: 'tachiyomi', ...mapped };
 }

@@ -24,6 +24,14 @@ function u64(view: DataView, offset: number): number {
   return Number(value);
 }
 
+function verifyOutputSize(name: string, output: Uint8Array, declaredUncompressedSize: number) {
+  if (output.byteLength > MAX_ENTRY_BYTES) throw new Error(`zip: entry too large (${name})`);
+  if (declaredUncompressedSize !== output.byteLength) {
+    throw new Error(`zip: uncompressed size mismatch (${name})`);
+  }
+  return output;
+}
+
 export function unzipEntries(raw: Uint8Array): Record<string, Uint8Array> {
   try {
     return readCentralDirectory(raw);
@@ -110,8 +118,8 @@ function readCentralDirectory(raw: Uint8Array): Record<string, Uint8Array> {
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
     if (dataStart + compSize > raw.length) throw new Error(`zip: truncated entry (${name})`);
     const compressed = raw.subarray(dataStart, dataStart + compSize);
-    if (method === 0) out[name] = compressed.slice();
-    else if (method === 8) out[name] = inflateSync(compressed);
+    if (method === 0) out[name] = verifyOutputSize(name, compressed.slice(), uncompSize);
+    else if (method === 8) out[name] = verifyOutputSize(name, inflateSync(compressed), uncompSize);
     else throw new Error(`zip: unsupported method ${method} (${name})`);
   }
   return out;
