@@ -14,7 +14,7 @@ const posters: Record<string, Poster> = {
   "ashen-sky": { bg: "#b8d8ff", bg2: "#5f73c6", accent: "#f6d8ff", accent2: "#334a89", short: "ASHEN", issue: "NO. 01", scene: "sky" },
   "glass-horizon": { bg: "#f18d3d", bg2: "#0f9f8f", accent: "#d8ff5f", accent2: "#20352f", short: "GLASS", issue: "FILE 07", scene: "glass" },
   "quiet-swordsman": { bg: "#f6b73e", bg2: "#9e2f32", accent: "#fff0a7", accent2: "#201419", short: "QUIET", issue: "VOL. 12", scene: "sword" },
-  "second-moon": { bg: "#ff6f9f", bg2: "#6d275c", accent: "#ffd3e8", accent2: "#1f1425", short: "MOON", issue: "ACT 04", scene: "moon" },
+  "second-moon": { bg: "#f97316", bg2: "#7c2d12", accent: "#ffedd5", accent2: "#1f1425", short: "MOON", issue: "ACT 04", scene: "moon" },
   "signal-zero": { bg: "#193c39", bg2: "#8abd3b", accent: "#e8ff85", accent2: "#0b1d1d", short: "ZERO", issue: "LOG 00", scene: "signal" },
   "winter-orchid": { bg: "#adc7ef", bg2: "#294f89", accent: "#f8edff", accent2: "#162c53", short: "ORCHID", issue: "BOOK 03", scene: "orchid" },
   "city-of-embers": { bg: "#ff7b42", bg2: "#552439", accent: "#ffc86b", accent2: "#25131a", short: "EMBERS", issue: "NIGHT 09", scene: "embers" },
@@ -82,10 +82,10 @@ export function MockCoverArt({ manga, className = "" }: { manga: Manga; classNam
 
       {p.scene === "moon" ? (
         <g>
-          <circle cx="232" cy="122" r="78" fill="#ffd0e7" opacity=".95" />
+          <circle cx="232" cy="122" r="78" fill="#ffedd5" opacity=".95" />
           <circle cx="250" cy="105" r="71" fill="#7c336a" opacity=".9" />
           <path d="M95 331c9-76 49-133 97-133 28 0 54 19 71 49-26 4-45 25-49 53-5 31 7 57 24 79H95Z" fill="#211326" />
-          <path d="M179 219c29 10 48 31 53 63" fill="none" stroke="#ff9fc6" strokeWidth="7" />
+          <path d="M179 219c29 10 48 31 53 63" fill="none" stroke="#fb923c" strokeWidth="7" />
         </g>
       ) : null}
 

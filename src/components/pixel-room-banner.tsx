@@ -14,19 +14,15 @@ export function PixelRoomBanner() {
         className="absolute inset-0 h-full w-full object-cover"
       />
       {/* Decorative SVG overlays (mascots, speech) render above the AI backdrop. */}
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        viewBox="0 0 1440 230"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-      >
-        <defs>
-          <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
-            <path d="M0 3.5h4" stroke="#fff" strokeOpacity=".018" />
-          </pattern>
-        </defs>
-        <rect width="1440" height="230" fill="url(#scan)" />
-      </svg>
+    <Image
+      src="/ai-art/scanlines.avif"
+      alt="Scanline overlay"
+      aria-hidden="true"
+      fill
+      className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+      priority
+      sizes="100vw"
+    />
 
       <div className="pixel-room-speech hidden sm:block">
         Read more <span aria-hidden="true">♥</span><br />be happier!

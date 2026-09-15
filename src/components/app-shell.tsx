@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`group flex min-h-12 items-center gap-3 rounded-[12px] px-3.5 text-[14px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${
                   active
-                    ? "bg-gradient-to-r from-[#ff79b6] to-[#ff92c2] font-semibold text-[#28101b] shadow-[0_8px_28px_rgba(255,108,174,.12)]"
+                    ? "bg-gradient-to-r from-[#fb923c] to-[#fdba74] font-semibold text-[#2a1503] shadow-[0_8px_28px_rgba(249,115,22,.14)]"
                     : "text-zinc-400 hover:bg-white/[.045] hover:text-zinc-100"
                 }`}
               >

@@ -22,6 +22,7 @@ export default function SettingsPage() {
       const next = { ...value, ...p };
       saveReaderSettings(next);
       document.documentElement.dataset.theme = next.theme;
+      try { localStorage.setItem('pachimanga-theme', next.theme); } catch { /* private mode */ }
       return next;
     });
   }
@@ -56,9 +57,19 @@ export default function SettingsPage() {
           <div className="mt-6">
             <p className="text-xs font-medium uppercase tracking-[.12em] text-zinc-600">Default fit</p>
             <div className="mt-2 inline-flex rounded-xl border border-white/[.08] bg-[#0d0c12] p-1">
-              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'width' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'width' })}>Fit width</button>
-              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'screen' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'screen' })}>Fit screen</button>
+              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'width' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'width' })}>Fit width</button>
+              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'screen' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'screen' })}>Fit screen</button>
             </div>
+          </div>
+        </section>
+
+        <section className="surface-card p-5 sm:p-6">
+          <p className="pixel-kicker text-[9px] text-pink-400">Appearance</p>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-100">Theme</h2>
+          <p className="mt-1 text-sm text-zinc-500">Calico dark (black & orange) or day white (white & orange). Syncs to your account.</p>
+          <div className="mt-4 inline-flex rounded-xl border border-white/[.08] bg-[#0d0c12] p-1" role="radiogroup" aria-label="Color theme">
+            <button role="radio" aria-checked={s.theme === 'dark'} className={`rounded-[9px] px-4 py-2 text-sm transition ${s.theme === 'dark' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ theme: 'dark' })}>Calico dark</button>
+            <button role="radio" aria-checked={s.theme === 'light'} className={`rounded-[9px] px-4 py-2 text-sm transition ${s.theme === 'light' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ theme: 'light' })}>Day white</button>
           </div>
         </section>
 

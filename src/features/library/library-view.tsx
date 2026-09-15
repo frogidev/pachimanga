@@ -30,13 +30,13 @@ function ListIcon() {
 function PachiHeadPink() {
   return (
     <svg width="30" height="30" viewBox="0 0 24 24" shapeRendering="crispEdges" aria-hidden="true">
-      <rect x="3" y="3" width="6" height="6" fill="#ff78b4" />
-      <rect x="15" y="3" width="6" height="6" fill="#ff78b4" />
-      <rect x="4" y="8" width="16" height="12" fill="#ff9cca" />
-      <rect x="6" y="6" width="12" height="14" fill="#ff9cca" />
-      <rect x="7" y="11" width="3" height="4" fill="#28101b" />
-      <rect x="14" y="11" width="3" height="4" fill="#28101b" />
-      <rect x="11" y="15" width="2" height="2" fill="#28101b" />
+      <rect x="3" y="3" width="6" height="6" fill="#fb923c" />
+      <rect x="15" y="3" width="6" height="6" fill="#fb923c" />
+      <rect x="4" y="8" width="16" height="12" fill="#fdba74" />
+      <rect x="6" y="6" width="12" height="14" fill="#fdba74" />
+      <rect x="7" y="11" width="3" height="4" fill="#2a1503" />
+      <rect x="14" y="11" width="3" height="4" fill="#2a1503" />
+      <rect x="11" y="15" width="2" height="2" fill="#2a1503" />
     </svg>
   );
 }
@@ -271,7 +271,7 @@ export function LibraryView() {
             <PawPrint className="translate-y-2 rotate-[-12deg]" />
             <PawPrint className="-translate-y-1 rotate-[10deg]" />
           </div>
-          <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#ff80b9] to-[#ff9bc9] px-5 py-3 text-sm font-bold text-[#28101b] shadow-[0_10px_24px_rgba(255,112,174,.12)] transition hover:brightness-105">Browse Manga <span className="ml-2">→</span></Link>
+          <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#fb923c] to-[#fdba74] px-5 py-3 text-sm font-bold text-[#2a1503] shadow-[0_10px_24px_rgba(249,115,22,.14)] transition hover:brightness-105">Browse Manga <span className="ml-2">→</span></Link>
         </div>
       </div>
     </div>
