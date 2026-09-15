@@ -21,6 +21,9 @@ test("repo contains no committed merge-conflict markers", () => {
   for (const file of walk(join(ROOT, "src"))) {
     if (readFileSync(file, "utf8").includes(MARKER)) offenders.push(file);
   }
+  for (const file of walk(join(ROOT, "docs"))) {
+    if (readFileSync(file, "utf8").includes(MARKER)) offenders.push(file);
+  }
   for (const file of ["public/sw.js", "next.config.ts", "package.json", "README.md", "AGENTS.md"]) {
     try {
       if (readFileSync(join(ROOT, file), "utf8").includes(MARKER)) offenders.push(file);
