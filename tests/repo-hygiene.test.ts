@@ -16,13 +16,20 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+function collectMarkers(dir: string, offenders: string[]) {
+  try {
+    for (const file of walk(join(ROOT, dir))) {
+      if (readFileSync(file, "utf8").includes(MARKER)) offenders.push(file);
+    }
+  } catch {
+    // Optional directory absent.
+  }
+}
+
 test("repo contains no committed merge-conflict markers", () => {
   const offenders: string[] = [];
-  for (const file of walk(join(ROOT, "src"))) {
-    if (readFileSync(file, "utf8").includes(MARKER)) offenders.push(file);
-  }
-  for (const file of walk(join(ROOT, "docs"))) {
-    if (readFileSync(file, "utf8").includes(MARKER)) offenders.push(file);
+  for (const dir of ["src", "docs", ".github", "scripts", "src-tauri", "supabase"]) {
+    collectMarkers(dir, offenders);
   }
   for (const file of ["public/sw.js", "next.config.ts", "package.json", "README.md", "AGENTS.md"]) {
     try {
