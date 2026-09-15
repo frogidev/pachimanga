@@ -8,11 +8,12 @@ For a new development or Hermes session, read in this order:
 
 1. `../AGENTS.md` — non-negotiable engineering, security, git, validation, and deployment rules.
 2. `WORKPLAN.md` — current priorities, sequencing, acceptance criteria, and exact next work.
-3. `architecture.md` — production runtime, authentication, storage, source, PWA, native, and deployment boundaries.
-4. `art-direction.md` — visual language and UI consistency rules.
-5. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
-6. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
-7. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
+3. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
+4. `verification-2026-09-15.md` — dated production/CI/Supabase verification evidence and current external blockers.
+5. `art-direction.md` — visual language and UI consistency rules.
+6. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
+7. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
+8. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
 
 ## Source-of-truth ownership
 
@@ -21,6 +22,7 @@ For a new development or Hermes session, read in this order:
 | Product/auth contract | `../AGENTS.md` | `src/proxy.ts`, `src/lib/supabase/**`, Supabase migrations |
 | Current priorities | `WORKPLAN.md` | Current GitHub/Vercel/Supabase state after verification |
 | Runtime/data architecture | `architecture.md` | `src/**`, `src-tauri/**`, `relay/**`, `supabase/**` |
+| Dated verification evidence | `verification-2026-09-15.md` | Live GitHub/Vercel/Supabase state |
 | UI/visual language | `art-direction.md` | Shared components and `src/app/globals.css` |
 | PWA distribution/relay | `free-pwa-distribution.md` | Vercel config, relay code, service worker |
 | Hermes behavior | `hermes-local.md`, `.hermes/skills/**` | Root `AGENTS.md` remains the project contract |
@@ -47,4 +49,4 @@ A change is incomplete when it materially changes any of the following without u
 - visual system or shared interaction patterns;
 - project priorities, blockers, or release readiness.
 
-`WORKPLAN.md` is operational rather than historical. Remove completed noise, record evidence for completed gates, and keep the next executable tasks explicit.
+`WORKPLAN.md` is operational rather than historical. Remove completed noise, record evidence for completed gates, and keep the next executable tasks explicit. Dated verification files provide evidence snapshots but must not be treated as live state indefinitely.
