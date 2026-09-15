@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { PachiCalico } from "@/components/pachi-calico";
 
 type Props = {
   className?: string;
@@ -7,17 +7,7 @@ type Props = {
   eager?: boolean;
 };
 
-/** AI-generated Pachi sitting sprite (3:2). Decorative by default. */
-export function PachiMascotImg({ className = "", width = 220, height = 147, eager = false }: Props) {
-  return (
-    <Image
-      src="/ai-art/pachi-mascot-calico.png"
-      alt=""
-      aria-hidden="true"
-      width={width}
-      height={height}
-      loading={eager ? "eager" : "lazy"}
-      className={className}
-    />
-  );
+/** Hand-plotted pixel-calico mascot. Props kept for call-site compatibility. */
+export function PachiMascotImg({ className = "" }: Props) {
+  return <PachiCalico className={className} />;
 }

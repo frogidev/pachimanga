@@ -1,15 +1,11 @@
-import Image from "next/image";
+import { PachiCalico } from "@/components/pachi-calico";
 
 export function PachiLogo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="inline-flex items-center gap-3">
-      <Image
-        src="/ai-art/pachi-avatar.avif"
-        alt=""
-        aria-hidden="true"
-        width={44}
-        height={44}
-        className="size-11 shrink-0 rounded-[15px] object-cover shadow-[0_8px_24px_rgba(255,82,145,.18)] ring-1 ring-white/15"
+      <PachiCalico
+        variant="head"
+        className="size-11 shrink-0 rounded-[15px] bg-[#101018] object-cover p-1 shadow-[0_8px_24px_rgba(255,82,145,.18)] ring-1 ring-white/15"
       />
       {compact ? null : (
         <span className="min-w-0 leading-none">
