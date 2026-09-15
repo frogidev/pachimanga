@@ -40,3 +40,9 @@ test("repo contains no committed merge-conflict markers", () => {
   }
   assert.deepEqual(offenders, []);
 });
+
+test("service worker evicts only stale Pachimanga caches", () => {
+  const serviceWorker = readFileSync(join(ROOT, "public/sw.js"), "utf8");
+  assert.match(serviceWorker, /key\.startsWith\("pachimanga-"\) && key !== CACHE_VERSION/);
+  assert.doesNotMatch(serviceWorker, /key !== CACHE_VERSION && !key\.startsWith\("pachimanga-"\)/);
+});

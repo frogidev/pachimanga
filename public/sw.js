@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pachimanga-pwa-v3-auth";
+const CACHE_VERSION = "pachimanga-pwa-v4-auth";
 const PUBLIC_SHELL = [
   "/offline",
   "/icons/icon-192.png",
@@ -14,7 +14,13 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_VERSION && !key.startsWith("pachimanga-")).map((key) => caches.delete(key)))),
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith("pachimanga-") && key !== CACHE_VERSION)
+          .map((key) => caches.delete(key)),
+      ),
+    ),
   );
   self.clients.claim();
 });
