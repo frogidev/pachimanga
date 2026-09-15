@@ -1,0 +1,27 @@
+name: Repository Hygiene
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-hygiene-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Repository hygiene tests
+        run: node --experimental-strip-types --test tests/repo-hygiene.test.ts
