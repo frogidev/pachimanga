@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
-import { PachiSleeper } from "@/components/pachi-mascot";
+import { PachiMascotImg } from "@/components/pachi-mascot-img";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
 
@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               Good manga<br />better days. ♡
               <span className="absolute -bottom-[7px] left-8 h-3 w-3 rotate-45 border-b border-r border-pink-300/40 bg-[#1a111c]" />
             </div>
-            <PachiSleeper className="absolute -bottom-1 left-[-10px] h-[190px] w-[245px]" />
+            <PachiMascotImg width={220} height={147} className="absolute bottom-0 left-[-10px] h-auto w-[220px] rounded-xl object-cover" />
           </div>
 
           <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">

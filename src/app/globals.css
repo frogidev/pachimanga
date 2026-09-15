@@ -94,14 +94,6 @@ button, select { cursor: pointer; }
   border-bottom: 2px solid #241626;
   transform: rotate(45deg);
 }
-.pixel-room-sleeper {
-  position: absolute;
-  z-index: 3;
-  left: 3.5%;
-  bottom: -42px;
-  width: 260px;
-  height: 190px;
-}
 .pixel-room-cat {
   position: absolute;
   z-index: 3;
@@ -186,7 +178,6 @@ button, select { cursor: pointer; }
 
 @media (max-width: 767px) {
   .pixel-room-banner { height: 142px; }
-  .pixel-room-sleeper { left: 50%; bottom: -52px; width: 210px; height: 160px; transform: translateX(-55%); opacity: .9; }
   .app-page { padding: 24px 16px 40px; }
 }
 
