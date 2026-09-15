@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { MockCoverArt } from "@/components/mock-cover-art";
 import { PageHeading } from "@/components/page-heading";
-import { PachiMascotImg } from "@/components/pachi-mascot-img";
 import { getHistory, getLibraryEntries } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, ReadingHistoryEntry } from "@/types/models";
 
@@ -31,7 +30,7 @@ export function HistoryView() {
       <div className="mt-6 space-y-3">
         {history.length === 0 ? (
           <div className="surface-card flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
-            <PachiMascotImg width={128} height={85} className="h-auto w-32 rounded-xl object-cover" />
+            <Image src="/ai-art/empty-shelves.avif" alt="Empty manga shelves, your reading trail starts here" width={256} height={171} loading="lazy" className="h-auto w-64 rounded-xl object-cover" />
             <h2 className="mt-2 text-lg font-semibold text-zinc-200">Your reading trail starts here</h2>
             <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">Open a chapter and start reading. Pachimanga will keep your most recent position under this account.</p>
             <Link href="/browse" className="button-primary mt-5 px-4 py-2.5 text-sm">Browse manga</Link>

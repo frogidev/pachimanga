@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
-import { PachiMascotImg } from "@/components/pachi-mascot-img";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
 
@@ -68,12 +67,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto px-4 pb-4">
-          <div className="sidebar-cozy-scene relative mx-auto mb-1 h-[250px] max-w-[220px]">
+          <div className="sidebar-cozy-scene relative mx-auto mb-1 h-[120px] max-w-[220px]">
             <div className="absolute left-1 top-1 rounded-[8px] border border-pink-300/40 bg-[#1a111c] px-3 py-2 font-mono text-[10px] font-semibold leading-[1.55] text-pink-100 shadow-[4px_4px_0_rgba(83,37,67,.6)]">
               Good manga<br />better days. ♡
               <span className="absolute -bottom-[7px] left-8 h-3 w-3 rotate-45 border-b border-r border-pink-300/40 bg-[#1a111c]" />
             </div>
-            <PachiMascotImg width={220} height={147} className="absolute bottom-0 left-[-10px] h-auto w-[220px] rounded-xl object-cover" />
           </div>
 
           <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">

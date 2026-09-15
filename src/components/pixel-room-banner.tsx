@@ -1,6 +1,4 @@
 import Image from "next/image";
-import { PachiMascotImg } from "@/components/pachi-mascot-img";
-
 export function PixelRoomBanner() {
   return (
     <section className="pixel-room-banner" aria-label="Pachimanga reading room artwork">
@@ -27,7 +25,6 @@ export function PixelRoomBanner() {
       <div className="pixel-room-speech hidden sm:block">
         Read more <span aria-hidden="true">♥</span><br />be happier!
       </div>
-      <PachiMascotImg eager width={180} height={120} className="pixel-room-cat hidden object-contain lg:block" />
     </section>
   );
 }
