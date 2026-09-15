@@ -6,16 +6,16 @@ This file records concrete verification evidence from the current PWA release-ha
 
 Verified during this pass:
 
-- `main` reached `33866e3700ebbe86518f0648db32d1d6e309a58a` after PR #33.
+- `main` reached `847407b50f75ca857d6d1ec0dfd4c345af86689a` after PR #34.
 - `Repository Hygiene` runs on every pull request and every push to `main`.
-- `Web Quality` now runs on every pull request and every push to `main` so its `quality` result can be used as a stable required check.
+- `Web Quality` runs on every pull request and every push to `main`, so its `quality` result is a stable required check.
 - For hosted-runtime changes, Web Quality runs unit tests, lint, typecheck, and a production Next.js build on Node 22.
 - For docs/agent/native-only changes, Web Quality still reports the `quality` check but skips unnecessary npm/build work.
 - Active `checkout`/`setup-node` actions use v7 while the project runtime remains Node 22.
 
 ### `main` ruleset
 
-GitHub ruleset `Protect main` was verified active for the default branch.
+GitHub ruleset `Protect main` was verified active for the default branch and Phase 2 branch-protection work is complete.
 
 Current rules:
 
@@ -27,9 +27,11 @@ Current rules:
 - squash is the only allowed merge method;
 - branches must be up to date before merge;
 - no bypass actors are configured;
-- `hygiene` is currently required.
+- required GitHub Actions checks are `hygiene` and `quality`.
 
-PR #33 made `quality` an always-present safe merge check. Add `quality` to the ruleset as the second required check before considering Phase 2 fully complete.
+PR #33 made `quality` an always-present safe merge check. PR #34 verified the docs-only path: both `hygiene` and `quality` succeeded while unnecessary setup-node/npm/test/lint/typecheck/build steps were skipped. Issue #10 is closed as completed.
+
+Vercel is intentionally not a universal required check while Hobby build-rate limits can fail independently of application CI. Native Quality is intentionally not universal because it remains path-sensitive and native release workflows remain manual-only.
 
 ## Supabase production audit
 
@@ -108,8 +110,7 @@ The repository now contains ignored-build handling so non-runtime-only changes d
 
 The remaining manual/external work is intentionally narrow:
 
-1. Add `quality` as the second required status check in the active `Protect main` ruleset. `hygiene` is already required.
-2. Complete fresh-account email confirmation/password-reset and two-account/two-device production E2E using real accounts.
-3. Complete real-device installed-PWA validation across iOS/iPadOS/Android/desktop.
-4. Re-verify the latest runtime changes in production after Vercel build capacity becomes available.
-5. Reconcile the documented production Supabase migration provenance/bootstrap mismatch tracked separately in issue #26.
+1. Complete fresh-account email confirmation/password-reset and two-account/two-device production E2E using real accounts.
+2. Complete real-device installed-PWA validation across iOS/iPadOS/Android/desktop.
+3. Re-verify the latest runtime changes in production after Vercel build capacity becomes available.
+4. Reconcile the documented production Supabase migration provenance/bootstrap mismatch tracked separately in issue #26.
