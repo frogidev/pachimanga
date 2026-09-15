@@ -1,6 +1,6 @@
 # Pachimanga Native
 
-Pachimanga Native is a Tauri 2 shell around the production Pachimanga UI. It exists primarily to provide a narrow device-side networking bridge for WeebCentral while keeping the same authenticated product experience as the web/PWA.
+Pachimanga Native is a retained Tauri 2 shell around the production Pachimanga UI. It primarily provides a narrow device-side WeebCentral networking bridge while preserving the same authenticated product experience as the PWA.
 
 The shell loads:
 
@@ -8,67 +8,71 @@ The shell loads:
 https://pachimanga.frogilab.dev
 ```
 
-There is no native-only guest or demo mode. Users must sign in or register with the same Supabase-backed account used on web/PWA.
+There is no native-only guest/demo mode. Users authenticate with the same Supabase-backed account used on web/PWA.
+
+## Current project status
+
+Native source is maintained, but native distribution is not an active delivery target.
+
+Until the PWA release-candidate gate in `docs/WORKPLAN.md` is complete:
+
+- Android debug/release workflows remain manual-only.
+- Windows/Linux/macOS release workflow remains manual-only.
+- iOS release workflow remains manual-only.
+- Do not add tag/push triggers for native releases.
+- Do not prioritize signing/store/TestFlight/installer work unless explicitly requested.
+
+Normal frontend changes continue to ship through Vercel and are consumed by the remote UI loaded by the shell.
 
 ## Why the native shell exists
 
-The web/PWA can use the private Frogilab relay for WeebCentral. The native app can instead make the supported WeebCentral HTTPS requests directly from the user's device through the Rust command `weebcentral_request`.
+The browser/PWA can use the private Frogilab relay for WeebCentral. Tauri can instead make supported WeebCentral HTTPS requests from the device through the Rust `weebcentral_request` command.
 
-Everything else remains part of the hosted product:
+The hosted product still owns:
 
-- authentication
-- library
-- imports
-- reader UI
-- progress/history
-- settings
-- MangaDex/ComicK paths
+- authentication;
+- library;
+- imports;
+- reader UI;
+- progress/history;
+- settings;
+- MangaDex/ComicK paths.
 
-Normal frontend changes therefore deploy through Vercel and usually do not require a new native installer.
+A new installer is normally unnecessary for a pure Next.js/React change.
 
 ## Security model
 
 The native boundary is intentionally narrow:
 
-- The shell loads the production Pachimanga origin.
-- Remote Tauri IPC is scoped to that origin through the Tauri capability configuration.
-- The custom bridge is `weebcentral_request`; do not replace it with a generic arbitrary-URL HTTP proxy.
-- Supported operations are fixed read-only WeebCentral operations such as health, search, manga metadata, chapters, chapter HTML, and pages.
-- WeebCentral identifiers and destinations are validated/constructed inside trusted native code.
-- Timeouts and redirect limits are enforced.
-- HTTP failures such as 403/429 are surfaced instead of being bypassed.
-- The client does not solve CAPTCHAs, rotate proxies, impersonate browsers, or bypass upstream authentication/access controls.
+- WebView content comes from the production Pachimanga origin.
+- Remote Tauri IPC is scoped to that origin through capability configuration.
+- The custom bridge is `weebcentral_request`.
+- Supported operations are fixed read-only WeebCentral operations.
+- IDs/destinations are validated or constructed inside trusted native code.
+- Timeouts/redirect limits are bounded.
+- Upstream HTTP failures such as 403/429 are surfaced rather than bypassed.
+- The client does not solve CAPTCHAs, rotate proxies, impersonate browsers, or bypass authentication/anti-bot controls.
+- Secrets must not be embedded in the native binary.
 
-Authentication is still enforced by the hosted Next.js/Supabase layer before users reach application routes.
+Never replace the dedicated command with a generic arbitrary-URL fetch bridge.
 
-## Current validated Android flow
+## Previously validated Android flow
 
-The native bridge has been validated on a physical Android device.
+A physical-device Android path has been validated historically:
 
-The high-level flow is:
+1. Launch the Tauri shell.
+2. Load `pachimanga.frogilab.dev`.
+3. Authenticate with the normal Pachimanga account.
+4. Detect the Tauri runtime.
+5. Route supported WeebCentral requests through `weebcentral_request`.
+6. Keep MangaDex/ComicK on their normal application paths.
+7. Synchronize library/settings/history/progress through the authenticated account model.
 
-1. Launch Pachimanga Native.
-2. The WebView loads `pachimanga.frogilab.dev`.
-3. The user signs in/registers if no valid Supabase session exists.
-4. Browse detects the Tauri runtime.
-5. WeebCentral requests use the Rust `weebcentral_request` command.
-6. Manga metadata/chapter/page discovery stays on the native path for WeebCentral.
-7. MangaDex and ComicK continue using their normal application/network paths.
-8. Library, reader settings, history, and progress synchronize under the authenticated user account.
-
-A long-strip WeebCentral chapter has also been used for real-device reader validation. Reader changes should continue to be tested on both long-strip/manhwa content and conventional page layouts.
-
-## End-user requirements
-
-End users do not need Rust, Node.js, Android Studio, or Xcode. They need:
-
-- a supported Pachimanga build or the PWA;
-- internet access;
-- a Pachimanga account.
+This historical validation is not a substitute for final release validation. The native phase must repeat real-device testing after the PWA product and signing/distribution configuration are finalized.
 
 ## Development requirements
 
-Install Rust and the Tauri CLI:
+Install Rust and Tauri CLI:
 
 ```bash
 cargo install tauri-cli --version "^2.11" --locked
@@ -76,33 +80,46 @@ cargo install tauri-cli --version "^2.11" --locked
 
 Platform requirements:
 
-- Windows: Rust MSVC toolchain, Microsoft C++ Build Tools, WebView2.
-- macOS: Xcode command-line tools; polished direct distribution needs normal Apple signing/notarization.
+- Windows: Rust MSVC, Microsoft C++ Build Tools, WebView2.
+- macOS: Xcode command-line tools; production distribution needs Apple signing/notarization.
 - Linux: Rust plus WebKitGTK/system packages required by Tauri.
-- Android: Android SDK/NDK, supported JDK, Rust Android target, generated Tauri Android project.
-- iOS: macOS/Xcode, Rust iOS targets, and Apple signing/provisioning for device/TestFlight/App Store distribution.
+- Android: Android SDK/NDK, supported JDK, Rust Android target, generated Tauri project.
+- iOS: macOS/Xcode, Rust iOS targets, Apple signing/provisioning for device/TestFlight/App Store distribution.
+
+## Development checks
+
+For native-impacting changes:
+
+```bash
+npm test
+npm run lint
+npm run typecheck
+npm run build
+cargo check --manifest-path src-tauri/Cargo.toml
+node scripts/check-native-version.mjs
+```
+
+The `Native Quality` GitHub workflow runs the relevant JS/Rust/version checks for matching changes.
 
 ## Desktop development
-
-From the repository root:
 
 ```bash
 cargo tauri dev
 cargo tauri build
 ```
 
-The shell is configured around the production remote UI. When debugging IPC, verify that the capability origin still matches the production domain.
+The shell is configured around the production remote UI. When debugging IPC, verify the capability origin still matches the intended production origin.
 
-## Android/iOS generated projects
+## Generated mobile projects
 
-Tauri mobile projects are generated as needed and are not treated as primary source files:
+Generated Tauri mobile projects are not primary source files and remain ignored:
 
 ```bash
 cargo tauri android init
 cargo tauri android build --apk
 ```
 
-On macOS for iOS:
+On macOS:
 
 ```bash
 cargo tauri ios init
@@ -111,21 +128,21 @@ cargo tauri ios build
 
 `src-tauri/gen/` is intentionally ignored.
 
-## CI and releases
+## Workflows
 
-The repository contains both test/debug and release-oriented native workflows.
+- `.github/workflows/native-quality.yml` — automatic quality checks for matching changes.
+- `.github/workflows/android-apk.yml` — manual Android debug/test APK.
+- `.github/workflows/android-release.yml` — manual signed Android APK/AAB build.
+- `.github/workflows/desktop-release.yml` — manual Windows/Linux/macOS artifacts.
+- `.github/workflows/ios-release.yml` — manual iOS signed build/export.
 
-- `.github/workflows/android-apk.yml` — Android test/debug APK path.
-- `.github/workflows/android-release.yml` — signed Android release APK/AAB path when signing secrets are configured.
-- `.github/workflows/desktop-release.yml` — Windows/Linux/macOS release artifacts.
-- `.github/workflows/ios-release.yml` — iOS signed build/export path; App Store Connect/TestFlight upload is a separate step unless explicitly automated.
-- `.github/workflows/native-quality.yml` — tests, lint, typecheck, Rust check, and native version consistency.
+Release workflows are intentionally manual-only during the PWA phase.
 
-See `docs/native-release-pipeline.md` for signing details.
+See `docs/native-release-pipeline.md` for final-phase signing requirements.
 
 ## Version invariant
 
-The native version must stay consistent across:
+Native version must match in:
 
 - `package.json`
 - `src-tauri/tauri.conf.json`
@@ -137,21 +154,31 @@ Check with:
 node scripts/check-native-version.mjs
 ```
 
-## When a new native installer is required
+## When a new native artifact is required
 
-Create a new native release when changing any of the following:
+A new native build is required for changes to:
 
-- Rust commands or networking behavior
-- Tauri capabilities/permissions
-- native plugins
-- platform manifests/configuration
-- native signing/bundling
-- icons/metadata that are baked into the binary
+- Rust commands/networking behavior;
+- Tauri capabilities/permissions/origins;
+- native plugins;
+- platform manifests/configuration;
+- native signing/bundling;
+- icons/metadata embedded in the binary.
 
-Normal Next.js/React UI changes do not require reinstalling Android/macOS/desktop builds because the shell loads the hosted production UI.
+A pure hosted UI change normally does not require reinstalling a native shell.
 
-## Private small-group distribution
+## Final native release gate
 
-For a private group of roughly tens of users, direct native distribution is sufficient for Android/desktop. iPhone/iPad users can use the PWA for free; a cleaner native iOS distribution path requires Apple Developer signing, typically through TestFlight for a small invited group.
+Native distribution may start only after the PWA release-candidate gate is met or the user explicitly changes priority. The final phase must validate:
 
-Do not commit signing certificates, provisioning profiles, keystores, passwords, or private keys.
+- persistent signing credentials and recovery/backup procedures;
+- install and upgrade behavior from an older build;
+- real-device Android behavior;
+- Windows/Linux/macOS packaging on current runners;
+- Apple Developer/TestFlight decision and credentials if iOS/macOS native distribution is required;
+- authenticated production UI loading;
+- origin-restricted IPC;
+- WeebCentral bridge behavior;
+- no regression in account isolation.
+
+Do not commit certificates, provisioning profiles, keystores, passwords, private keys, or relay/service credentials.
