@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MangaCard } from "@/components/manga-card";
+import { PachiCalico } from "@/components/pachi-calico";
 import Image from "next/image";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
 import { isTauriNative } from "@/lib/native/tauri-bridge";
@@ -25,20 +26,6 @@ function GridIcon() {
 
 function ListIcon() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="18" r="1" fill="currentColor" stroke="none"/></svg>;
-}
-
-function PachiHeadPink() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" shapeRendering="crispEdges" aria-hidden="true">
-      <rect x="3" y="3" width="6" height="6" fill="#fb923c" />
-      <rect x="15" y="3" width="6" height="6" fill="#fb923c" />
-      <rect x="4" y="8" width="16" height="12" fill="#fdba74" />
-      <rect x="6" y="6" width="12" height="14" fill="#fdba74" />
-      <rect x="7" y="11" width="3" height="4" fill="#2a1503" />
-      <rect x="14" y="11" width="3" height="4" fill="#2a1503" />
-      <rect x="11" y="15" width="2" height="2" fill="#2a1503" />
-    </svg>
-  );
 }
 
 function PawPrint({ className = "" }: { className?: string }) {
@@ -262,7 +249,7 @@ export function LibraryView() {
         )}
 
         <div className="promo-strip relative mt-8 flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-pink-400/10"><PachiHeadPink /></div>
+          <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-pink-400/10"><PachiCalico variant="head" className="size-10" /></div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
             <div className="font-semibold text-zinc-100">A new chapter is always a good idea.</div>
             <div className="mt-1 text-sm text-zinc-500">Keep reading, keep collecting, keep enjoying!</div>
