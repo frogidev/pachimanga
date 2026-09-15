@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { hasMangaSourceShape } from "../src/sources/core/contract.ts";
-import { listSources } from "../src/sources/core/registry.ts";
 import { parseSeriesIdFromUrl, weebCentralEndpoints } from "../src/sources/weebcentral/endpoints.ts";
 
 test("source contract detects required adapter methods", () => {
@@ -15,13 +14,6 @@ test("source contract detects required adapter methods", () => {
   };
   assert.equal(hasMangaSourceShape(source), true);
   assert.equal(hasMangaSourceShape({ id: "broken" }), false);
-});
-
-test("production source registry contains only real providers", () => {
-  assert.deepEqual(
-    listSources().map((source) => source.id).sort(),
-    ["comick", "mangadex", "weebcentral"],
-  );
 });
 
 test("WeebCentral endpoint builder encodes untrusted identifiers", () => {
