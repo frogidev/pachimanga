@@ -41,6 +41,40 @@ test("repo contains no committed merge-conflict markers", () => {
   assert.deepEqual(offenders, []);
 });
 
+test("Supabase active migrations mirror the canonical timestamped production chain", () => {
+  const migrationDir = join(ROOT, "supabase/migrations");
+  const migrations = readdirSync(migrationDir).filter((entry) => entry.endsWith(".sql")).sort();
+  const required = [
+    "20260913122954_initial_pachimanga_user_sync.sql",
+    "20260913124558_pachimanga_sync_history.sql",
+    "20260915053221_drop_redundant_library_index.sql",
+    "20260915080009_revoke_anon_account_table_privileges.sql",
+    "20260915080109_tighten_account_role_privileges.sql",
+  ];
+
+  for (const filename of required) {
+    assert.ok(migrations.includes(filename), `missing canonical Supabase migration ${filename}`);
+  }
+
+  for (const filename of migrations) {
+    assert.match(filename, /^\d{14}_[a-z0-9_]+\.sql$/, `${filename} must use a Supabase timestamp prefix`);
+    assert.doesNotMatch(
+      readFileSync(join(migrationDir, filename), "utf8"),
+      /public\.user_library/,
+      `${filename} must not restore the obsolete user_library schema`,
+    );
+  }
+
+  assert.deepEqual(
+    readdirSync(join(ROOT, "supabase/legacy-migrations")).filter((entry) => entry.endsWith(".sql")).sort(),
+    ["001_auth_library.sql", "002_sync_tables.sql", "003_drop_redundant_library_index.sql"],
+  );
+
+  const config = readFileSync(join(ROOT, "supabase/config.toml"), "utf8");
+  assert.match(config, /major_version\s*=\s*17/);
+  assert.match(config, /\[db\.migrations\][\s\S]*enabled\s*=\s*true/);
+});
+
 test("service worker evicts only stale Pachimanga caches", () => {
   const serviceWorker = readFileSync(join(ROOT, "public/sw.js"), "utf8");
   assert.match(serviceWorker, /key\.startsWith\("pachimanga-"\) && key !== CACHE_VERSION/);
