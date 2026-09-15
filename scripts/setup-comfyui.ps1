@@ -35,7 +35,8 @@ try {
   $Py = Join-Path $Root 'venv\Scripts\python.exe'
   if (-not (Test-Path $Py)) { python -m venv venv }
   & $Py -m pip install --upgrade pip
-  & $Py -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+  # Current stable CUDA build: comfy-kitchen >= 0.2 needs torch >= 2.6 op schemas (cu121 ships torch 2.5).
+  & $Py -m pip install --upgrade torch torchvision torchaudio
   if ($LASTEXITCODE -ne 0) { throw 'PyTorch install failed. Check network/disk and re-run.' }
   & $Py -m pip install -r requirements.txt
   if ($LASTEXITCODE -ne 0) { throw 'ComfyUI requirements failed. Re-run to retry.' }
