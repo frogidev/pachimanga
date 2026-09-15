@@ -46,3 +46,11 @@ test("service worker evicts only stale Pachimanga caches", () => {
   assert.match(serviceWorker, /key\.startsWith\("pachimanga-"\) && key !== CACHE_VERSION/);
   assert.doesNotMatch(serviceWorker, /key !== CACHE_VERSION && !key\.startsWith\("pachimanga-"\)/);
 });
+
+test("production source registry excludes the mock provider", () => {
+  const registry = readFileSync(join(ROOT, "src/sources/core/registry.ts"), "utf8");
+  assert.match(registry, /weebCentralSource/);
+  assert.match(registry, /mangaDexSource/);
+  assert.match(registry, /comickSource/);
+  assert.doesNotMatch(registry, /sources\/mock|mockSource/);
+});
