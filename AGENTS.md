@@ -1,31 +1,136 @@
 # AGENTS.md
 
-This file is the handoff entrypoint for AI agents and new development sessions working on Pachimanga.
+This is the mandatory project contract for AI agents, Hermes, and new engineering sessions working on Pachimanga. It is intentionally strict. When a convenience conflicts with these rules, preserve the rule and choose a safer implementation.
 
-Before making changes, read:
+## Required read order
 
-1. `README.md`
-2. `docs/architecture.md`
-3. `docs/WORKPLAN.md`
-4. `NATIVE.md` when touching Tauri/mobile/desktop behavior
-5. `docs/native-release-pipeline.md` when touching release workflows/signing
-6. `docs/free-pwa-distribution.md` when touching the web/PWA WeebCentral relay
+Before substantive work, read:
 
-Always verify the current `main` HEAD, open pull requests, and production deployment status before assuming this document is the newest state.
+1. `AGENTS.md` — this file.
+2. `docs/WORKPLAN.md` — current priorities and acceptance criteria.
+3. `docs/architecture.md` — runtime and security boundaries.
+4. The relevant project-local skill in `.hermes/skills/`.
+5. `docs/art-direction.md` for user-facing UI work.
+6. `NATIVE.md` and `docs/native-release-pipeline.md` only for intentional native work.
+7. `docs/free-pwa-distribution.md` for PWA/install/relay work.
 
-## Product contract
+Then verify current repository and production state. Never assume a previous chat, branch, deployment, or workplan snapshot is still current.
 
-Pachimanga is a private account-based manga reader. The following are product requirements, not optional implementation details:
+## Non-negotiable product contract
 
-- Login or registration is mandatory.
-- There is no guest, demo, or anonymous reader mode.
-- A user must not see another user's library, history, progress, settings, or imported state.
-- Supabase Row Level Security remains enabled for user-owned data.
-- Local cache ownership must follow the authenticated user.
-- Mock data/providers may exist for tests/development, but must not become a public preview experience.
-- Web/PWA and native builds use the same production account model.
+Pachimanga is a private account-based manga reader.
 
-Do not weaken these requirements to simplify a feature.
+MUST remain true:
+
+- Authentication is mandatory for normal application use.
+- There is no guest, demo, anonymous reader, or production mock fallback.
+- A user must never see another user's library, history, progress, settings, imports, or local cache state.
+- Supabase Row Level Security remains enabled for account-owned data.
+- Browser-local state is bound to the authenticated user and cleared/rebound on account changes.
+- Authenticated responses remain private/non-shared-cacheable where expected.
+- Web/PWA and native shells use the same account model.
+- WeebCentral relay/native bridges remain source-specific and operation-limited.
+- The client does not solve CAPTCHAs, rotate proxies, bypass authentication, defeat anti-bot controls, or generalize into an arbitrary fetch proxy.
+
+Do not weaken these requirements to make a feature easier.
+
+## Active delivery policy
+
+PWA/web is the only active delivery target until the release-candidate gate in `docs/WORKPLAN.md` is satisfied.
+
+During this phase:
+
+- Vercel production from `main` remains the active delivery path.
+- Native source remains maintained for compatibility.
+- Android debug/release, desktop release, and iOS release workflows stay manual-only.
+- Do not re-add tag/push triggers to native release workflows.
+- Do not spend time on signing, stores, installers, TestFlight, or desktop packaging unless explicitly requested or the workplan reaches the final native phase.
+
+## Hard stop conditions
+
+Stop and resolve the problem before merge if any of these occur:
+
+- merge-conflict markers exist anywhere in tracked project/config/documentation files;
+- required tests, lint, typecheck, build, or relevant native checks fail;
+- a change creates an auth bypass or anonymous application content path;
+- a change weakens RLS or account scoping;
+- a change risks cross-account local cache leakage;
+- a source bridge accepts arbitrary caller-controlled URLs;
+- a secret/private key/token appears in source, logs, fixtures, docs, or generated output;
+- production behavior differs materially from documentation and the documentation is not corrected;
+- a runtime change is about to merge without a green Vercel preview/build signal when one is available;
+- the branch contains unrelated work that has not been understood.
+
+Do not suppress the signal. Fix the cause or report the blocker.
+
+## Forbidden shortcuts
+
+Do not:
+
+- commit directly to `main` for normal work;
+- force-push or rewrite published history unless explicitly requested for recovery;
+- merge knowingly failing CI;
+- use broad ESLint/TypeScript disables to hide a defect;
+- delete tests because they fail after a change;
+- replace real error states with mock/demo content;
+- rewrite already-applied Supabase migration history;
+- disable RLS as a debugging shortcut;
+- mutate production data/schema/auth settings merely because code changes were requested;
+- deploy or create a release when the user asked only for code/documentation review;
+- enable automatic native releases during the PWA phase;
+- discard unrelated local changes;
+- claim validation that was not actually run or observed.
+
+A narrow, documented lint exception is acceptable only when the code is intentional, the rule is a false positive for that exact pattern, and the exception is scoped to the smallest possible file/rule surface.
+
+## Session boot protocol
+
+Before editing:
+
+1. Read the required documents.
+2. Check current `main` HEAD and recent relevant commits.
+3. Check open PRs and the active work branch.
+4. Inspect local working-tree status when a local checkout is available; preserve unrelated work.
+5. For runtime/deployment work, check latest Vercel production and preview state.
+6. For auth/data work, inspect current Supabase migrations/schema/advisors before mutation.
+7. Reproduce a reported bug before changing code when practical.
+8. State the exact scope you intend to change; do not silently broaden it.
+
+If `main` moved after the work branch was created, compare/rebase/merge intentionally before opening or merging the PR.
+
+## Git workflow
+
+Use one active branch per coherent workstream.
+
+Normal flow:
+
+1. Start from current `main`.
+2. Create one focused branch.
+3. Make the complete coherent change there.
+4. Run focused checks while iterating.
+5. Run the required final gate.
+6. Review the full diff for unrelated files, secrets, generated output, conflict markers, and accidental workflow changes.
+7. Open one PR with scope + validation evidence.
+8. Merge promptly when green.
+9. Verify production for runtime-impacting changes.
+10. Delete/retire stale temporary branches when tooling permits.
+
+Do not create multiple branches for successive fragments of the same task. If the branch is still valid, continue using it.
+
+## Definition of done
+
+A task is not done merely because code was written.
+
+Done means:
+
+- requested behavior is implemented;
+- required checks pass;
+- relevant regression cases were verified;
+- docs/workplan changed when architecture, operations, behavior, or priorities changed;
+- the final diff is reviewed;
+- PR/merge state is accurate;
+- runtime changes are smoke-tested after deployment when requested/appropriate;
+- remaining blockers are explicit and reproducible.
 
 ## Production architecture
 
@@ -35,42 +140,47 @@ Production UI:
 https://pachimanga.frogilab.dev
 ```
 
-Main components:
+Main boundaries:
 
-- Next.js App Router frontend/API routes on Vercel
-- Supabase Auth + Postgres for authenticated user data
-- IndexedDB/localStorage as account-bound local cache
+- Next.js 16 App Router frontend/API routes on Vercel
+- Supabase Auth + Postgres/RLS for authenticated user data
+- IndexedDB/localStorage as account-bound cache
+- local-first progress/history outbox for reconnect retry
 - MangaDex and ComicK integrations
-- WeebCentral web/PWA path through an optional locked-down private relay
-- WeebCentral native path through the Tauri Rust command `weebcentral_request`
-- Tauri 2 shell loading the remote production frontend
-- GitHub Actions for quality and native release builds
+- WeebCentral browser/PWA path through the optional locked-down private relay
+- WeebCentral Tauri path through the Rust `weebcentral_request` command
+- Tauri 2 shell loading the production UI
+- GitHub Actions for web/native quality and manual native artifact builds
 
 ## Authentication invariants
 
-Route/session enforcement lives around:
+Primary code:
 
 - `src/proxy.ts`
 - `src/lib/supabase/proxy.ts`
 - `src/lib/supabase/client.ts`
 - `src/lib/supabase/server.ts`
-- `src/app/auth/...`
+- `src/app/auth/**`
 
-Only auth flows and `/offline` are intentionally anonymous application paths. Protected routes should not rely on client-side redirects alone.
+Only auth flows and `/offline` are intentionally anonymous application paths.
 
-Authenticated responses should remain private/non-shared-cacheable.
+For any auth/session change, verify at minimum:
 
-When changing auth:
+- anonymous `/`;
+- anonymous `/browse`, `/import`, `/library`, `/history`, `/settings`;
+- at least one protected API route;
+- registration + confirmation;
+- sign-in;
+- sign-out;
+- reset/recovery if touched;
+- account switch on the same browser;
+- private/no-store response behavior where expected.
 
-- test an incognito/anonymous request to `/`;
-- test `/browse`, `/import`, `/library`, and at least one protected API route;
-- verify they do not expose application content without a valid session;
-- verify login/register/confirmation/reset flows still work;
-- verify logout clears/rebinds local user cache correctly.
+Protected routes must not rely on client-side hiding alone.
 
-## Data ownership invariants
+## Data ownership and sync invariants
 
-Current synchronized tables include:
+Synchronized tables currently include:
 
 - `profiles`
 - `library_entries`
@@ -78,60 +188,120 @@ Current synchronized tables include:
 - `reading_history`
 - `user_settings`
 
-All user-owned access must remain scoped to `auth.uid()`/the authenticated user's ID through RLS and normal query predicates.
+All account-owned access must stay scoped to the authenticated user in both application queries and RLS policies.
 
-Local cache code is in `src/lib/storage`. `reader-storage.ts` binds IndexedDB/localStorage state to the current account. Do not remove that cache-owner boundary without replacing it with an equivalent or stronger isolation mechanism.
+`src/lib/storage/reader-storage.ts` binds local cache state to the current account. Progress/history writes are local-first and queued in an IndexedDB outbox before retrying Supabase. Do not assume all library/settings operations have identical offline semantics; verify the specific operation before documenting or changing it.
+
+For sync changes, define:
+
+- source of truth;
+- conflict winner;
+- timestamp semantics;
+- offline behavior;
+- reconnect behavior;
+- account-switch behavior;
+- duplicate/idempotency behavior.
+
+## Supabase change rules
+
+For schema/auth/data changes:
+
+1. Read existing migrations first.
+2. Create a new migration; never rewrite applied migration history.
+3. Preserve RLS and unique/conflict targets used by application upserts.
+4. Test locally/staging when possible.
+5. Distinguish code authoring from production mutation.
+6. Require explicit user intent before applying destructive or production mutations.
+7. Re-run relevant Supabase security/performance advisors after production schema changes.
+
+Known cleanup is tracked in `docs/WORKPLAN.md`; do not drop the constraint-backed library unique index instead of the redundant standalone index.
 
 ## Source integration rules
 
-Provider-specific parsing/network behavior belongs under `src/sources` or the dedicated relay/native bridge.
+Provider-specific parsing/network behavior stays under `src/sources`, API routes, the relay, or the native bridge.
 
 ### WeebCentral
 
-There are two intentionally different network paths:
+Two network paths are intentional:
 
-- web/PWA: private operation-limited relay;
-- Tauri native: device-side `weebcentral_request` Rust command.
+- browser/PWA: private operation-limited relay when configured;
+- Tauri native: device-side `weebcentral_request`.
 
-Never generalize either path into an arbitrary URL proxy/fetch bridge.
-
-Do not implement CAPTCHA solving, credential bypass, proxy rotation, anti-bot bypass, or similar circumvention. Surface upstream refusal/status to the UI.
+Never turn either into an arbitrary URL proxy. Validate IDs/operations in trusted code, bound timeouts/redirects, and surface upstream 403/429/refusal states instead of bypassing them.
 
 ### MangaDex / ComicK
 
-Keep these independent of the native WeebCentral bridge unless there is a specific architectural reason to change them.
+Keep their source adapters independent. Do not route them through the native WeebCentral bridge without a deliberate architecture change.
 
-## Reader regression cases
+## Reader regression contract
 
-Any material reader-layout change should cover at least:
+Any material reader change must cover:
 
-- conventional page manga;
-- vertical long-strip/manhwa;
+- conventional paged manga;
+- long-strip/manhwa content at usable width;
+- image loading/preload behavior;
 - auto-scroll play/pause and elapsed-time behavior;
-- restoring/saving progress for an authenticated account;
-- background/suspend recovery without large scroll jumps.
+- wheel/touch/manual interaction pause behavior when relevant;
+- progress restore/save;
+- reload/reconnect behavior;
+- background/suspend recovery without large jumps;
+- keyboard/touch controls;
+- reduced-motion behavior.
 
-Do not reintroduce the narrow long-strip rendering regression.
+Do not reintroduce the known narrow long-strip regression.
 
-## Imports
+## Import contract
 
 Import paths include OCR/image review, Tachiyomi/Mihon backup formats, Tachimanga backup format, and JSON fallback.
 
-Imported manga must end up in the signed-in user's library. Import code should not create a separate anonymous/local library that bypasses the normal account model.
+Imported manga must resolve into the signed-in user's normal library path. Imports must not create a parallel anonymous library or silently fabricate provider matches.
+
+Validate duplicate handling, malformed input, partial failure, user review, and account ownership when changing imports.
+
+## PWA/service-worker contract
+
+`public/sw.js` provides install/offline support. It must not cache authenticated application HTML as a reusable public shell.
+
+Current intended behavior:
+
+- navigation is network-first with `/offline` fallback;
+- API requests are not service-worker cached;
+- static Next.js assets and same-origin images may be cache-first;
+- the public offline shell/icons are pre-cached;
+- account-owned data remains behind normal auth/cache ownership boundaries.
+
+PWA changes must be tested both in normal browser mode and installed/standalone mode where practical.
 
 ## Native security boundary
 
-The Tauri shell loads the production remote UI. Remote IPC must remain restricted to the Pachimanga production origin/capability configuration.
+Tauri loads the production origin. Remote IPC remains restricted to the intended Pachimanga origin/capability configuration.
 
-`weebcentral_request` is the dedicated custom bridge. A native change is higher-risk if it:
+Treat as high-risk any native change that:
 
 - widens allowed origins;
-- accepts caller-controlled arbitrary URLs;
-- adds filesystem/process/shell capabilities;
-- adds new secrets to the binary;
-- changes signing/update behavior.
+- accepts arbitrary URLs;
+- adds filesystem/process/shell privileges;
+- embeds secrets;
+- changes signing/update behavior;
+- changes remote-content trust boundaries.
 
-Review such changes explicitly.
+Native distribution is deferred even though native source remains supported.
+
+## Design and accessibility rules
+
+For user-facing work, read `docs/art-direction.md` plus the relevant UI/design Hermes skills.
+
+Minimum expectations:
+
+- mobile-first responsive behavior;
+- touch targets at least ~40px;
+- visible focus states;
+- semantic controls/labels;
+- explicit loading/empty/error states;
+- reduced-motion support;
+- no decorative motion that disrupts reading;
+- no copyrighted manga/franchise art;
+- reuse shared components/tokens before introducing one-off styles.
 
 ## Local development
 
@@ -157,11 +327,11 @@ WEEBCENTRAL_RELAY_URL=
 WEEBCENTRAL_RELAY_TOKEN=
 ```
 
-Never commit service-role keys, relay tokens, Android keystores, Apple certificates/profiles, Windows signing certificates, GPG private keys, or passwords.
+Never commit secrets or signing material.
 
 ## Quality gates
 
-For web/application changes:
+Application/runtime changes:
 
 ```bash
 npm test
@@ -170,71 +340,81 @@ npm run typecheck
 npm run build
 ```
 
-For native-impacting changes also run:
+Equivalent aggregate command:
+
+```bash
+npm run verify
+```
+
+Native-impacting changes additionally:
 
 ```bash
 cargo check --manifest-path src-tauri/Cargo.toml
 node scripts/check-native-version.mjs
 ```
 
-Relevant CI workflows:
+Documentation/Hermes-only changes still require a diff review and repository hygiene validation; run `npm test` when dependencies are available because repository-hygiene tests are part of the suite.
+
+Relevant CI:
 
 - `.github/workflows/web-quality.yml`
 - `.github/workflows/native-quality.yml`
-- `.github/workflows/android-apk.yml`
-- `.github/workflows/android-release.yml`
-- `.github/workflows/desktop-release.yml`
-- `.github/workflows/ios-release.yml`
+- `.github/workflows/android-apk.yml` — manual
+- `.github/workflows/android-release.yml` — manual
+- `.github/workflows/desktop-release.yml` — manual
+- `.github/workflows/ios-release.yml` — manual
+- `.github/workflows/weebcentral-relay.yml`
 
-When a workflow fails, inspect the failing job/logs before changing unrelated code.
+When CI fails, inspect the failing job/log before editing unrelated code.
 
-## Versioning
+## Next.js version rule
 
-Native version must match in:
+This repository uses Next.js 16.3.3. Do not rely on remembered older Next.js behavior when changing framework APIs. Read the relevant installed Next.js documentation under `node_modules/next/dist/docs/` when available and heed current deprecations.
+
+## Version invariant
+
+Native version must stay consistent across:
 
 - `package.json`
 - `src-tauri/tauri.conf.json`
 - `src-tauri/Cargo.toml`
 
-Do not tag a native release until `scripts/check-native-version.mjs` passes.
-
-## Git workflow
-
-Default approach for non-trivial changes:
-
-1. Fetch current `main` and open PR state.
-2. Create a focused branch.
-3. Make the smallest coherent change.
-4. Run/observe relevant quality gates.
-5. Open a PR with test/validation notes.
-6. Merge only after the branch is green and deployment implications are understood.
-7. Verify production after merges that affect runtime behavior.
-
-Do not assume a previously discussed branch/PR still exists or is still current.
+Run `node scripts/check-native-version.mjs` before native artifacts.
 
 ## Documentation maintenance
 
-Update documentation when architecture, auth, deployment, release, or source boundaries change. At minimum keep these synchronized:
+Keep these synchronized when their domains change:
 
 - `README.md`
-- `docs/architecture.md`
 - `AGENTS.md`
+- `docs/README.md`
 - `docs/WORKPLAN.md`
-- `NATIVE.md` for native changes
+- `docs/architecture.md`
+- `docs/art-direction.md`
+- `docs/free-pwa-distribution.md`
+- `docs/hermes-local.md`
+- `NATIVE.md`
+- `docs/native-release-pipeline.md`
+- relevant `.hermes/skills/**/SKILL.md`
 
-`docs/WORKPLAN.md` is intentionally operational. Mark completed work, record blockers, and leave the next session with concrete verification steps instead of only broad goals.
+`docs/WORKPLAN.md` is the operational backlog. Update completion evidence, blockers, and the exact next executable task instead of accumulating vague historical notes.
 
-## New-session start checklist
+## Session closeout
 
-A new agent/session should begin by:
+Before ending substantive work, record or report:
 
-1. Reading this file and `docs/WORKPLAN.md`.
-2. Checking `main` HEAD and recent commits.
-3. Checking open PRs and active branches relevant to the workplan.
-4. Checking latest Vercel production deployment when runtime work is planned.
-5. Checking Supabase schema/migrations before any data/auth change.
-6. Reproducing the current issue before editing code when fixing a bug.
-7. Updating the workplan before ending the session.
+```text
+Branch / PR:
+Main HEAD observed:
+Files / behavior changed:
+Checks actually run or observed:
+Deployment status if relevant:
+Known blockers / risks:
+WORKPLAN items completed or changed:
+Exact next task:
+```
+
+Never claim a task is merged, deployed, tested, or production-safe unless that state was verified.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

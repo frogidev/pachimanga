@@ -1,47 +1,89 @@
 ---
 name: pachimanga-design
-description: Visual art direction for Pachimanga. Use when building or polishing any user-facing surface so it matches the cozy pixel-art library design (dark plum + pink, pixel headings, Pachi cat mascot).
+description: Canonical visual-system guardrail for Pachimanga. Use for visual design, art direction, shared styling, mascot/assets, cards, navigation, auth/install/empty states, or design-system cleanup. Follow docs/art-direction.md and existing shared components; reduce visual drift, preserve reader focus/accessibility, use only original/licensed assets, and never depend on untracked developer-local concept files as the source of truth.
 ---
 
-# Pachimanga Design Direction
+# Pachimanga design direction
 
-Source of truth: `pachimanga_design.jpeg` (repo root parent: `F:/LF/pachimanga_design.jpeg`).
-Do not copy copyrighted manga characters or franchise artwork. Covers stay original/mock.
+Primary source of truth: `docs/art-direction.md` plus the existing shared components and `src/app/globals.css`.
 
-## Palette
+A developer-local concept image may be useful inspiration when available, but design correctness must not depend on a file outside the repository.
 
-- App bg near-black plum: `#09080d`; sidebar `#0b0910`
-- Surfaces: `#12111a` raised `#171621` soft `#1b1a26`; borders white ~8%
-- Primary pink: `#ff78b4` / soft `#ff9cca`; active pills pink bg with dark ink text `#28101b`
-- Progress bars: sky blue (`sky-400 → sky-300`); status text `sky-300`
-- Body text `#f5f2f7`, secondary `zinc-400`, muted `zinc-500/600`
+## Intent
+
+Pachimanga is a quiet late-night manga room: dark plum, warm pink/orange, original pixel-cat personality, and calm content-first surfaces.
+
+The reader is the priority. Decoration recedes around manga pages.
+
+## Core tokens
+
+- Background: `#09080d`
+- Deep/sidebar background: `#0b0910`
+- Surfaces: approximately `#12111a`, `#171621`, `#1b1a26`
+- Primary pink: `#ff78b4`
+- Soft pink: `#ff9cca`
+- Warm orange: `#e8933c`
+- Cream: approximately `#fff1e0` / `#fff7ed`
+- Primary text: approximately `#f5f2f7`
+- Muted text: zinc 400/500/600
+- Reading progress: sky 400 -> sky 300
+- Read/success state: emerald 300/400
+- Borders: low-contrast white around 7–10%
+
+Do not introduce an unrelated second accent system.
 
 ## Typography
 
-- Display headings: `.pixel-heading` (mono 900, tight tracking, pink glow shadow)
-- Kickers/labels: `.pixel-kicker` (mono 700, uppercase, wide tracking)
-- Body/UI: Inter system stack; card titles 13–14px semibold; meta 10–11px
+- Use existing `.pixel-heading` for intentional display moments.
+- Use `.pixel-kicker` for compact uppercase section labels.
+- Keep body/UI typography on the existing sans system.
+- Keep important metadata readable; do not push functional text into ultra-low contrast.
 
-## Signature elements
+## Signature patterns
 
-- Left sidebar 252px: logo top, pink gradient active pill, pink dot on Updates,
-  pixel speech bubble ("Good manga / better days. ♡") over sleeping Pachi cat,
-  version card bottom. Mobile: top bar + 5-item bottom tab bar, safe-area aware.
-- `PixelRoomBanner`: night pixel-art bedroom hero, speech bubble
-  ("Read more ♡ be happier!"), cat on sill. Full-bleed above library header.
-- Library header: "Welcome to **Pachimanga**" (Pachimanga in pink) +
-  "Organize. Read. Sync. Your manga. Everywhere."
-- Search: dark field, icon left, `Ctrl K` kbd hint right, focuses on Ctrl/Cmd+K.
-- Status pills fully rounded: All / Reading / Completed / On Hold / Dropped / Plan to Read.
-- Manga cards: 2:3 cover, ⋮ menu top-right, status badge bottom-left over cover,
-  title, `Ch. N/?` line, blue progress bar + % right.
-- Dashed pink promo strip: "A new chapter is always a good idea. /
-  Keep reading, keep collecting, keep enjoying!" + pink "Browse Manga →" button.
-- Footer: "Made with ♡ for manga lovers." + cat silhouette.
+Preserve the established family resemblance across:
 
-## Rules
+- desktop sidebar and active pink state;
+- mobile top/bottom navigation with safe areas;
+- Pachi mascot/brand moments in auth/install/empty/onboarding areas;
+- 2:3 manga covers and consistent card metadata/progress hierarchy;
+- quiet manga-detail chapter lists;
+- minimal reader chrome.
 
-- Content-first, calm reader surfaces; no gradients except pink CTA/active states.
-- No glassmorphism, no decorative animation near reading content.
-- Touch targets ≥ 40px; visible focus rings (`pink-400/70`); `min-h-dvh` + safe areas.
-- `prefers-reduced-motion`: disable hover lifts and transitions.
+## Hard rules
+
+1. No copyrighted manga/anime/franchise characters as product decoration.
+2. Pachi must remain original.
+3. No glassmorphism as a new global language.
+4. Do not add gradients to every surface; reserve them for intentional CTA/progress/brand moments.
+5. No decorative animation that competes with reading/navigation.
+6. Touch targets should be >= ~40px for primary controls.
+7. Visible keyboard focus is required.
+8. `prefers-reduced-motion` must be respected.
+9. Do not add a new one-off radius/color/button/surface if an existing shared pattern can express the need.
+10. Do not redesign unrelated screens during a focused task.
+
+## Responsive proof
+
+For material visual changes, verify at minimum:
+
+- 360px phone;
+- ~390–430px phone;
+- ~768px tablet;
+- ~1280px desktop;
+- installed PWA/standalone if navigation, safe areas, install/offline, or viewport behavior changed.
+
+Reader visual changes also require conventional-page and long-strip/manhwa content.
+
+## Design cleanup method
+
+1. Read `docs/art-direction.md`.
+2. Inspect the current route and shared components first.
+3. Identify drift/duplication before creating new styles.
+4. Prefer shared primitive/token cleanup over route-specific patches when the same pattern repeats.
+5. Keep the change narrowly scoped; do not use “design polish” as permission for a full redesign.
+6. Verify focus/touch/reduced-motion/responsive behavior.
+7. Run the web quality gate for implementation changes.
+8. Update `docs/art-direction.md` when a shared visual contract intentionally changes.
+
+A successful design cleanup leaves fewer competing patterns than it started with.
