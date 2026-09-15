@@ -22,12 +22,15 @@ async function main() {
   const rawTemplate = JSON.parse(
     await import("node:fs/promises").then((fs) => fs.readFile(join(HERE, "comfy-workflow.json"), "utf8")),
   );
+  // Pixel-art DoRA trigger (embedding token + style suffix).
+  const STYLE = "in the style of embedding:pixel-art-sdxl-dora-v0-9_emb a Pixel Art style";
+  const styledPrompt = prompt.includes("Pixel Art style") ? prompt : `${prompt}, ${STYLE}`;
   const template = {};
   for (const [key, node] of Object.entries(rawTemplate)) {
     if (node && typeof node === "object" && typeof node.class_type === "string") {
       template[key] = {
         class_type: node.class_type,
-        inputs: JSON.parse(JSON.stringify(node.inputs || {}).replaceAll("$PROMPT", prompt)),
+        inputs: JSON.parse(JSON.stringify(node.inputs || {}).replaceAll("$PROMPT", styledPrompt)),
       };
     }
   }
