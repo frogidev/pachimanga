@@ -19,7 +19,7 @@ Core invariants:
 1. No guest/demo/anonymous reader path.
 2. Supabase RLS is the final database row-isolation boundary.
 3. Data API object grants are least-privilege and do not replace RLS.
-4. Local cache ownership follows the authenticated user.
+4. Local cache/outbox ownership follows the authenticated user.
 5. Production source failures remain explicit; mock data is never a user-facing fallback.
 6. WeebCentral network bridges are operation-limited, not arbitrary proxies.
 7. Authenticated application data is not treated as public/shared-cache content.
@@ -103,11 +103,11 @@ Production grants intentionally give `anon` no account-table or identity-sequenc
 
 ## Local cache ownership
 
-IndexedDB stores account-owned local copies of library entries, reading progress, reading history, and the progress outbox. Reader settings are cached in localStorage under an account-specific key.
+IndexedDB stores account-owned local copies of library entries, reading progress, reading history, the progress outbox, and the reader-settings outbox. Reader settings themselves are cached in localStorage under an account-specific key.
 
-`src/lib/storage/reader-storage.ts` binds local state to the authenticated Supabase user ID. When the stored owner differs from the current user, Pachimanga clears every account-bound IndexedDB store (`library`, `progress`, `history`, and `outbox`) plus legacy reader-setting keys before rebinding.
+`src/lib/storage/reader-storage.ts` binds local state to the authenticated Supabase user ID. When the stored owner differs from the current user, Pachimanga clears every account-bound IndexedDB store (`library`, `progress`, `history`, `outbox`, and `settingsOutbox`) plus legacy reader-setting keys before rebinding.
 
-Every new progress outbox entry also records the authenticated `userId`. Before flushing, Pachimanga accepts only entries explicitly owned by the active account; legacy, unowned, or other-account entries are discarded instead of being replayed under the wrong user.
+Every progress outbox entry and every settings outbox entry records the authenticated `userId`. Before flushing, Pachimanga accepts only entries explicitly owned by the active account; legacy, unowned, or other-account entries are discarded instead of being replayed under the wrong user.
 
 This is a security boundary for shared browsers/devices. Do not remove or weaken it unless replaced by an equivalent or stronger isolation mechanism.
 
@@ -133,7 +133,7 @@ The local cache is an optimization/offline layer, not the authorization source. 
 5. successful queued items are deleted; failed owned items remain queued for later retry;
 6. stale legacy/cross-account items are deleted without being sent.
 
-The outbox object store is keyed by `chapterId`, so repeated local saves for the same chapter replace the pending entry with the newest local state before reconnect. Queued entries are also ordered oldest-first across chapters for deterministic flush behavior.
+The progress outbox object store is keyed by `chapterId`, so repeated local saves for the same chapter replace the pending entry with the newest local state before reconnect. Queued entries are also ordered oldest-first across chapters for deterministic flush behavior.
 
 When loading chapter progress, Pachimanga compares cached and remote `updatedAt` timestamps. The newer value wins; the remote value wins exact ties. This prevents a newer pending local value from being immediately overwritten by an older remote snapshot and allows a newer remote-device value to replace stale cache state.
 
@@ -149,13 +149,15 @@ Production also enforces freshness at the database boundary. A `BEFORE UPDATE` t
 
 ### Reader settings
 
-Reader settings are cached under the current account-specific localStorage key and asynchronously upserted to `user_settings`.
+Reader settings are cached under the current account-specific localStorage key and now use an owner-bound IndexedDB outbox for eventual delivery.
 
-- Remote settings replace the local cache when successfully loaded.
-- If the remote read fails, the account-bound local settings remain usable.
-- Background save failures do not destroy the local value.
-- Settings do not currently use an IndexedDB outbox, so guaranteed eventual remote delivery is not equivalent to progress sync.
-- A production `BEFORE UPDATE` trigger prevents an older/equal `updated_at` from replacing newer remote settings, protecting cross-device state from stale arrival order.
+`saveReaderSettings` immediately updates the account-local cache, records the latest settings payload in `settingsOutbox` under the authenticated `userId`, then attempts a Supabase upsert. The settings outbox is keyed by user ID, so repeated unsent settings changes collapse to one newest pending payload.
+
+`flushSettingsOutbox` runs after a save and from the authenticated app shell on boot/reconnect. Cross-account/stale outbox entries are discarded rather than replayed. Successful upserts request the stored server row back and reconcile the local cache to that returned value, which matters when the server-side stale-write trigger preserves a newer value written by another device.
+
+When settings load, a newer pending local settings timestamp is not overwritten by an older remote row. If the remote row is at least as new as the pending payload, the remote value wins and the already-acknowledged/stale queue entry is removed. If the remote read fails, the owner-bound pending/local value remains usable.
+
+A production `BEFORE UPDATE` trigger prevents an older/equal `updated_at` from replacing newer remote settings, protecting cross-device state from stale arrival order.
 
 ### Timestamp conflict boundary
 
@@ -173,11 +175,11 @@ Client timestamps remain the ordering signal, so device clock quality is still r
 
 ### Remaining sync decisions
 
-The major stale-arrival regression is now blocked server-side. Remaining Phase 10 work is narrower:
+The major stale-arrival and settings-delivery gaps are now blocked by server freshness guards plus owner-bound progress/settings outboxes. Remaining Phase 10 work is narrower:
 
-- decide whether reader settings need guaranteed eventual delivery via an explicit outbox rather than best-effort asynchronous save;
-- keep library add/remove intentionally online-only or design an owner-bound mutation queue;
+- keep library add/remove intentionally online-only or deliberately design an owner-bound mutation queue;
 - validate the timestamp policy with real two-device/account E2E, including clock-skew observations;
+- consider reconciling progress/history local cache immediately from returned server rows after stale-write rejection, rather than waiting for the next read;
 - surface pending-sync UI only if it materially improves the private-user workflow.
 
 ## Service worker and offline boundary
