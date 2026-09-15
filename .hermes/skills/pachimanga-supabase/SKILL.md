@@ -1,13 +1,13 @@
 ---
 name: pachimanga-supabase
-description: Strict Supabase/auth/RLS/schema/sync/account-storage workflow for Pachimanga. Use for migrations, auth flows, RLS/policies, library/progress/history/settings persistence, cache ownership, offline outbox, production advisors, or cross-device sync. Requires append-only migrations, explicit conflict semantics, account-isolation tests, and clear separation between code authoring and production mutation. Never disable RLS or perform destructive/production changes without explicit user intent.
+description: Strict Supabase/auth/RLS/schema/sync/account-storage workflow for Pachimanga. Use for migrations, auth flows, RLS/policies, library/progress/history/settings persistence, cache ownership, offline outbox, production advisors, or cross-device sync. Requires append-only canonical migrations, least-privilege grants, explicit conflict semantics, account-isolation tests, and clear separation between code authoring and production mutation. Never disable RLS or perform destructive/production changes without explicit user intent.
 ---
 
 # Pachimanga Supabase and account data
 
-Treat RLS and account-bound local storage as security boundaries.
+Treat RLS, database grants, and account-bound local storage as security boundaries.
 
-Read `AGENTS.md`, `docs/architecture.md`, and the relevant `docs/WORKPLAN.md` phase before changing auth/data behavior.
+Read `AGENTS.md`, `docs/architecture.md`, `supabase/README.md`, and the relevant `docs/WORKPLAN.md` phase before changing auth/data behavior.
 
 ## First classify the task
 
@@ -19,22 +19,50 @@ Determine whether the request is:
 4. production schema mutation;
 5. destructive data/schema/auth change.
 
-Do not infer permission for 3–5 from a request for 1–2.
+Do not infer permission for 3–5 from a request for 1–2. A broad explicit instruction to continue production hardening can authorize a non-destructive hardening migration, but destructive data/schema/auth changes still require the destructive scope to be explicit.
 
-## Schema/migration rules
+## Canonical migration contract
 
-- Inspect existing migrations first.
-- Add a new migration for schema changes.
-- Never rewrite already-applied migration history.
-- Preserve unique constraints/conflict targets used by application upserts.
-- Use idempotent guards only when they improve safe repeated application and do not hide an unexpected schema state.
-- Re-run security/performance advisors after production schema changes.
-- Record exactly what was applied and to which environment.
+`supabase/migrations/` is the active timestamped production migration chain and must remain replayable from a clean local Supabase environment.
 
-Known library-index cleanup:
+`supabase/legacy-migrations/` contains preserved pre-canonical SQL artifacts only. Never move those files back into `supabase/migrations/`, replay them with `db reset`, or edit them to make history look cleaner.
 
-- keep `library_entries_user_id_source_id_manga_id_key` because it backs the unique constraint;
-- drop only redundant standalone `library_entries_user_source_manga_idx` after re-verifying production state.
+Required rules:
+
+- inspect `supabase/README.md` and current production migration history first;
+- every active migration uses a 14-digit Supabase timestamp prefix;
+- add a new forward migration for every production schema/grant change;
+- never rewrite an already-applied production migration;
+- never use `supabase db reset --linked` against production;
+- preserve unique constraints/conflict targets used by application upserts;
+- use idempotent guards only when they improve safe repeated application and do not hide an unexpected schema state;
+- re-run security/performance advisors after production DDL;
+- record exactly what was applied and to which environment.
+
+Current production baseline starts with:
+
+- `20260913122954_initial_pachimanga_user_sync.sql`
+- `20260913124558_pachimanga_sync_history.sql`
+- `20260915053221_drop_redundant_library_index.sql`
+- `20260915080009_revoke_anon_account_table_privileges.sql`
+- `20260915080109_tighten_account_role_privileges.sql`
+
+Future migrations append after these; do not renumber them.
+
+## Least-privilege Data API contract
+
+Pachimanga has no anonymous application data API.
+
+For current account tables:
+
+- `anon` has no table privileges;
+- `anon` has no privileges on Pachimanga identity sequences;
+- `authenticated` has `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`;
+- `authenticated` has `SELECT/INSERT/UPDATE/DELETE` on `library_entries`, `reading_progress`, and `reading_history`;
+- `authenticated` has `USAGE/SELECT` on identity sequences required for inserts;
+- default privileges must not silently auto-expose future public tables/sequences to `anon` or `authenticated`; future migrations grant the exact access they need explicitly.
+
+Do not confuse grants with RLS. Grants decide whether the role can reach an object; RLS still decides which rows it can access.
 
 ## RLS/account isolation
 
@@ -44,7 +72,7 @@ For every account-owned table:
 - policy ownership uses the authenticated user's identity;
 - application queries are also scoped to the current user where appropriate;
 - a client-supplied `user_id` must not grant access to another account;
-- no service-role key is shipped to browser code.
+- no service-role/secret key is shipped to browser code.
 
 Current synchronized tables:
 
@@ -53,6 +81,11 @@ Current synchronized tables:
 - `reading_progress`
 - `reading_history`
 - `user_settings`
+
+Known library-index invariant:
+
+- keep `library_entries_user_id_source_id_manga_id_key` because it backs the unique constraint used by upserts;
+- do not restore redundant `library_entries_user_source_manga_idx`.
 
 ## Local cache ownership
 
@@ -109,7 +142,7 @@ Require explicit user intent before:
 - disabling/altering RLS in a way that could broaden access;
 - using service-role privileges for a task that should work through normal account policies.
 
-Before a destructive change, identify rollback/recovery strategy and scope.
+Before a destructive change, identify rollback/recovery strategy and scope. A security hardening change must not be used as a pretext to mutate user data.
 
 ## Validation
 
@@ -122,11 +155,19 @@ npm run typecheck
 npm run build
 ```
 
-For production schema changes additionally:
+For migration-chain changes additionally:
+
+- run repository hygiene tests that guard canonical timestamped migrations;
+- when a local Docker environment is available, run `supabase start` then `supabase db reset` and `supabase migration list --local`;
+- compare local migration versions to production history before any `db push`.
+
+For production schema/grant changes additionally:
 
 - inspect applied migration state;
-- verify representative application upsert/read/delete paths;
-- re-run Supabase advisors;
-- test with at least two accounts when ownership/isolation changed.
+- inspect table/sequence privileges for `anon` and `authenticated`;
+- confirm RLS remains enabled on every account table;
+- verify representative application upsert/read/delete paths when credentials are available;
+- re-run Supabase security and performance advisors;
+- test with at least two accounts when ownership/isolation behavior changed.
 
-Never report an advisor/schema result that was not actually inspected.
+Never report an advisor/schema/grant result that was not actually inspected.
