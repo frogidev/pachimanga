@@ -33,3 +33,26 @@ export function readerReducer(state: ReaderState, action: ReaderAction): ReaderS
       return state;
   }
 }
+
+/**
+ * Resolve a saved reader position after the chapter layout exists.
+ * Local IndexedDB progress has an exact pixel offset; cross-device Supabase
+ * progress only has a percentage, so percentage is the fallback.
+ */
+export function readerResumeScrollTop(
+  progress: { scrollPosition?: number; percentage?: number } | null | undefined,
+  scrollHeight: number,
+  viewportHeight: number,
+) {
+  if (!progress) return 0;
+  const maxScroll = Math.max(0, scrollHeight - viewportHeight);
+  const pixels = Number(progress.scrollPosition);
+  if (Number.isFinite(pixels) && pixels > 0) {
+    return Math.min(maxScroll, Math.max(0, pixels));
+  }
+
+  const percentage = Number(progress.percentage);
+  if (!Number.isFinite(percentage)) return 0;
+  const clamped = Math.max(0, Math.min(100, percentage));
+  return (clamped / 100) * maxScroll;
+}
