@@ -50,6 +50,7 @@ test("Supabase active migrations mirror the canonical timestamped production cha
     "20260915053221_drop_redundant_library_index.sql",
     "20260915080009_revoke_anon_account_table_privileges.sql",
     "20260915080109_tighten_account_role_privileges.sql",
+    "20260915081911_reject_stale_sync_writes.sql",
   ];
 
   for (const filename of required) {
@@ -64,6 +65,17 @@ test("Supabase active migrations mirror the canonical timestamped production cha
       `${filename} must not restore the obsolete user_library schema`,
     );
   }
+
+  const staleWriteMigration = readFileSync(
+    join(migrationDir, "20260915081911_reject_stale_sync_writes.sql"),
+    "utf8",
+  );
+  assert.match(staleWriteMigration, /new\.updated_at <= old\.updated_at/);
+  assert.match(staleWriteMigration, /new\.read_at <= old\.read_at/);
+  assert.match(staleWriteMigration, /reading_progress_keep_newest/);
+  assert.match(staleWriteMigration, /reading_history_keep_newest/);
+  assert.match(staleWriteMigration, /user_settings_keep_newest/);
+  assert.match(staleWriteMigration, /revoke all on function[\s\S]*from public, anon, authenticated/);
 
   assert.deepEqual(
     readdirSync(join(ROOT, "supabase/legacy-migrations")).filter((entry) => entry.endsWith(".sql")).sort(),
