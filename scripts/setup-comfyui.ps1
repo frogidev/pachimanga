@@ -53,9 +53,11 @@ try {
     $Token = Read-Host 'Paste HF token (empty skips download)'
     if ($Token) {
       Write-Host 'Downloading (~6.9GB, parallel + resumable, be patient)...'
-      & $Py -m pip install -q huggingface_hub hf_transfer
-      $env:HF_HUB_ENABLE_HF_TRANSFER = '1'
-      & $Py -c "from huggingface_hub import snapshot_download; snapshot_download('stabilityai/stable-diffusion-xl-base-1.0', local_dir='$CkptDir', local_dir_use_symlinks=False, allow_patterns=['sd_xl_base_1.0.safetensors'], token='$Token')"
+      & $Py -m pip install -q huggingface_hub
+      $env:CKPT_DIR = $CkptDir
+      $env:HF_TOKEN_DL = $Token
+      & $Py -c "import os; from huggingface_hub import hf_hub_download; p = hf_hub_download('stabilityai/stable-diffusion-xl-base-1.0', 'sd_xl_base_1.0.safetensors', local_dir=os.environ['CKPT_DIR'], token=os.environ['HF_TOKEN_DL']); print('saved:', p)"
+      Remove-Item Env:\HF_TOKEN_DL -ErrorAction SilentlyContinue
       if ($LASTEXITCODE -ne 0) { throw 'Model download failed. Re-run to resume it.' }
       Write-Host 'Checkpoint saved.'
     } else {
