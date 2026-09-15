@@ -1,62 +1,79 @@
 # Pachimanga architecture
 
-This document describes the current production architecture. It replaces the earlier MVP assumptions that Pachimanga could run as an anonymous local-only reader.
+This document describes the current production architecture. Pachimanga is an authenticated private reader; earlier anonymous/local-only MVP assumptions are obsolete.
 
-## Product boundary
-
-Pachimanga is an authenticated private manga reader. Login or registration is mandatory before a user can access the library, browse sources, import data, open manga details, or use reader routes.
-
-The production frontend is hosted at:
+Production UI:
 
 ```text
 https://pachimanga.frogilab.dev
 ```
 
-The same hosted UI is used by browsers, installed PWAs, and the Tauri native shell.
+The hosted UI is used by normal browsers, installed PWAs, and the retained Tauri shell.
 
-## Runtime boundaries
+## Product boundary
+
+Authentication is required before a user can use normal application routes such as Library, Browse, Import, History, Settings, manga detail, or Reader.
+
+Core invariants:
+
+1. No guest/demo/anonymous reader path.
+2. Supabase RLS is the final database isolation boundary.
+3. Local cache ownership follows the authenticated user.
+4. Production source failures remain explicit; mock data is never a user-facing fallback.
+5. WeebCentral network bridges are operation-limited, not arbitrary proxies.
+6. Authenticated application data is not treated as public/shared-cache content.
+
+## Active delivery model
+
+PWA/web is the active production target. Native source remains in the repository for future distribution, but native artifact workflows are manual-only until the PWA release-candidate gate in `WORKPLAN.md` is satisfied.
+
+This means normal product/UI/API changes ship through Vercel. Native work is required only when the Rust/Tauri boundary itself changes or when the final platform-distribution phase begins.
+
+## Runtime map
 
 Primary code areas:
 
-- `src/app`: Next.js App Router pages, route handlers, auth callbacks, PWA metadata, and application routes.
-- `src/proxy.ts`: Next.js request proxy entrypoint used to refresh/check Supabase sessions before protected routes continue.
-- `src/lib/supabase`: browser/server Supabase clients and the request/session guard.
-- `src/components`: shared application shell, navigation, account UI, and display primitives.
-- `src/features`: feature-owned UI and reader logic.
-- `src/lib/storage`: local cache plus synchronized library/progress/history/settings access.
-- `src/lib/imports`: import parsers and migration helpers.
-- `src/sources/core`: source contracts and registry behavior.
-- `src/sources/mangadex`: MangaDex integration.
-- `src/sources/comick`: ComicK integration.
-- `src/sources/weebcentral`: WeebCentral URL/parsing/integration logic.
-- `src/sources/mock` and `src/lib/mock-data.ts`: development/test support only; they are not a public demo mode.
-- `src/lib/native`: browser-to-Tauri helper code.
-- `src-tauri`: Rust/Tauri shell, capabilities, and native WeebCentral bridge.
-- `relay/weebcentral`: optional locked-down homelab relay used by the web/PWA runtime.
-- `supabase/migrations`: production database schema and Row Level Security migrations.
+- `src/app` — Next.js App Router pages, route handlers, auth callbacks, PWA metadata, and application routes.
+- `src/proxy.ts` — request/session enforcement entrypoint.
+- `src/lib/supabase` — browser/server Supabase clients and session guard.
+- `src/components` — shared application shell/navigation/UI primitives.
+- `src/features` — feature-owned UI for browse, library, manga detail, reader, history, install, and native-specific views.
+- `src/lib/storage` — account-bound IndexedDB/localStorage persistence plus Supabase synchronization.
+- `src/lib/offline` — offline/reconnect ordering helpers.
+- `src/lib/imports` — OCR/backup/JSON import parsing and migration helpers.
+- `src/sources/core` — normalized source contract/registry.
+- `src/sources/mangadex` — MangaDex integration.
+- `src/sources/comick` — ComicK integration.
+- `src/sources/weebcentral` — WeebCentral parsing/network integration.
+- `src/sources/mock` and mock-data modules — test/development support only.
+- `src/lib/native` — browser-to-Tauri helper code.
+- `src-tauri` — Tauri 2 shell, capabilities, and Rust bridge.
+- `relay/weebcentral` — optional locked-down browser/PWA relay.
+- `supabase/migrations` — database schema/RLS history.
+- `public/sw.js` — PWA install/offline service worker.
 
-React/application code consumes normalized Pachimanga models. Provider-specific details should stay in the source adapters rather than spreading into unrelated UI code.
+Provider-specific details stay behind normalized Pachimanga models instead of leaking through unrelated UI.
 
-## Authentication and route protection
+## Route/authentication boundary
 
 Supabase Auth is mandatory.
 
-`src/proxy.ts` delegates to `src/lib/supabase/proxy.ts`. The guard refreshes/validates the Supabase session and checks claims before allowing application requests to continue.
+`src/proxy.ts` delegates session handling to `src/lib/supabase/proxy.ts`. Protected application requests are checked/refreshed before continuing.
 
-Intentionally public application paths are limited to:
+Intentionally anonymous application paths are limited to:
 
 - `/auth...`
 - `/offline`
 
-All other matched application routes require authentication. Unauthenticated requests are redirected to `/auth`, optionally preserving a `next` destination.
+Other matched application routes require authentication. Unauthenticated navigation resolves to the auth experience, optionally preserving a destination.
 
-Authenticated responses are marked `Cache-Control: private, no-store` by the session layer. Do not add a guest bypass, demo bypass, or route-specific anonymous exception without an explicit product decision.
+Authenticated responses are intended to remain `Cache-Control: private, no-store` where session enforcement applies. Do not add route-specific guest exceptions without an explicit product decision.
 
-The auth implementation uses publishable Supabase credentials only in browser-visible code. Service-role credentials must never be exposed to the frontend.
+Browser-visible code uses publishable Supabase credentials only. Service-role credentials must never be exposed to the frontend.
 
-## User data and Supabase
+## Supabase data model
 
-The synchronized user model currently uses these public tables:
+Synchronized user tables currently include:
 
 - `profiles`
 - `library_entries`
@@ -64,75 +81,123 @@ The synchronized user model currently uses these public tables:
 - `reading_history`
 - `user_settings`
 
-User-owned rows include `user_id` and are protected by Supabase Row Level Security. Application queries also scope reads/writes to the authenticated user, but RLS remains the final security boundary.
+Account-owned rows include `user_id` and are protected by RLS. Application code also scopes reads/writes to the current user; that query scoping complements RLS rather than replacing it.
 
-At a high level:
+High-level relationship:
 
 ```text
 Supabase Auth user
     |
+    +--> profile
     +--> library_entries
     +--> reading_progress
     +--> reading_history
     +--> user_settings
-    +--> profile metadata
 ```
 
-Never replace RLS with client-side filtering alone.
+Existing migrations are append-only history. New schema changes must be new migrations.
 
-## Local-first cache and account ownership
+## Local cache ownership
 
-IndexedDB stores local copies of:
+IndexedDB currently stores local copies of library entries, reading progress, reading history, and the progress outbox. Reader settings are cached in localStorage under an account-specific key.
 
-- library entries
-- reading progress
-- reading history
+`src/lib/storage/reader-storage.ts` binds local state to the authenticated Supabase user ID. When the stored owner differs from the current user, Pachimanga clears account-owned local library/progress/history state and legacy reader-setting keys before rebinding.
 
-Reader settings are stored in localStorage with an account-specific key.
+This is a security boundary for shared browsers/devices. Do not remove it unless replaced by an equivalent or stronger isolation mechanism.
 
-`src/lib/storage/reader-storage.ts` binds the browser cache to the authenticated Supabase user ID. If the current cache owner differs from the signed-in user, Pachimanga clears local library/progress/history data and legacy reader-setting keys before rebinding the cache.
+## Synchronization semantics
 
-This prevents one account from inheriting another account's local data on a shared browser/device.
+The local cache is an optimization/offline layer, not the authorization source.
 
-The local cache is an optimization and offline/responsiveness layer, not the authorization source. Cloud reads/writes still require authentication.
+Current behavior is intentionally mixed by operation and must not be over-generalized:
 
-Current synchronization behavior is intentionally simple:
+### Library
 
-- library reads reconcile remote rows into the local cache;
-- library changes write Supabase first and then update IndexedDB;
-- progress and history are upserted remotely and cached locally;
-- reader settings are persisted per user in `user_settings` and cached locally.
+- Library reads fetch the authenticated user's remote rows and reconcile them into IndexedDB.
+- Add/remove writes Supabase first, then updates IndexedDB.
+- Library mutation is therefore not currently a fully offline-first queue.
 
-Cross-device conflict resolution is an area for future hardening; see `docs/WORKPLAN.md`.
+### Reading progress and history
 
-## Reader
+`saveProgress` is local-first:
 
-Auto-scroll is measured in pixels per second. Each animation frame uses elapsed time rather than assuming a fixed frame rate:
+1. progress is written to IndexedDB;
+2. history is written to IndexedDB;
+3. a per-chapter entry is written to the IndexedDB `outbox`;
+4. `flushProgressOutbox` attempts Supabase progress/history upserts;
+5. successful queued items are deleted; failures remain queued for later retry.
+
+Queued progress is ordered oldest-first so the final write for a chapter wins when a batch is flushed.
+
+### Reader settings
+
+Reader settings are cached under the current account-specific localStorage key and asynchronously upserted to `user_settings`.
+
+### Work still required
+
+Cross-device conflict semantics, stale-write ordering, reconnect coverage, and consistency between library/settings/progress offline behavior require further hardening. `WORKPLAN.md` defines the release work.
+
+## Service worker and offline boundary
+
+`public/sw.js` is intentionally conservative.
+
+Current service-worker behavior:
+
+- pre-caches `/offline` and PWA icons;
+- leaves API requests alone;
+- uses network-first navigation with `/offline` fallback;
+- may cache same-origin images and `/_next/static/` assets;
+- does not intentionally cache authenticated application HTML as a reusable public shell.
+
+The offline page is a fallback surface, not an anonymous copy of the authenticated application.
+
+Changing caching strategy requires explicit account-isolation review.
+
+## Reader architecture
+
+The reader supports conventional pages and vertical long-strip/manhwa content.
+
+Auto-scroll is elapsed-time based:
 
 ```text
 delta = speedPxPerSecond * elapsedMilliseconds / 1000
 ```
 
-Elapsed time is capped after background/suspended frames to avoid jumps. Manual interaction pauses automatic movement.
+Elapsed time is capped after background/suspend intervals to prevent large jumps. Manual wheel/touch interaction pauses automated movement where applicable.
 
-Long-strip/manhwa pages are rendered at their natural content width within the reader rather than being reduced to narrow thumbnail-like columns. Future reader changes must be tested against both conventional paged manga and vertical long-strip chapters.
+Long-strip images must keep usable content width. A prior regression collapsed them into narrow columns; every material layout change must re-test this case.
 
-Progress is synchronized to the authenticated account.
+Reader progress uses the authenticated account plus the account-bound local cache/outbox described above.
+
+## Manga detail/read-state behavior
+
+Manga detail resolves provider-specific data through source adapters, then renders normalized manga/chapter models. Chapter lists support pagination and per-chapter read-state controls. Bulk read/unread operations update local progress and library summary state.
+
+These controls remain account-scoped and must not invent chapter links when a provider exposes metadata without readable English chapters.
+
+## Import architecture
+
+Supported import paths include:
+
+- OCR/image text extraction with user review;
+- Tachiyomi/Mihon backup formats;
+- Tachimanga backup format;
+- JSON fallback.
+
+Import parsing belongs under `src/lib/imports`. Imported titles resolve into the normal signed-in library model; there is no parallel anonymous import store.
 
 ## Source architecture
 
-Pachimanga currently supports multiple provider paths.
-
 ### MangaDex and ComicK
 
-These use their normal web/network integrations and do not depend on the native WeebCentral command.
+These use their normal application/network integrations and remain independent from the native WeebCentral bridge.
 
 ### WeebCentral in browser/PWA
 
-A normal browser cannot use the Tauri command. Production web/PWA access can use the optional private relay:
+A browser cannot call Tauri IPC. Browser/PWA access can use the optional private relay:
 
 ```text
-Browser/PWA
+Browser / installed PWA
     |
     v
 pachimanga.frogilab.dev (Vercel)
@@ -142,77 +207,82 @@ pachimanga.frogilab.dev (Vercel)
 wc-relay.frogilab.dev
     |
     v
-locked-down Frogilab relay
+operation-limited Frogilab relay
     |
     v
 weebcentral.com
 ```
 
-The relay exposes only known read operations. It is not an arbitrary `?url=` HTTP proxy. Manga image URLs are still loaded from their original image hosts, so normal page-image bandwidth is not intentionally relayed through Vercel/Supabase/the homelab.
+The relay accepts known read operations only. There is no caller-controlled arbitrary `?url=` proxy. IDs/query inputs are normalized/validated by trusted code.
 
-See `docs/free-pwa-distribution.md`.
+Page-image URLs are used from their original hosts where possible, so image bytes are not intentionally routed through Supabase or the relay.
 
-### WeebCentral in Tauri native builds
+See `free-pwa-distribution.md`.
 
-The Tauri shell exposes a dedicated Rust command named `weebcentral_request`.
+### WeebCentral in Tauri
 
-The command accepts only supported WeebCentral operations and constructs/validates the upstream request inside native code. The JavaScript bridge must not be generalized into an arbitrary cross-origin fetch proxy.
+The Tauri shell exposes `weebcentral_request`, a dedicated Rust command for supported read operations. Trusted native code constructs/validates upstream requests.
 
-The Android flow has been validated on a physical device. Requests originate from the device and return status, headers, and body to the hosted UI.
+The command must not become an arbitrary cross-origin fetch bridge. Upstream refusal/status such as 403/429 is surfaced rather than bypassed.
 
-See `NATIVE.md`.
+See `../NATIVE.md`.
 
 ## Native shell
 
-Tauri loads the remote production UI instead of bundling a separate frontend build for normal runtime use:
+The Tauri WebView loads:
 
 ```text
-Tauri WebView
-    |
-    v
 https://pachimanga.frogilab.dev
 ```
 
-Remote IPC capability is restricted to the production Pachimanga origin. Native changes are needed when Rust commands, Tauri capabilities, native manifests/plugins, signing, icons, or platform configuration change. Normal Next.js/React changes deploy through Vercel and are picked up by existing native shells when reopened.
+Remote IPC capabilities remain restricted to the intended Pachimanga production origin. A new native artifact is needed when changing Rust commands, capabilities, plugins, platform configuration, embedded icons/metadata, signing, or bundling.
 
-## PWA behavior
+Normal React/Next.js changes ship through Vercel and are consumed by existing shells on reload/reopen.
 
-The service worker exists for install/offline support, but authenticated application HTML/data must not become a shared public cache. Authenticated requests are treated as private and the app should not expose stale data from a previous account after logout/account changes.
+Native distribution is currently deferred; source compatibility is retained.
 
-The zero-cost iPhone/iPad distribution path is the PWA. It still requires a Pachimanga account after launch.
-
-## Deployment
-
-Production components:
+## Deployment topology
 
 ```text
-DNS / domain:   pachimanga.frogilab.dev
-Frontend:       Vercel
+DNS/domain:     pachimanga.frogilab.dev
+Frontend/API:   Vercel
 Auth + data:    Supabase
 Web WC relay:   optional Frogilab homelab + Cloudflare Tunnel
 Native shell:   Tauri 2
-CI/releases:    GitHub Actions
+CI:             GitHub Actions
+Native builds:  manual GitHub Actions workflows
 ```
 
-Vercel serves the Next.js application. Supabase owns authentication and synchronized user data. WeebCentral page/image traffic should not be moved through Supabase.
+Vercel serves the Next.js product. Supabase owns account authentication and synchronized user data. WeebCentral image/page traffic should not be moved through Supabase as a convenience proxy.
+
+## CI/deployment behavior
+
+- `Web Quality` validates tests/lint/typecheck for relevant web changes.
+- `Native Quality` validates JS gates plus Rust/version consistency for relevant native/workflow changes.
+- Vercel builds previews and production from Git integration.
+- Native artifact/release workflows remain manual-only during the PWA phase.
+- Production runtime changes require post-deploy smoke validation before a release-ready claim.
+
+Branch protection/ruleset hardening is tracked as P0 operational work in `WORKPLAN.md`.
 
 ## Security invariants
 
-Changes should preserve all of the following:
+Every change must preserve:
 
-1. No guest/demo path into the application.
-2. Auth is checked server-side for protected routes, not only by hiding client UI.
-3. Supabase RLS remains enabled for user-owned data.
-4. Browser cache ownership is tied to the authenticated user and cleared on account changes.
-5. Relay credentials are server-only and never use a `NEXT_PUBLIC_` prefix.
-6. The homelab relay is operation-limited, not an arbitrary HTTP proxy.
-7. The Tauri command remains WeebCentral-specific and origin/capability constrained.
-8. Signing keys, certificates, service-role credentials, and relay tokens are never committed.
-9. Source integrations do not attempt to bypass CAPTCHAs, authentication, anti-bot controls, or upstream access restrictions.
+1. No guest/demo application path.
+2. Server-side session enforcement for protected routes.
+3. RLS on account-owned tables.
+4. Account-bound local cache ownership.
+5. No server secret in `NEXT_PUBLIC_*` variables or client bundles.
+6. Operation-limited relay; no arbitrary HTTP proxy.
+7. Source-specific Tauri bridge and constrained IPC origin.
+8. No committed signing keys/certificates/service-role keys/relay tokens/passwords.
+9. No CAPTCHA/anti-bot/authentication circumvention.
+10. No authenticated HTML/data turned into a shared public PWA cache.
 
-## Quality gates
+## Required verification
 
-Web changes should pass:
+Application changes:
 
 ```bash
 npm test
@@ -221,11 +291,11 @@ npm run typecheck
 npm run build
 ```
 
-Native changes should additionally pass:
+Native-impacting changes additionally:
 
 ```bash
 cargo check --manifest-path src-tauri/Cargo.toml
 node scripts/check-native-version.mjs
 ```
 
-GitHub Actions contains separate `Web Quality` and `Native Quality` workflows. Production should also be smoke-tested anonymously to confirm protected pages resolve to the auth experience.
+Production changes should also smoke-test anonymous auth enforcement and inspect runtime errors after deployment.
