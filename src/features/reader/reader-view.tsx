@@ -19,14 +19,16 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
   const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
   const reducedMotion = useReducedMotion();
-  const [hydrated, setHydrated] = useState(false);
-  const [resumeProgress, setResumeProgress] = useState<ReadingProgress | null>(null);
+  const [loadedChapterId, setLoadedChapterId] = useState<string | null>(null);
+  const [resumeState, setResumeState] = useState<{ chapterId: string; progress: ReadingProgress | null } | null>(null);
   const [offlineState, setOfflineState] = useState<{ saved: number; total: number } | null>(null);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const scrollFrame = useRef<number | undefined>(undefined);
   const touchStartY = useRef<number | null>(null);
 
+  const hydrated = loadedChapterId === chapter.id;
+  const resumeProgress = resumeState?.chapterId === chapter.id ? resumeState.progress : null;
   const chapterIndex = chapters.findIndex((item) => item.id === chapter.id);
   const previousChapter = chapterIndex >= 0 && chapterIndex < chapters.length - 1 ? chapters[chapterIndex + 1] : undefined;
   const nextChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : undefined;
@@ -43,18 +45,18 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 
   useEffect(() => {
     let cancelled = false;
-    setHydrated(false);
-    setResumeProgress(null);
-    dispatch({ type: "page", index: 0 });
     void getProgress(chapter.id)
       .then((progress) => {
         if (cancelled) return;
-        setResumeProgress(progress ?? null);
-        if (progress) dispatch({ type: "page", index: progress.pageIndex });
-        setHydrated(true);
+        setResumeState({ chapterId: chapter.id, progress: progress ?? null });
+        dispatch({ type: "page", index: progress?.pageIndex ?? 0 });
+        setLoadedChapterId(chapter.id);
       })
       .catch(() => {
-        if (!cancelled) setHydrated(true);
+        if (cancelled) return;
+        setResumeState({ chapterId: chapter.id, progress: null });
+        dispatch({ type: "page", index: 0 });
+        setLoadedChapterId(chapter.id);
       });
     return () => { cancelled = true; };
   }, [chapter.id]);
