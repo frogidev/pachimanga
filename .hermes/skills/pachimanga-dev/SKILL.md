@@ -1,43 +1,58 @@
 ---
 name: pachimanga-dev
-description: Local development workflow for the frogidev/pachimanga repository. Use for implementing features, fixing bugs, refactoring, reviewing code, running tests, or making repository changes in Pachimanga. Prioritize the PWA/Next.js product, follow AGENTS.md and docs/WORKPLAN.md, keep changes focused, and defer native platform release work unless explicitly requested.
+description: Strict implementation workflow for frogidev/pachimanga. Use for features, bugs, refactors, tests, repository changes, or general engineering. Requires AGENTS.md + WORKPLAN boot checks, one focused branch, PWA-first scope, preservation of mandatory auth/RLS/account-cache/source boundaries, explicit quality gates, diff review, and documentation/workplan updates. Never bypass failing checks, expose demo behavior, mutate production data, or start native distribution unless explicitly authorized.
 ---
 
-# Pachimanga Development
+# Pachimanga development
 
-Work from the repository root and treat `AGENTS.md` as authoritative project context.
+`AGENTS.md` is the project contract. This skill specializes it; it never weakens it.
 
-## Workflow
+## Before editing
 
-1. Read `AGENTS.md` and `docs/WORKPLAN.md` before substantive changes.
-2. Inspect `git status`, current branch, and recent diff before editing. Never discard unrelated local work.
-3. Keep the active product target PWA/web. Do not spend time on Android, iOS, macOS, Windows, or Linux release work unless the user explicitly asks.
-4. Prefer the smallest coherent change. Reuse existing architecture and components before adding abstractions.
-5. Preserve mandatory authentication, Supabase RLS boundaries, per-user cache isolation, private/no-store behavior, and source security constraints.
-6. Use real source/error states. Do not introduce guest, demo, or production mock fallback behavior.
-7. Run focused checks while iterating, then the full project quality gate before declaring completion.
-8. Review the final diff for accidental generated files, secrets, debug logging, unrelated formatting churn, and native-release changes.
-9. Summarize only what changed, what was validated, and any remaining blocker.
+1. Read `AGENTS.md` and `docs/WORKPLAN.md`.
+2. Check current `main`, open PRs, active branch, and `git status` when local git is available.
+3. Preserve unrelated local changes.
+4. Load a more specific project skill when the task is primarily UI, reader, Supabase, review, or deployment operations.
+5. For Next.js framework API work, consult the installed Next.js 16 docs under `node_modules/next/dist/docs/` when available rather than relying on older remembered APIs.
+6. Reproduce the current bug before editing when practical.
 
-## Local AI delegation
+## Scope discipline
 
-`opencode run --model ollama/gpt-oss:20b` is the VRAM-safe local worker
-(qwen3-coder:30b exceeds the 16GB GPU and is banned). Scope it to one file
-and one concern per task with exact anchor lines: it handles copy/class edits
-well but produces broken JSX and abandoned half-edits on structural work.
-Always re-read its diff, repair by hand where needed, and run the quality gate
-yourself — never trust its self-report of completion.
+- Work on one coherent branch/workstream.
+- Do not create parallel branches for successive fragments of the same task.
+- Prefer the smallest complete change that fixes the actual issue.
+- Do not redesign unrelated screens or refactor unrelated modules as collateral work.
+- Keep PWA/web as the active delivery target.
+- Native platform packaging/distribution is out of scope unless explicitly requested or the workplan final phase is active.
 
-## Git behavior
+## Non-negotiable invariants
 
-- Prefer working on the currently designated work branch when one exists.
-- Do not create multiple parallel branches.
-- Do not force-push, rewrite published history, deploy production, create releases, or alter production data unless explicitly requested.
-- Keep commits focused and descriptive.
+Preserve:
 
-## Quality gate
+- mandatory Supabase authentication;
+- no guest/demo/anonymous reader path;
+- RLS on account-owned data;
+- account-bound IndexedDB/localStorage ownership;
+- private/no-store authenticated behavior where expected;
+- real provider errors instead of production mock fallback;
+- operation-limited WeebCentral relay/native bridge;
+- manual-only native artifact/release workflows during the PWA phase.
 
-From the repo root run:
+## Implementation rules
+
+- Reuse existing normalized models, source adapters, storage APIs, and shared UI before adding a parallel abstraction.
+- Avoid broad eslint/TypeScript disables. A narrow exception needs a concrete false-positive justification.
+- Never delete/skip a test only to make CI green.
+- Never write secrets into code, fixtures, logs, docs, or example values.
+- Do not rewrite already-applied migrations.
+- Do not change production Supabase/Vercel/GitHub settings merely because code edits are requested.
+- If behavior/architecture/operations changed, update the relevant docs and `docs/WORKPLAN.md` in the same workstream.
+
+## Validation while iterating
+
+Run the smallest useful check after each meaningful change, then the full applicable gate before completion.
+
+Web/application final gate:
 
 ```powershell
 npm test
@@ -46,4 +61,58 @@ npm run typecheck
 npm run build
 ```
 
-If a command is unavailable because dependencies are not installed, report that rather than silently skipping validation.
+Equivalent aggregate command:
+
+```powershell
+npm run verify
+```
+
+Native-impacting changes also require:
+
+```powershell
+cargo check --manifest-path src-tauri/Cargo.toml
+node scripts/check-native-version.mjs
+```
+
+If dependencies/tools are unavailable, report exactly what could not run. Never convert “not run” into “passed.”
+
+## Final diff review
+
+Before PR/merge, inspect the whole diff for:
+
+- unrelated changes;
+- conflict markers;
+- secrets/private material;
+- generated artifacts;
+- debug logging;
+- accidental workflow trigger changes;
+- broad lint/type suppressions;
+- stale documentation;
+- guest/demo/mock production paths;
+- widened source/native network privileges.
+
+A failing gate or unresolved P0 security/data issue blocks merge.
+
+## Local worker delegation
+
+A delegated local model/tool is an untrusted implementation assistant, not an authority.
+
+If using `opencode run --model ollama/gpt-oss:20b`, keep tasks narrow: one file/one concern with exact anchors. Do not use `qwen3-coder:30b` on the known 16GB setup. Regardless of worker, re-read the diff and run the gate yourself.
+
+Do not accept worker self-reports as evidence of completion.
+
+## Completion report
+
+Report only verified facts:
+
+```text
+Branch / PR:
+Scope changed:
+Checks run and results:
+Deployment state if relevant:
+Documentation/workplan updated:
+Remaining blockers:
+Exact next task:
+```
+
+Do not claim merged/deployed/production-safe state unless observed.
