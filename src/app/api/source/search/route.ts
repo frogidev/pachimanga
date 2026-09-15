@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { comickSource } from '@/sources/comick/comick-source';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
 import {
   getWeebCentralTransport,
@@ -20,20 +21,36 @@ export async function GET(request: Request) {
 
   try {
     const items = await mangaDexSource.search(query);
+    if (items.length) {
+      return NextResponse.json({
+        items,
+        source: 'MangaDex',
+        transport,
+        warning: weebCentralError,
+      });
+    }
+  } catch (error) {
+    weebCentralError = [weebCentralError, error instanceof Error ? error.message : 'MangaDex unavailable']
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  try {
+    const items = await comickSource.search(query);
     return NextResponse.json({
       items,
-      source: 'MangaDex',
+      source: 'ComicK',
       transport,
       warning: weebCentralError,
     });
   } catch (error) {
-    const mangaDexError = error instanceof Error ? error.message : 'MangaDex unavailable';
+    const comickError = error instanceof Error ? error.message : 'ComicK unavailable';
     return NextResponse.json(
       {
         items: [],
         source: null,
         transport,
-        error: [weebCentralError, mangaDexError].filter(Boolean).join(' · '),
+        error: [weebCentralError, comickError].filter(Boolean).join(' · '),
       },
       { status: 502 },
     );
