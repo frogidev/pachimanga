@@ -1,11 +1,15 @@
 import type { ImportResult } from './types';
-import { parseTachiyomi } from './tachiyomi';
-import { parseTachimanga } from './tachimanga';
 
 export async function parseBackup(file: File): Promise<ImportResult> {
   const name = file.name.toLowerCase();
-  if (name.endsWith('.tachibk') || name.endsWith('.proto.gz')) return parseTachiyomi(file);
-  if (name.endsWith('.tmb')) return parseTachimanga(file);
+  if (name.endsWith('.tachibk') || name.endsWith('.proto.gz')) {
+    const { parseTachiyomi } = await import('./tachiyomi');
+    return parseTachiyomi(file);
+  }
+  if (name.endsWith('.tmb')) {
+    const { parseTachimanga } = await import('./tachimanga');
+    return parseTachimanga(file);
+  }
   if (name.endsWith('.json')) {
     const json = JSON.parse(await file.text()) as unknown;
     const list: Record<string, unknown>[] = Array.isArray(json)
