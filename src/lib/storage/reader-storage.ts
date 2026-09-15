@@ -1,6 +1,11 @@
 import type { LibraryEntry, Manga, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
-import { ACCOUNT_BOUND_IDB_STORES, sortOutboxByTime } from '@/lib/offline/sync';
+import {
+  ACCOUNT_BOUND_IDB_STORES,
+  newestByUpdatedAt,
+  sortOutboxByTime,
+  splitOutboxByUser,
+} from '@/lib/offline/sync';
 
 export { sortOutboxByTime };
 
@@ -99,7 +104,9 @@ export async function getLibraryEntries() {
     .select('manga_id,source_id,title,cover_url,added_at')
     .eq('user_id', auth.user.id)
     .order('added_at', { ascending: false });
-  if (error) throw error;
+  if (error) {
+    return [...local].sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
+  }
 
   const remote = (data || []).map((row) => {
     const cached = localById.get(row.manga_id);
@@ -183,7 +190,6 @@ export async function getProgress(chapterId: string) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
   const local = await idbGet<ReadingProgress>('progress', chapterId);
-  if (local) return local;
 
   const { data, error } = await auth.sb
     .from('reading_progress')
@@ -191,10 +197,13 @@ export async function getProgress(chapterId: string) {
     .eq('user_id', auth.user.id)
     .eq('chapter_id', chapterId)
     .maybeSingle();
-  if (error) throw error;
-  if (!data) return undefined;
+  if (error) {
+    if (local) return local;
+    throw error;
+  }
+  if (!data) return local;
 
-  const progress: ReadingProgress = {
+  const remote: ReadingProgress = {
     mangaId: data.manga_id,
     chapterId: data.chapter_id,
     pageIndex: data.page_index,
@@ -202,7 +211,10 @@ export async function getProgress(chapterId: string) {
     percentage: Number(data.scroll_progress) * 100,
     updatedAt: data.updated_at,
   };
-  await idbPut('progress', progress as unknown as Record<string, unknown>);
+  const progress = newestByUpdatedAt(local, remote) || remote;
+  if (progress === remote) {
+    await idbPut('progress', remote as unknown as Record<string, unknown>);
+  }
   return progress;
 }
 
@@ -218,12 +230,13 @@ export async function saveProgress(progress: ReadingProgress) {
     readAt: progress.updatedAt,
   };
 
-  // Local-first: IDB + outbox always land, even with no network.
+  // Local-first: IDB + owner-bound outbox always land, even with no network.
   await Promise.all([
     idbPut('progress', progress as unknown as Record<string, unknown>),
     idbPut('history', history as unknown as Record<string, unknown>),
     idbPut('outbox', {
       ...progress,
+      userId: auth.user.id,
       sourceId,
       historyReadAt: history.readAt,
     } as unknown as Record<string, unknown>),
@@ -238,7 +251,14 @@ export async function saveProgress(progress: ReadingProgress) {
 export async function flushProgressOutbox(): Promise<{ synced: number; pending: number }> {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
-  const queued = sortOutboxByTime(await idbGetAll<ReadingProgress & { sourceId: string; historyReadAt: string }>('outbox'));
+  const allQueued = sortOutboxByTime(await idbGetAll<ReadingProgress & {
+    userId?: string;
+    sourceId: string;
+    historyReadAt: string;
+  }>('outbox'));
+  const { owned: queued, stale } = splitOutboxByUser(allQueued, auth.user.id);
+  await Promise.all(stale.map((entry) => idbDelete('outbox', entry.chapterId)));
+
   let synced = 0;
   for (const entry of queued) {
     const [progressResult, historyResult] = await Promise.all([
@@ -286,12 +306,15 @@ export async function clearProgress(chapterId: string) {
 export async function getHistory() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
+  const local = await idbGetAll<ReadingHistoryEntry>('history');
   const { data, error } = await auth.sb
     .from('reading_history')
     .select('manga_id,chapter_id,percentage,read_at')
     .eq('user_id', auth.user.id)
     .order('read_at', { ascending: false });
-  if (error) throw error;
+  if (error) {
+    return [...local].sort((a, b) => Date.parse(b.readAt) - Date.parse(a.readAt));
+  }
 
   const history: ReadingHistoryEntry[] = (data || []).map((row) => ({
     mangaId: row.manga_id,
@@ -323,17 +346,18 @@ export function getReaderSettings(): ReaderSettings {
 export async function loadReaderSettings() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
+  const local = getReaderSettings();
   const { data, error } = await auth.sb
     .from('user_settings')
     .select('settings')
     .eq('user_id', auth.user.id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) return local;
 
   const remote = data?.settings && typeof data.settings === 'object' && 'reader' in data.settings
     ? (data.settings as { reader?: Partial<ReaderSettings> }).reader
     : undefined;
-  const settings = remote ? { ...DEFAULT_READER_SETTINGS, ...remote } : getReaderSettings();
+  const settings = remote ? { ...DEFAULT_READER_SETTINGS, ...remote } : local;
   localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
   return settings;
 }
@@ -367,5 +391,7 @@ export function saveReaderSettings(settings: ReaderSettings) {
       settings: { reader: settings },
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
-  })();
+  })().catch(() => {
+    // Settings stay available in the account-bound local cache while offline.
+  });
 }
