@@ -19,12 +19,18 @@ async function main() {
     console.error("Usage: node scripts/comfy-generate.mjs \"<positive prompt>\"");
     process.exit(2);
   }
-  const template = JSON.parse(
-    (await import("node:fs/promises").then((fs) => fs.readFile(join(HERE, "comfy-workflow.json"), "utf8"))).replaceAll(
-      "$PROMPT",
-      prompt,
-    ),
+  const rawTemplate = JSON.parse(
+    await import("node:fs/promises").then((fs) => fs.readFile(join(HERE, "comfy-workflow.json"), "utf8")),
   );
+  const template = {};
+  for (const [key, node] of Object.entries(rawTemplate)) {
+    if (node && typeof node === "object" && typeof node.class_type === "string") {
+      template[key] = {
+        class_type: node.class_type,
+        inputs: JSON.parse(JSON.stringify(node.inputs || {}).replaceAll("$PROMPT", prompt)),
+      };
+    }
+  }
   const clientId = randomUUID();
   const queued = await api("/prompt", {
     method: "POST",
