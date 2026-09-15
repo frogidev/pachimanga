@@ -20,6 +20,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
   const reducedMotion = useReducedMotion();
   const [hydrated, setHydrated] = useState(false);
+  const [offlineState, setOfflineState] = useState<{ saved: number; total: number } | null>(null);
+  const [offlineBusy, setOfflineBusy] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const scrollFrame = useRef<number | undefined>(undefined);
   const touchStartY = useRef<number | null>(null);
@@ -117,6 +119,29 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   async function toggleFullscreen() { if (document.fullscreenElement) await document.exitFullscreen(); else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }
   const toggleControls = () => dispatch({ type: state.controlsVisible ? "hide-controls" : "show-controls" });
 
+  useEffect(() => {
+    let cancelled = false;
+    void import("@/lib/offline/chapter-cache").then(({ getCachedChapterCount, uniquePageUrls }) =>
+      getCachedChapterCount(uniquePageUrls(pages)).then((saved) => {
+        if (!cancelled) setOfflineState({ saved, total: pages.length });
+      }),
+    );
+    return () => { cancelled = true; };
+  }, [chapter.id, pages]);
+
+  async function saveChapterOffline() {
+    if (offlineBusy) return;
+    setOfflineBusy(true);
+    try {
+      const { cacheChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
+      const urls = uniquePageUrls(pages);
+      const result = await cacheChapterPages(urls, (saved, total) => setOfflineState({ saved, total }));
+      setOfflineState({ saved: result.saved, total: result.total });
+    } finally {
+      setOfflineBusy(false);
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-black text-white" onClick={toggleControls} onMouseMove={() => dispatch({ type: "show-controls" })}>
       <div className="mx-auto flex min-h-dvh w-full max-w-[1200px] flex-col items-center bg-zinc-950">
@@ -153,6 +178,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         <div className="flex items-center gap-3 border-b border-white/10 bg-black/80 px-3 pt-[calc(.6rem+env(safe-area-inset-top))] pb-2.5 backdrop-blur-xl sm:px-5">
           <Link href={`${mangaBasePath}/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Close reader">×</Link>
           <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{manga.title}</p><p className="truncate text-xs text-zinc-500">{chapter.title} · page {state.currentPageIndex + 1}/{pages.length}</p></div>
+          <button type="button" onClick={() => void saveChapterOffline()} disabled={offlineBusy} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 disabled:opacity-50 sm:block" aria-label={offlineState && offlineState.saved >= offlineState.total && offlineState.total > 0 ? "Chapter saved for offline reading" : "Save chapter for offline reading"}>
+            {offlineBusy ? `Saving ${offlineState?.saved ?? 0}/${offlineState?.total ?? pages.length}…` : offlineState && offlineState.saved >= offlineState.total && offlineState.total > 0 ? "✓ Saved" : "↓ Offline"}
+          </button>
           <button type="button" onClick={() => void toggleFullscreen()} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 sm:block">Fullscreen</button>
         </div>
       </div>

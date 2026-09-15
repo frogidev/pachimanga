@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
@@ -32,6 +32,17 @@ function isActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  useEffect(() => {
+    // Sync any progress queued while offline, on boot and on reconnect.
+    const flush = () => {
+      void import("@/lib/storage/reader-storage").then(({ flushProgressOutbox }) =>
+        flushProgressOutbox().catch(() => {}),
+      );
+    };
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, []);
   if (pathname.startsWith("/reader/") || pathname.startsWith("/auth") || pathname === "/offline") return <>{children}</>;
 
   return (
