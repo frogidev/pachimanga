@@ -3,6 +3,7 @@ import test from "node:test";
 import { uniquePageUrls } from "../src/lib/offline/chapter-cache.ts";
 import {
   ACCOUNT_BOUND_IDB_STORES,
+  LIBRARY_CONTENT_IDB_STORES,
   isStrictlyNewerTimestamp,
   newestByUpdatedAt,
   sortOutboxByTime,
@@ -21,6 +22,11 @@ test("uniquePageUrls dedupes and drops blanks, preserving order", () => {
 
 test("account-bound cache stores include progress and settings sync outboxes", () => {
   assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox", "settingsOutbox"]);
+});
+
+test("clearing the library preserves reader settings sync state", () => {
+  assert.deepEqual(LIBRARY_CONTENT_IDB_STORES, ["library", "progress", "history", "outbox"]);
+  assert.equal(LIBRARY_CONTENT_IDB_STORES.includes("settingsOutbox" as never), false);
 });
 
 test("sortOutboxByTime orders oldest-first for last-write-wins flush", () => {

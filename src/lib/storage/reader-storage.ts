@@ -2,6 +2,8 @@ import type { LibraryEntry, Manga, ReaderSettings, ReadingHistoryEntry, ReadingP
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
 import {
   ACCOUNT_BOUND_IDB_STORES,
+  LIBRARY_CONTENT_IDB_STORES,
+  isStrictlyNewerTimestamp,
   newestByUpdatedAt,
   sortOutboxByTime,
   splitOutboxByUser,
@@ -26,6 +28,10 @@ type SettingsOutboxEntry = {
 
 async function clearAccountBoundIdb() {
   await Promise.all(ACCOUNT_BOUND_IDB_STORES.map((store) => idbClear(store)));
+}
+
+async function clearLibraryContentIdb() {
+  await Promise.all(LIBRARY_CONTENT_IDB_STORES.map((store) => idbClear(store)));
 }
 
 async function signedIn() {
@@ -187,7 +193,9 @@ export async function clearAccountLibrary() {
     const { error } = await auth.sb.from(table).delete().eq('user_id', auth.user.id);
     if (error) throw error;
   }
-  await clearAccountBoundIdb();
+  // Clear only library/progress/history state. Pending/current reader settings belong
+  // to the account but are not part of the user-facing "clear library" action.
+  await clearLibraryContentIdb();
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
   window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
 }
@@ -345,14 +353,6 @@ function normalizeReaderSettings(value: unknown): ReaderSettings | null {
   return reader ? { ...DEFAULT_READER_SETTINGS, ...reader } : null;
 }
 
-function isStrictlyNewer(left: string, right?: string | null) {
-  const leftTime = Date.parse(left);
-  const rightTime = right ? Date.parse(right) : Number.NaN;
-  if (Number.isNaN(leftTime)) return false;
-  if (Number.isNaN(rightTime)) return true;
-  return leftTime > rightTime;
-}
-
 export function getReaderSettings(): ReaderSettings {
   if (typeof window === 'undefined') return DEFAULT_READER_SETTINGS;
   try {
@@ -376,13 +376,13 @@ export async function loadReaderSettings() {
   if (error) return pending?.settings || local;
 
   const remote = normalizeReaderSettings(data?.settings);
-  if (pending && isStrictlyNewer(pending.updatedAt, data?.updated_at)) {
+  if (pending && isStrictlyNewerTimestamp(pending.updatedAt, data?.updated_at)) {
     localStorage.setItem(readerSettingsKey(), JSON.stringify(pending.settings));
     void flushSettingsOutbox().catch(() => {});
     return pending.settings;
   }
 
-  if (pending && data?.updated_at && !isStrictlyNewer(pending.updatedAt, data.updated_at)) {
+  if (pending && data?.updated_at && !isStrictlyNewerTimestamp(pending.updatedAt, data.updated_at)) {
     await idbDelete('settingsOutbox', auth.user.id);
   }
   const settings = remote || pending?.settings || local;
