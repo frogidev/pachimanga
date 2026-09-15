@@ -70,6 +70,15 @@ export function MangaDetail({
   const [bulk, setBulk] = useState<{ done: number; total: number; label: string } | null>(null);
   const bulkCancel = useRef(false);
   const [continueTo, setContinueTo] = useState<{ id: string; title: string } | null>(null);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(chapters.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visibleChapters = chapters.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const readCount = useMemo(
+    () => chapters.filter((chapter) => (chapterProgress[chapter.id] ?? 0) >= 99).length,
+    [chapters, chapterProgress],
+  );
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
   const description = useMemo(() => cleanDescription(manga.description), [manga.description]);
   const provider = sourceName(manga.sourceId);
@@ -148,6 +157,8 @@ export function MangaDetail({
     })();
     return () => { cancelled = true; };
   }, [manga.id, chapters]);
+
+  useEffect(() => { setPage(0); }, [manga.id]);
 
   async function toggleLibrary() {
     setBusy(true);
@@ -285,10 +296,32 @@ export function MangaDetail({
             <p className="pixel-kicker text-[9px] text-pink-400">Read</p>
             <h2 className="mt-1 text-xl font-bold tracking-[-.03em]">Chapters</h2>
           </div>
-          <span className="text-xs text-zinc-600">{chapters.length ? `${chapters.length} available` : "No in-app chapters"}</span>
+          <span className="text-xs text-zinc-600">{chapters.length ? `${readCount}/${chapters.length} read · ${chapters.length} available` : "No in-app chapters"}</span>
         </div>
         {chapters.length ? (
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            {pageCount > 1 ? (
+              <div className="flex items-center gap-1" role="navigation" aria-label="Chapter pages">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="rounded-xl px-3 py-2 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
+                >
+                  ← Newer
+                </button>
+                <span className="px-1 font-mono text-[11px] text-zinc-500" aria-live="polite">Page {safePage + 1}/{pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={safePage >= pageCount - 1}
+                  className="rounded-xl px-3 py-2 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
+                >
+                  Older →
+                </button>
+              </div>
+            ) : <span />}
+            <div className="flex flex-wrap items-center gap-2">
             {bulk ? (
               <div className="flex min-w-52 flex-1 items-center gap-3 sm:max-w-xs" role="progressbar" aria-valuenow={bulk.done} aria-valuemin={0} aria-valuemax={bulk.total} aria-label={bulk.label}>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[.06]">
@@ -320,18 +353,20 @@ export function MangaDetail({
             >
               Mark all as unread
             </button>
+            </div>
           </div>
         ) : null}
         {chapters.length ? (
           <div className="surface-card mt-4 divide-y divide-white/[.055] overflow-hidden">
-            {chapters.map((chapter, index) => {
+            {visibleChapters.map((chapter, index) => {
+              const globalIndex = safePage * PAGE_SIZE + index;
               const pct = chapterProgress[chapter.id] ?? 0;
               const read = pct >= 99;
               const busy = busyChapter === chapter.id;
               return (
               <Link key={chapter.id} href={chapterHref(chapter.id)} className="group flex min-h-14 items-center gap-3 px-4 py-3 text-sm transition hover:bg-white/[.035] sm:px-5">
                 <span aria-hidden="true" title={read ? "Read" : pct > 0 ? `${Math.round(pct)}% read` : "Unread"} className={`size-2 shrink-0 rounded-full ${read ? "bg-emerald-400" : pct > 0 ? "bg-sky-300" : "bg-zinc-700"}`} />
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] font-mono text-[10px] text-zinc-600 group-hover:bg-pink-400/10 group-hover:text-pink-300">{String(chapters.length - index).padStart(2, "0")}</span>
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] font-mono text-[10px] text-zinc-600 group-hover:bg-pink-400/10 group-hover:text-pink-300">{String(chapters.length - globalIndex).padStart(2, "0")}</span>
                 <span className={`min-w-0 flex-1 truncate font-medium ${read ? "text-zinc-500" : "text-zinc-200"}`}>{chapter.title}</span>
                 <button
                   type="button"
@@ -349,7 +384,7 @@ export function MangaDetail({
                   disabled={busy || bulk !== null}
                   aria-label={`Mark ${chapter.title} and older chapters as read`}
                   title="Mark this chapter and older as read"
-                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); void markFromHere(index); }}
+                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); void markFromHere(globalIndex); }}
                   className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] text-sm text-zinc-500 transition hover:bg-white/[.08] hover:text-pink-300 disabled:opacity-50"
                 >
                   ⇣
@@ -359,7 +394,29 @@ export function MangaDetail({
               );
             })}
           </div>
-        ) : (
+        ) : null}
+        {pageCount > 1 ? (
+          <div className="mt-4 flex items-center justify-center gap-1" role="navigation" aria-label="Chapter pages">
+            <button
+              type="button"
+              onClick={() => { setPage((p) => Math.max(0, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              disabled={safePage === 0}
+              className="rounded-xl px-4 py-2.5 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
+            >
+              ← Newer
+            </button>
+            <span className="px-2 font-mono text-[11px] text-zinc-500">Page {safePage + 1}/{pageCount}</span>
+            <button
+              type="button"
+              onClick={() => { setPage((p) => Math.min(pageCount - 1, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              disabled={safePage >= pageCount - 1}
+              className="rounded-xl px-4 py-2.5 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
+            >
+              Older →
+            </button>
+          </div>
+        ) : null}
+        {!chapters.length ? (
           <div className="surface-card mt-4 px-5 py-8 sm:px-6">
             <p className="text-sm font-semibold text-zinc-200">{provider} does not expose readable English chapters for this entry.</p>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Pachimanga can keep the title in your library, but it will not fabricate chapter links when the upstream source only provides metadata.</p>
@@ -368,7 +425,7 @@ export function MangaDetail({
               <a href={manga.sourceUrl} target="_blank" rel="noreferrer noopener" className="button-secondary px-4 py-2.5 text-sm">Open {provider} ↗</a>
             </div>
           </div>
-        )}
+        ) : null}
       </section>
     </div>
   );
