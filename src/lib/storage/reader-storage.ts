@@ -1,6 +1,6 @@
 import type { LibraryEntry, Manga, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
-import { sortOutboxByTime } from '@/lib/offline/sync';
+import { ACCOUNT_BOUND_IDB_STORES, sortOutboxByTime } from '@/lib/offline/sync';
 
 export { sortOutboxByTime };
 
@@ -12,6 +12,10 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 };
 
 const CACHE_OWNER_KEY = 'pachimanga:cache-owner';
+
+async function clearAccountBoundIdb() {
+  await Promise.all(ACCOUNT_BOUND_IDB_STORES.map((store) => idbClear(store)));
+}
 
 async function signedIn() {
   try {
@@ -38,7 +42,7 @@ async function bindCacheToUser(userId: string) {
   const current = localStorage.getItem(CACHE_OWNER_KEY);
   if (current === userId) return;
 
-  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+  await clearAccountBoundIdb();
   localStorage.removeItem('pachimanga:reader-settings');
   localStorage.removeItem('frogilab:reader-settings');
   localStorage.setItem(CACHE_OWNER_KEY, userId);
@@ -58,7 +62,7 @@ export async function clearLocalUserCache() {
     localStorage.removeItem('pachimanga:reader-settings');
     localStorage.removeItem('frogilab:reader-settings');
   }
-  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+  await clearAccountBoundIdb();
 }
 
 function sourceIdFromMangaId(mangaId: string) {
@@ -170,7 +174,7 @@ export async function clearAccountLibrary() {
     const { error } = await auth.sb.from(table).delete().eq('user_id', auth.user.id);
     if (error) throw error;
   }
-  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+  await clearAccountBoundIdb();
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
   window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
 }
