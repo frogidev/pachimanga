@@ -1,28 +1,107 @@
 ---
 name: pachimanga-ui
-description: PWA and frontend design work for Pachimanga. Use for UI polish, responsive layout, accessibility, PWA install experience, reader presentation, Next.js App Router components, styling, or frontend interaction changes in the frogidev/pachimanga project. Keep the current visual language coherent and treat native platform packaging as out of scope unless explicitly requested.
+description: Strict PWA/frontend implementation skill for Pachimanga. Use for UI polish, responsive layout, accessibility, PWA install/offline UX, Next.js App Router components, navigation, forms, cards, manga detail, or frontend interactions. Requires docs/art-direction.md, mobile/tablet/desktop/standalone verification, mandatory-auth/privacy preservation, explicit loading/empty/error states, no collateral redesign, and a green web quality gate before completion.
 ---
 
-# Pachimanga PWA and UI
+# Pachimanga PWA/UI
 
-Optimize the production PWA first. Follow the repository's existing components, typography, spacing, and interaction patterns before inventing new visual systems.
+Optimize the production PWA first. `AGENTS.md` remains mandatory and `docs/art-direction.md` is the visual contract.
 
-## Procedure
+## Before editing
 
-1. Read the relevant route, shared layout, and reusable components before editing.
-2. Check both narrow mobile/PWA and desktop behavior for every visual change.
-3. Keep signed-out users in the authentication experience; never expose application content as a preview/demo.
-4. Preserve usable reader width for long-strip/manhwa content and avoid layout rules that collapse images into narrow columns.
-5. Keep interactive controls accessible: semantic elements, labels, keyboard behavior, visible focus, adequate touch targets, and meaningful loading/error states.
-6. Avoid unnecessary client components. Keep server/client boundaries consistent with the existing Next.js App Router architecture.
-7. Do not weaken private/no-store handling or move server-only relay credentials into browser-visible variables.
-8. Prefer CSS/layout fixes over platform-specific forks when the same UI should work in installed PWA and browser modes.
-9. Run lint, typecheck, relevant tests, and a production build after significant frontend changes.
+1. Read the route, its feature component, shared shell/primitives, and relevant CSS before changing styles.
+2. Identify whether the issue is local or caused by a shared component/token.
+3. Load `pachimanga-design` rules for any meaningful visual-system change.
+4. For reader surfaces, use `pachimanga-reader` instead of treating Reader as ordinary page layout.
+
+## Hard invariants
+
+- Signed-out users stay in the auth experience.
+- No guest/demo/mock production preview is introduced.
+- Server-only relay credentials stay server-only.
+- UI changes must not weaken private/no-store behavior or account-bound local state.
+- Native packaging is out of scope during the PWA phase.
+- Do not fork the entire UI for “PWA mode” when CSS/layout can support browser + standalone consistently.
+
+## Responsive review matrix
+
+Material UI changes require review at:
+
+- 360px phone;
+- ~390–430px phone;
+- ~768px tablet;
+- ~1280px desktop;
+- standalone PWA when navigation/safe-area/install/offline/viewport behavior is involved.
+
+Do not accept horizontal overflow, clipped primary actions, unreachable navigation, or touch controls that require precision.
+
+## Accessibility requirements
+
+- semantic button/link/form controls;
+- explicit labels for icon-only controls;
+- visible keyboard focus;
+- logical focus order;
+- touch targets roughly >= 40px;
+- sufficient functional-text contrast;
+- meaningful loading/empty/error/retry states;
+- `aria-live` only where dynamic feedback benefits from announcement;
+- `prefers-reduced-motion` respected.
+
+Do not hide inaccessible controls behind hover-only behavior.
+
+## Next.js boundaries
+
+- Keep server/client boundaries consistent with the existing App Router architecture.
+- Avoid adding `"use client"` to a large tree merely for a small interaction.
+- Do not move secrets/provider credentials to browser code.
+- When changing framework APIs, consult the installed Next.js 16 docs under `node_modules/next/dist/docs/` when available.
 
 ## Design cleanup rules
 
-- Remove duplicated UI before adding variants.
-- Prefer a small number of consistent surfaces, radii, gaps, and text hierarchies.
-- Use concise copy and explicit empty/error states.
-- Avoid ornamental animation that interferes with reading or navigation.
-- Do not redesign unrelated screens as collateral work.
+- Reuse existing surfaces, radii, button styles, spacing, and typography before adding variants.
+- Prefer a shared fix only when the same inconsistency genuinely repeats.
+- Keep Pachi/brand decoration away from active reading content.
+- Avoid global redesign as collateral work.
+- Use concise, accurate copy; do not promise offline/provider behavior the app does not support.
+- Real source errors stay explicit and actionable.
+
+## Route-specific minimum checks
+
+### Auth
+
+Forms remain usable with mobile keyboard, validation is clear, and registration/reset actions are discoverable.
+
+### Library/Browse
+
+Search/filter/card actions work by keyboard/touch; empty/loading/error/no-result states are distinct.
+
+### Manga detail
+
+Cover/meta/actions remain readable; chapter pagination and read controls are accessible; large chapter counts do not break layout.
+
+### Import
+
+File/OCR/parsing/matching progress and failures are visible; imported state remains account-owned.
+
+### History/Settings
+
+Empty/resume/account/dangerous actions are explicit; no cross-account stale UI.
+
+### Install/offline
+
+Instructions match actual platform behavior; standalone safe areas work; offline copy does not imply unsupported full offline mode.
+
+## Validation
+
+For implementation changes run:
+
+```powershell
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Then re-review the final diff for one-off visual drift and unrelated redesign.
+
+Do not claim visual completion without checking the relevant viewport matrix.
