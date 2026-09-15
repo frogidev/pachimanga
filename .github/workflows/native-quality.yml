@@ -3,7 +3,11 @@ name: Native Quality
 on:
   pull_request:
     paths:
-      - ".github/workflows/**"
+      - ".github/workflows/native-quality.yml"
+      - ".github/workflows/android-apk.yml"
+      - ".github/workflows/android-release.yml"
+      - ".github/workflows/desktop-release.yml"
+      - ".github/workflows/ios-release.yml"
       - "scripts/**"
       - "src-tauri/**"
       - "src/lib/native/**"
@@ -14,7 +18,11 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/**"
+      - ".github/workflows/native-quality.yml"
+      - ".github/workflows/android-apk.yml"
+      - ".github/workflows/android-release.yml"
+      - ".github/workflows/desktop-release.yml"
+      - ".github/workflows/ios-release.yml"
       - "scripts/**"
       - "src-tauri/**"
       - "src/lib/native/**"
