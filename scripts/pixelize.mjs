@@ -1,30 +1,32 @@
-import { mkdir, readdir } from "node:fs/promises";
-import { dirname, extname, join, parse } from "node:path";
+import { readdir } from "node:fs/promises";
+import { dirname, join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RAW_DIR = join(HERE, "..", "public", "ai-art", "raw");
-const OUT_DIR = join(HERE, "..", "public", "ai-art");
+const RAW = join(HERE, "..", "public", "ai-art", "raw");
+const OUT = join(HERE, "..", "public", "ai-art");
 
-async function main() {
-  await mkdir(OUT_DIR, { recursive: true });
-  const files = (await readdir(RAW_DIR).catch(() => []))
-    .filter((file) => [".png", ".jpg", ".jpeg", ".webp"].includes(extname(file).toLowerCase()));
-  if (!files.length) {
-    console.log("No raw images in public/ai-art/raw.");
-    return;
-  }
-  for (const file of files) {
-    const name = parse(file).name;
-    const base = sharp(join(RAW_DIR, file)).resize({ width: 160 }).posterize(4);
-    await base.clone().webp({ quality: 85 }).toFile(join(OUT_DIR, `${name}.webp`));
-    await base.clone().avif({ quality: 80 }).toFile(join(OUT_DIR, `${name}.avif`));
-    console.log(`Wrote ${name}.webp + ${name}.avif`);
-  }
+const files = (await readdir(RAW)).filter((f) => /\.(png|jpg|jpeg|webp)$/i.test(f));
+if (!files.length) {
+  console.log("No raw images in public/ai-art/raw.");
+  process.exit(0);
 }
-
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+for (const file of files) {
+  const name = parse(file).name;
+  const img = sharp(join(RAW, file));
+  const meta = await img.metadata();
+  // Nearest-neighbor downscale keeps chunky pixels crisp; cap width at 1440.
+  const w = Math.min(meta.width || 1440, 1440);
+  await img
+    .clone()
+    .resize({ width: w, kernel: "nearest" })
+    .avif({ quality: 55, effort: 6 })
+    .toFile(join(OUT, `${name}.avif`));
+  await img
+    .clone()
+    .resize({ width: w, kernel: "nearest" })
+    .webp({ quality: 75 })
+    .toFile(join(OUT, `${name}.webp`));
+  console.log(`Optimized ${name} (${meta.width}x${meta.height} -> w${w})`);
+}

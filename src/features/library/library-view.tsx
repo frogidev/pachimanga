@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MangaCard } from "@/components/manga-card";
-import { PachiMascot } from "@/components/pachi-mascot";
+import Image from "next/image";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
 import { isTauriNative } from "@/lib/native/tauri-bridge";
 import { getLibraryEntries, removeLibraryEntry } from "@/lib/storage/reader-storage";
@@ -243,8 +243,15 @@ export function LibraryView() {
             ))}
           </div>
         ) : (
-          <div className="mt-8 flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">
-            <PachiMascot className="h-24 w-28" />
+          <div className="mt-8 flex min-h-64 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">
+            <Image
+              src="/ai-art/empty-shelves.avif"
+              alt="Sleeping cat on an empty manga shelf"
+              width={384}
+              height={256}
+              loading="lazy"
+              className="h-32 w-auto rounded-xl object-cover"
+            />
             <h3 className="mt-1 font-semibold text-zinc-200">Your library is empty</h3>
             <p className="mt-1 max-w-md text-sm leading-6 text-zinc-500">Search the catalog to add manga, or import an existing Tachiyomi, Mihon or Tachimanga library into this account.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
