@@ -1,11 +1,11 @@
 ---
 name: pachimanga-supabase
-description: Strict Supabase/auth/RLS/schema/sync/account-storage workflow for Pachimanga. Use for migrations, auth flows, RLS/policies, library/progress/history/settings persistence, cache ownership, offline outbox, production advisors, or cross-device sync. Requires append-only canonical migrations, least-privilege grants, explicit conflict semantics, account-isolation tests, and clear separation between code authoring and production mutation. Never disable RLS or perform destructive/production changes without explicit user intent.
+description: Strict Supabase/auth/RLS/schema/sync/account-storage workflow for Pachimanga. Use for migrations, auth flows, RLS/policies, library/progress/history/settings persistence, cache ownership, offline outbox, production advisors, or cross-device sync. Requires append-only canonical migrations, least-privilege grants, newer-only timestamp conflict semantics, account-isolation tests, and clear separation between code authoring and production mutation. Never disable RLS or perform destructive/production changes without explicit user intent.
 ---
 
 # Pachimanga Supabase and account data
 
-Treat RLS, database grants, and account-bound local storage as security boundaries.
+Treat RLS, database grants, timestamp-conflict guards, and account-bound local storage as security/data-integrity boundaries.
 
 Read `AGENTS.md`, `docs/architecture.md`, `supabase/README.md`, and the relevant `docs/WORKPLAN.md` phase before changing auth/data behavior.
 
@@ -31,10 +31,11 @@ Required rules:
 
 - inspect `supabase/README.md` and current production migration history first;
 - every active migration uses a 14-digit Supabase timestamp prefix;
-- add a new forward migration for every production schema/grant change;
+- add a new forward migration for every production schema/grant/trigger change;
 - never rewrite an already-applied production migration;
 - never use `supabase db reset --linked` against production;
 - preserve unique constraints/conflict targets used by application upserts;
+- preserve newer-only timestamp conflict triggers unless deliberately replaced with an equivalent or stronger model;
 - use idempotent guards only when they improve safe repeated application and do not hide an unexpected schema state;
 - re-run security/performance advisors after production DDL;
 - record exactly what was applied and to which environment.
@@ -46,6 +47,7 @@ Current production baseline starts with:
 - `20260915053221_drop_redundant_library_index.sql`
 - `20260915080009_revoke_anon_account_table_privileges.sql`
 - `20260915080109_tighten_account_role_privileges.sql`
+- `20260915081911_reject_stale_sync_writes.sql`
 
 Future migrations append after these; do not renumber them.
 
@@ -101,7 +103,27 @@ When changing local persistence verify:
 
 Never create an anonymous fallback cache that bypasses the account model.
 
-## Sync/conflict design
+## Sync/conflict contract
+
+Current production timestamp ordering is newer-only at both client reconciliation and the database update boundary.
+
+Authoritative ordering fields:
+
+- `reading_progress.updated_at`
+- `reading_history.read_at`
+- `user_settings.updated_at`
+
+For an existing row, an incoming update may replace it only when the incoming ordering timestamp is strictly newer. Older writes and exact ties preserve the already-stored row. Inserts are unaffected. Trigger helper functions are not RPC-executable by `anon` or `authenticated`.
+
+This contract exists specifically to prevent delayed offline/cross-device requests from rolling state backward merely because they arrive later. Do not weaken it by changing the comparison to arrival order or by removing the triggers without a replacement design.
+
+Current client behavior:
+
+- progress/history writes use an owner-bound IndexedDB outbox before Supabase retry;
+- the outbox store is keyed by chapter ID, so multiple pending saves for the same chapter collapse to the latest local value;
+- cached vs remote progress chooses the newer `updatedAt`, with remote winning an exact tie;
+- library add/remove remains remote-first and is intentionally not offline queued;
+- reader settings are account-bound locally and async-upserted, but do not yet have an eventual-delivery outbox.
 
 Before changing synchronization, write down:
 
@@ -113,9 +135,10 @@ Before changing synchronization, write down:
 - offline behavior;
 - reconnect behavior;
 - cross-device stale-write behavior;
-- account-switch behavior.
+- account-switch behavior;
+- whether device clock skew materially affects the proposal.
 
-Current progress/history writes use a local IndexedDB outbox before Supabase retry. Do not assume library/settings have the same offline guarantees.
+Do not assume library/settings have the same offline guarantees as progress/history.
 
 ## Auth changes
 
@@ -140,6 +163,7 @@ Require explicit user intent before:
 - deleting/rewriting user data;
 - changing production auth/security settings;
 - disabling/altering RLS in a way that could broaden access;
+- removing stale-write guards in a way that could permit data rollback;
 - using service-role privileges for a task that should work through normal account policies.
 
 Before a destructive change, identify rollback/recovery strategy and scope. A security hardening change must not be used as a pretext to mutate user data.
@@ -161,13 +185,14 @@ For migration-chain changes additionally:
 - when a local Docker environment is available, run `supabase start` then `supabase db reset` and `supabase migration list --local`;
 - compare local migration versions to production history before any `db push`.
 
-For production schema/grant changes additionally:
+For production schema/grant/trigger changes additionally:
 
 - inspect applied migration state;
 - inspect table/sequence privileges for `anon` and `authenticated`;
 - confirm RLS remains enabled on every account table;
+- inspect affected triggers/functions and verify their execution exposure;
 - verify representative application upsert/read/delete paths when credentials are available;
 - re-run Supabase security and performance advisors;
-- test with at least two accounts when ownership/isolation behavior changed.
+- test with at least two accounts/devices when ownership or conflict behavior changed.
 
-Never report an advisor/schema/grant result that was not actually inspected.
+Never report an advisor/schema/grant/trigger result that was not actually inspected.
