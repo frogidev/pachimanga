@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from 'react';
+import { buildPasswordRecoveryRedirect, isPasswordRecoveryRequest, safeLocalPath } from '@/lib/auth/redirects';
 import { createClient } from '@/lib/supabase/client';
 import { bindCurrentUserCache, clearLocalUserCache } from '@/lib/storage/reader-storage';
 
 function requestedDestination() {
   if (typeof window === 'undefined') return '/';
-  const value = new URLSearchParams(window.location.search).get('next');
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
+  return safeLocalPath(new URLSearchParams(window.location.search).get('next'));
 }
 
 function initialAuthMessage() {
@@ -20,7 +20,11 @@ function initialAuthMessage() {
   return '';
 }
 
-function subscribeAuthMessage() {
+function initialRecoveryRequest() {
+  return typeof window !== 'undefined' && isPasswordRecoveryRequest(window.location.search);
+}
+
+function subscribeUrlState() {
   return () => {};
 }
 
@@ -29,7 +33,11 @@ export function AuthForm() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const urlMessage = useSyncExternalStore(subscribeAuthMessage, initialAuthMessage, () => '');
+  const [newPassword, setNewPassword] = useState('');
+  const urlMessage = useSyncExternalStore(subscribeUrlState, initialAuthMessage, () => '');
+  const recoveryRequested = useSyncExternalStore(subscribeUrlState, initialRecoveryRequest, () => false);
+  const [recoveryEvent, setRecoveryEvent] = useState(false);
+  const recoveryMode = recoveryRequested || recoveryEvent;
   const [override, setOverride] = useState<string | null>(null);
   const message = override ?? urlMessage;
   const [busy, setBusy] = useState(false);
@@ -45,8 +53,10 @@ export function AuthForm() {
         setSignedIn(data.user?.email || null);
         if (data.user) await bindCurrentUserCache();
       });
-      const listener = sb.auth.onAuthStateChange((_event, session) => {
-        if (!cancelled) setSignedIn(session?.user.email || null);
+      const listener = sb.auth.onAuthStateChange((event, session) => {
+        if (cancelled) return;
+        setSignedIn(session?.user.email || null);
+        if (event === 'PASSWORD_RECOVERY') setRecoveryEvent(true);
       });
       subscription = listener.data.subscription;
     } catch {
@@ -103,10 +113,36 @@ export function AuthForm() {
       return;
     }
     setBusy(true);
-    const sb = createClient();
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth` });
-    setOverride(error ? error.message : 'Password reset email sent.');
-    setBusy(false);
+    try {
+      const sb = createClient();
+      const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: buildPasswordRecoveryRedirect(window.location.origin),
+      });
+      setOverride(error ? error.message : 'Password reset email sent.');
+    } catch (error) {
+      setOverride(error instanceof Error ? error.message : 'Password reset failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updatePassword(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setOverride('');
+    try {
+      const sb = createClient();
+      const { error } = await sb.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      await bindCurrentUserCache();
+      setRecoveryEvent(false);
+      router.replace('/');
+      router.refresh();
+    } catch (error) {
+      setOverride(error instanceof Error ? error.message : 'Password update failed.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function logout() {
@@ -119,6 +155,35 @@ export function AuthForm() {
     router.replace('/auth');
     router.refresh();
     setBusy(false);
+  }
+
+  if (recoveryMode) {
+    return (
+      <div className="surface-card p-5 sm:p-6">
+        <p className="pixel-kicker text-[9px] text-pink-400">Account recovery</p>
+        <h2 className="mt-2 text-xl font-semibold text-white">Choose a new password</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-500">Set a new password for this Pachimanga account.</p>
+        <form onSubmit={updatePassword} className="mt-5 grid gap-4">
+          <label className="grid gap-2 text-sm text-zinc-400">
+            New password
+            <input
+              className="field px-3.5 py-3 text-white"
+              type="password"
+              required
+              minLength={8}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+          </label>
+          <button className="button-primary mt-1 px-4 py-3 text-sm disabled:opacity-50" disabled={busy}>
+            {busy ? 'Updating…' : 'Update password'}
+          </button>
+          {message ? <p className="rounded-xl border border-white/[.06] bg-white/[.025] px-3 py-2.5 text-sm text-zinc-400">{message}</p> : null}
+        </form>
+      </div>
+    );
   }
 
   if (signedIn) {
