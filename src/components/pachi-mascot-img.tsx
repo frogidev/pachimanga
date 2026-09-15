@@ -11,7 +11,7 @@ type Props = {
 export function PachiMascotImg({ className = "", width = 220, height = 147, eager = false }: Props) {
   return (
     <Image
-      src="/ai-art/pachi-mascot-sit.avif"
+      src="/ai-art/pachi-mascot-calico.avif"
       alt=""
       aria-hidden="true"
       width={width}
