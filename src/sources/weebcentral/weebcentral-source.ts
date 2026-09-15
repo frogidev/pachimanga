@@ -1,5 +1,6 @@
 import type { MangaSource } from '@/sources/core/manga-source';
 import { SourceUnavailableError } from '@/sources/core/manga-source';
+import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 import {
   parseChapterSeriesId,
   parseChapterTitle,
@@ -86,7 +87,7 @@ async function wcFetch(path: string, options: WcFetchOptions) {
   }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithSourceRetry(url, {
       headers,
       signal: controller.signal,
       next: { revalidate },
@@ -131,7 +132,7 @@ export async function probeWeebCentralServer(): Promise<{
       const base = relayBase();
       const token = relayToken();
       if (!base || !token) return { ok: false, transport, error: 'relay configuration is incomplete' };
-      const response = await fetch(`${base}/health/upstream`, {
+      const response = await fetchWithSourceRetry(`${base}/health/upstream`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         signal: controller.signal,
         cache: 'no-store',
@@ -143,7 +144,7 @@ export async function probeWeebCentralServer(): Promise<{
         : { ok: false, transport, error: body.error || `upstream HTTP ${body.upstreamStatus ?? 'unknown'}` };
     }
 
-    const response = await fetch(BASE, {
+    const response = await fetchWithSourceRetry(BASE, {
       headers: { 'User-Agent': 'Pachimanga/0.4 (+https://pachimanga.frogilab.dev)' },
       signal: controller.signal,
       cache: 'no-store',

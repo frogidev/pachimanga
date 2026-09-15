@@ -1,6 +1,8 @@
 import type { Chapter, Manga, MangaStatus, Page } from '@/types/models';
 import type { MangaSource } from '@/sources/core/manga-source';
 import { SourceUnavailableError } from '@/sources/core/manga-source';
+import { collectSourcePages } from '@/sources/core/pagination';
+import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 
 const API = 'https://api.comick.io';
 const SITE = 'https://comick.io';
@@ -127,7 +129,7 @@ async function ckFetch<T>(path: string, revalidate = 300): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12_000);
   try {
-    const response = await fetch(`${API}${path}`, {
+    const response = await fetchWithSourceRetry(`${API}${path}`, {
       headers: {
         Accept: 'application/json',
         'User-Agent': 'Pachimanga/0.4 (+https://pachimanga.frogilab.dev)',
@@ -210,20 +212,22 @@ export class ComickSource implements MangaSource {
 
   async getChapters(mangaId: string): Promise<Chapter[]> {
     const rid = rawMangaId(mangaId);
-    const all: ComickChapter[] = [];
-    let total = Number.POSITIVE_INFINITY;
-
-    for (let page = 1; page <= 6 && all.length < total; page += 1) {
-      const params = new URLSearchParams({ page: String(page), limit: '100', lang: 'en', 'chap-order': '1' });
-      const payload = await ckFetch<{ chapters?: ComickChapter[]; total?: number }>(
-        `/comic/${encodeURIComponent(rid)}/chapters?${params.toString()}`,
-        120,
-      );
-      const batch = payload.chapters || [];
-      all.push(...batch);
-      total = typeof payload.total === 'number' ? payload.total : all.length;
-      if (!batch.length) break;
-    }
+    const all = await collectSourcePages<ComickChapter>(
+      async (page, _offset, limit) => {
+        const params = new URLSearchParams({
+          page: String(page + 1),
+          limit: String(limit),
+          lang: 'en',
+          'chap-order': '1',
+        });
+        const payload = await ckFetch<{ chapters?: ComickChapter[]; total?: number }>(
+          `/comic/${encodeURIComponent(rid)}/chapters?${params.toString()}`,
+          120,
+        );
+        return { items: payload.chapters || [], total: payload.total };
+      },
+      { pageSize: 100, maxPages: 6 },
+    );
 
     const seen = new Set<string>();
     const chapters: Chapter[] = [];
