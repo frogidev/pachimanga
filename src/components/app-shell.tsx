@@ -33,10 +33,13 @@ function isActive(pathname: string, href: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   useEffect(() => {
-    // Sync any progress queued while offline, on boot and on reconnect.
+    // Sync owner-bound progress and settings queued while offline, on boot and reconnect.
     const flush = () => {
-      void import("@/lib/storage/reader-storage").then(({ flushProgressOutbox }) =>
-        flushProgressOutbox().catch(() => {}),
+      void import("@/lib/storage/reader-storage").then(({ flushProgressOutbox, flushSettingsOutbox }) =>
+        Promise.all([
+          flushProgressOutbox().catch(() => null),
+          flushSettingsOutbox().catch(() => null),
+        ]),
       );
     };
     flush();
