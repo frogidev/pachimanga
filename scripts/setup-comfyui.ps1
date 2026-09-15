@@ -36,8 +36,11 @@ try {
   if (-not (Test-Path $Py)) { python -m venv venv }
   & $Py -m pip install --upgrade pip
   # Current stable CUDA build: comfy-kitchen >= 0.2 needs torch >= 2.6 op schemas (cu121 ships torch 2.5).
-  & $Py -m pip install --upgrade torch torchvision torchaudio
+  # Explicit CUDA index: a bare `pip install torch` can silently resolve the CPU build.
+  & $Py -m pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
   if ($LASTEXITCODE -ne 0) { throw 'PyTorch install failed. Check network/disk and re-run.' }
+  & $Py -c 'import torch; assert torch.cuda.is_available(), "CPU-only torch resolved; re-run setup"'
+  if ($LASTEXITCODE -ne 0) { throw 'CPU-only torch was installed; re-run setup to retry the CUDA build.' }
   & $Py -m pip install -r requirements.txt
   if ($LASTEXITCODE -ne 0) { throw 'ComfyUI requirements failed. Re-run to retry.' }
 
