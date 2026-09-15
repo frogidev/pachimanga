@@ -6,11 +6,11 @@ This file records concrete verification evidence from the current PWA release-ha
 
 Verified during this pass:
 
-- `main` reached `847407b50f75ca857d6d1ec0dfd4c345af86689a` after PR #34.
+- `main` reached `e00974437eda3c5b54e2e4e78ea60091b4898045` after PR #35.
 - `Repository Hygiene` runs on every pull request and every push to `main`.
 - `Web Quality` runs on every pull request and every push to `main`, so its `quality` result is a stable required check.
 - For hosted-runtime changes, Web Quality runs unit tests, lint, typecheck, and a production Next.js build on Node 22.
-- For docs/agent/native-only changes, Web Quality still reports the `quality` check but skips unnecessary npm/build work.
+- For docs/agent/native-only changes, Web Quality still reports `quality` while skipping unnecessary npm/build work.
 - Active `checkout`/`setup-node` actions use v7 while the project runtime remains Node 22.
 
 ### `main` ruleset
@@ -29,32 +29,67 @@ Current rules:
 - no bypass actors are configured;
 - required GitHub Actions checks are `hygiene` and `quality`.
 
-PR #33 made `quality` an always-present safe merge check. PR #34 verified the docs-only path: both `hygiene` and `quality` succeeded while unnecessary setup-node/npm/test/lint/typecheck/build steps were skipped. Issue #10 is closed as completed.
+PR #33 made `quality` an always-present safe merge check. PR #34 verified the docs-only path. Issue #10 is closed as completed.
 
-Vercel is intentionally not a universal required check while Hobby build-rate limits can fail independently of application CI. Native Quality is intentionally not universal because it remains path-sensitive and native release workflows remain manual-only.
+Vercel is intentionally not a universal required check because hosting-plan quota failures can be independent of application CI. Native Quality is intentionally not universal because it remains path-sensitive and native release workflows remain manual-only.
 
-## Supabase production audit
+## Supabase production state
 
 Project: `gwpgaojsemcfikgynxwv`.
 
-Verified read-only against production:
+Verified on 2026-09-15:
 
-- Project state is healthy.
-- RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`.
-- Policies on those tables remain authenticated-user/owner scoped.
-- `library_entries_user_source_manga_idx` is absent.
-- The retained `(user_id, source_id, manga_id)` unique constraint/index is `library_entries_user_id_source_id_manga_id_key`.
-- Repository migration `003_drop_redundant_library_index.sql` matches the cleaned production state.
-- Supabase performance advisor returns no lints.
-- Supabase security advisor has one remaining warning: leaked-password protection is disabled.
+- project state is healthy;
+- RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`;
+- policies remain authenticated-user/owner scoped;
+- redundant `library_entries_user_source_manga_idx` is absent;
+- retained library upsert constraint/index is `library_entries_user_id_source_id_manga_id_key`;
+- performance advisor returns no lints;
+- security advisor reports only leaked-password protection, which is unavailable on the current plan and is accepted/documented rather than a release blocker.
 
-The current Supabase plan does not include leaked-password protection. Issue #14 was closed as `not planned` for the current plan. The warning is accepted rather than treated as a release blocker; mandatory accounts, RLS/owner isolation, publishable-key-only browser access, strict recovery redirects, and the existing password minimum remain compensating controls.
+### Migration provenance reconciliation
 
-No production schema, RLS, auth configuration, or user data was mutated during this audit.
+Production migration history is now represented by the canonical timestamped files under `supabase/migrations/`:
+
+- `20260913122954_initial_pachimanga_user_sync.sql`
+- `20260913124558_pachimanga_sync_history.sql`
+- `20260915053221_drop_redundant_library_index.sql`
+- `20260915080009_revoke_anon_account_table_privileges.sql`
+- `20260915080109_tighten_account_role_privileges.sql`
+
+The earlier `001`/`002`/`003` repository SQL is preserved unchanged under `supabase/legacy-migrations/` and is no longer in the active reset/push chain. `supabase/config.toml` establishes a Postgres 17 local project with migrations enabled and seed execution disabled.
+
+Repository hygiene now guards timestamped active migrations, the required canonical baseline files, the absence of obsolete `public.user_library` from active migrations, and the presence of the preserved legacy artifacts.
+
+### Least-privilege production hardening
+
+Two non-destructive production migrations were applied with explicit continuation authority from the owner:
+
+1. `20260915080009 revoke_anon_account_table_privileges`
+   - revoked all `anon` table privileges in `public`;
+   - revoked future default public-table privileges from `anon`.
+2. `20260915080109 tighten_account_role_privileges`
+   - revoked `anon` identity-sequence privileges;
+   - removed broad/default table and sequence privileges from `authenticated`;
+   - re-granted only the Pachimanga operations required by the authenticated app;
+   - revoked future default table/sequence auto-grants to `anon` and `authenticated`.
+
+Post-change verification observed:
+
+- `anon` has no table privileges on the five Pachimanga account tables;
+- `anon` has no `USAGE`/`SELECT` privilege on the three identity sequences;
+- `authenticated` has `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`;
+- `authenticated` has `SELECT/INSERT/UPDATE/DELETE` on `library_entries`, `reading_progress`, and `reading_history`;
+- `authenticated` retains `USAGE/SELECT` on identity sequences needed for inserts;
+- all five account tables still have RLS enabled;
+- performance advisor remains clean;
+- security advisor still contains only the accepted leaked-password warning.
+
+No user rows were inserted, updated, deleted, truncated, or rewritten by this hardening.
 
 ## Anonymous production access
 
-Anonymous requests were verified against production for representative protected routes including:
+Anonymous requests were previously verified against representative protected routes including:
 
 - `/`
 - `/library`
@@ -68,7 +103,7 @@ Observed behavior:
 - session-enforced responses use `Cache-Control: private, no-store`;
 - there is no guest/demo fallback.
 
-The route/session guard implementation also confirms only `/auth...` and `/offline` are intentionally public application paths.
+Only `/auth...` and `/offline` are intentionally public application paths.
 
 ## WeebCentral relay
 
@@ -81,7 +116,7 @@ Operator follow-up on 2026-09-15:
 - the existing relay token was retained rather than rotated;
 - the Cloudflare relay path was checked as part of the operator rollout.
 
-The authenticated application route for relay status remains intentionally behind the account boundary, so anonymous verification continues to resolve to `/auth`.
+The authenticated application route for relay status remains intentionally behind the account boundary.
 
 ## Sync/account hardening
 
@@ -100,17 +135,19 @@ This is defense in depth, not final server-side multi-device conflict prevention
 
 ## Vercel state
 
-The most recent confirmed production deployment remains a READY deployment from before the latest runtime changes.
+Vercel build capacity resumed during this pass. Production deployment `dpl_d95bUQkfvBoL8oNy2rs7RvQ7b9uU` reached `READY` for `33866e3700ebbe86518f0648db32d1d6e309a58a` (`main`, PR #33).
 
-Subsequent Vercel attempts have encountered the Hobby account rolling build-rate limit. GitHub application CI remains green; this is a Vercel quota condition, not an application compile/test failure.
+Later commits through `e009744...` are documentation/verification-only, so `33866e...` remains the latest confirmed hosted-runtime tree from this sequence.
 
-The repository now contains ignored-build handling so non-runtime-only changes do not unnecessarily consume Vercel builds. Do not claim later runtime changes are live until a descendant production deployment reaches READY and receives a post-deploy smoke check.
+A seven-day grouped runtime-error check found one historical provider/network error cluster: two `TypeError: fetch failed` occurrences on `/manga/[id].rsc` from deployment `dpl_88AXMSpWz9UvjfJhFqkLDhnY2BLC`, caused by an upstream socket closing. This is provider/network reliability evidence to cover in the source smoke/retry phase, not an auth/database failure.
+
+The repository contains ignored-build handling so non-runtime-only changes do not intentionally consume Vercel builds.
 
 ## Remaining external/manual blockers
 
-The remaining manual/external work is intentionally narrow:
+The remaining work requiring real identities/devices is intentionally narrow:
 
-1. Complete fresh-account email confirmation/password-reset and two-account/two-device production E2E using real accounts.
-2. Complete real-device installed-PWA validation across iOS/iPadOS/Android/desktop.
-3. Re-verify the latest runtime changes in production after Vercel build capacity becomes available.
-4. Reconcile the documented production Supabase migration provenance/bootstrap mismatch tracked separately in issue #26.
+1. complete fresh-account email confirmation/password-reset and two-account/two-device production E2E using real accounts;
+2. complete installed-PWA validation across iOS/iPadOS/Android/desktop.
+
+Remaining repository/application work can proceed autonomously: provider reliability, reader/import validation, explicit sync conflict semantics, browser E2E coverage, performance/observability cleanup, workplan evidence, and final release-candidate review.
