@@ -97,10 +97,10 @@ button, select { cursor: pointer; }
 .pixel-room-cat {
   position: absolute;
   z-index: 3;
-  right: 7.5%;
-  bottom: -43px;
-  width: 145px;
-  height: 145px;
+  right: 6%;
+  bottom: 10px;
+  width: auto;
+  height: 168px;
   opacity: .96;
 }
 
