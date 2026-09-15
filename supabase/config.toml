@@ -1,0 +1,10 @@
+project_id = "pachimanga"
+
+[db]
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = false
