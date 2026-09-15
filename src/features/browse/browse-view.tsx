@@ -11,11 +11,7 @@ import {
 } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
-<<<<<<< HEAD
-const WEB_STATUS = "Search WeebCentral through the private relay, with MangaDex fallback.";
-=======
-const WEB_STATUS = "PWA/web uses the private WeebCentral relay when available, with MangaDex fallback.";
->>>>>>> origin/feat/pwa-free-weebcentral
+const WEB_STATUS = "Search WeebCentral through the private relay, with MangaDex and ComicK fallback.";
 const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
 
 type RuntimeMode = "checking" | "web" | "native";
@@ -42,7 +38,6 @@ export function BrowseView() {
 
   useEffect(() => {
     let cancelled = false;
-<<<<<<< HEAD
     const startupTimer = window.setTimeout(() => {
       if (cancelled) return;
       const native = isTauriNative();
@@ -84,46 +79,6 @@ export function BrowseView() {
           });
       }
     }, 0);
-=======
-    const native = isTauriNative();
-    setRuntime(native ? "native" : "web");
-    setStatus(native ? NATIVE_STATUS : WEB_STATUS);
-    setSourceHealth("checking");
-
-    if (native) {
-      setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
-      void probeNativeWeebCentral().then((probe) => {
-        if (cancelled) return;
-        setSourceHealth(probe.ok ? "reachable" : "unreachable");
-        setSourceNotice(
-          probe.ok
-            ? "Native bridge connected · WeebCentral is reachable directly from this device."
-            : `Native bridge connected, but WeebCentral health failed: ${probe.error || "unknown native error"}`,
-        );
-      });
-    } else {
-      setSourceNotice("Checking private WeebCentral relay for PWA/web…");
-      void fetch("/api/source/weebcentral/status", { cache: "no-store" })
-        .then(async (response) => {
-          const body = (await response.json()) as WebRelayStatus;
-          if (cancelled) return;
-          const relayReady = Boolean(body.configured && body.reachable && body.transport === "relay");
-          setSourceHealth(relayReady ? "reachable" : "unreachable");
-          setSourceNotice(
-            relayReady
-              ? "Private WeebCentral relay connected · PWA/web has full WeebCentral access."
-              : body.configured
-                ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."} MangaDex remains available.`
-                : "Private WeebCentral relay is not configured yet · MangaDex fallback remains available.",
-          );
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          setSourceHealth("unreachable");
-          setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)} · MangaDex remains available.`);
-        });
-    }
->>>>>>> origin/feat/pwa-free-weebcentral
 
     return () => {
       cancelled = true;
@@ -227,11 +182,8 @@ export function BrowseView() {
       ? "PWA/Web · private relay + MangaDex"
       : "PWA/Web · MangaDex fallback";
 
-<<<<<<< HEAD
   const hasQuery = Boolean(query.trim());
 
-=======
->>>>>>> origin/feat/pwa-free-weebcentral
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
       <PageHeading
