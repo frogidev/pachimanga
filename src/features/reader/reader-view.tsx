@@ -7,10 +7,10 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncE
 import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
 import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
-import { initialReaderState, readerReducer } from "@/features/reader/reader-state";
+import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
-import type { Chapter, Manga, Page, ReaderSettings } from "@/types/models";
+import type { Chapter, Manga, Page, ReaderSettings, ReadingProgress } from "@/types/models";
 
 export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/reader", mangaBasePath = "/manga" }: {
   manga: Manga; chapter: Chapter; chapters: Chapter[]; pages: Page[]; routeBasePath?: string; mangaBasePath?: string;
@@ -20,6 +20,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
   const reducedMotion = useReducedMotion();
   const [hydrated, setHydrated] = useState(false);
+  const [resumeProgress, setResumeProgress] = useState<ReadingProgress | null>(null);
   const [offlineState, setOfflineState] = useState<{ saved: number; total: number } | null>(null);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
@@ -42,15 +43,40 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 
   useEffect(() => {
     let cancelled = false;
-    void getProgress(chapter.id).then((progress) => {
-      if (cancelled) return;
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (progress) window.scrollTo({ top: progress.scrollPosition, behavior: "instant" });
+    setHydrated(false);
+    setResumeProgress(null);
+    dispatch({ type: "page", index: 0 });
+    void getProgress(chapter.id)
+      .then((progress) => {
+        if (cancelled) return;
+        setResumeProgress(progress ?? null);
+        if (progress) dispatch({ type: "page", index: progress.pageIndex });
         setHydrated(true);
-      }));
-    });
+      })
+      .catch(() => {
+        if (!cancelled) setHydrated(true);
+      });
     return () => { cancelled = true; };
   }, [chapter.id]);
+
+  useEffect(() => {
+    if (!hydrated || !resumeProgress) return;
+    let secondFrame: number | undefined;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        const top = readerResumeScrollTop(
+          resumeProgress,
+          document.documentElement.scrollHeight,
+          window.innerHeight,
+        );
+        window.scrollTo({ top, behavior: "instant" });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+    };
+  }, [chapter.id, hydrated, resumeProgress]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -156,7 +182,6 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           const hasDimensions = Boolean(page.width && page.height);
           return (
             <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 ${index > 0 ? "border-t border-black" : ""}`}>
-              {!hasDimensions && <div aria-hidden="true" className="aspect-[3/4] w-full max-w-[1200px] bg-white/[.04]" />}
               <Image
                 src={page.imageUrl}
                 alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
