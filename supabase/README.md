@@ -1,6 +1,6 @@
 # Supabase schema and migration provenance
 
-Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active migration chain in `supabase/migrations/` now mirrors production migration history and is the canonical clean-room bootstrap for local/test Supabase environments.
+Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active migration chain in `supabase/migrations/` mirrors production migration history and is the canonical clean-room bootstrap for local/test Supabase environments.
 
 ## Production migration history
 
@@ -13,6 +13,7 @@ Verified against production on 2026-09-15:
 | `20260915053221` | `drop_redundant_library_index` | Removes redundant `library_entries_user_source_manga_idx` while retaining the unique constraint-backed library upsert index. |
 | `20260915080009` | `revoke_anon_account_table_privileges` | Removes anonymous table privileges and prevents future public-table auto-grants to `anon`. |
 | `20260915080109` | `tighten_account_role_privileges` | Removes anonymous sequence access and reduces `authenticated` table/sequence grants to the privileges required by Pachimanga. |
+| `20260915081911` | `reject_stale_sync_writes` | Adds server-side before-update guards so older/equal progress, history, or settings timestamps cannot replace a newer stored value. |
 
 Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`.
 
@@ -21,6 +22,21 @@ The production account-data role contract is:
 - `anon`: no table or identity-sequence privileges on Pachimanga account tables;
 - `authenticated`: `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`; `SELECT/INSERT/UPDATE/DELETE` on library/progress/history; `USAGE/SELECT` on identity sequences;
 - row ownership is still enforced by RLS policies using `auth.uid()`; grants do not replace RLS.
+
+## Server-side timestamp conflict contract
+
+Timestamped account synchronization is last-newer-write-wins at the database boundary:
+
+- `reading_progress.updated_at`: an incoming `UPDATE` is accepted only when its timestamp is strictly newer than the stored row;
+- `reading_history.read_at`: an incoming history update is accepted only when `read_at` is strictly newer;
+- `user_settings.updated_at`: an incoming settings update is accepted only when its timestamp is strictly newer;
+- older writes and exact timestamp ties keep the already-stored row;
+- inserts are unaffected;
+- trigger helper functions are not executable through `anon` or `authenticated` RPC access.
+
+This prevents a delayed offline device from rolling remote state backward merely because its request arrived later. It does not remove the need for owner RLS or account-bound client storage.
+
+Library add/remove remains remote-first and does not use this timestamp conflict model. Settings still do not have an IndexedDB outbox; the timestamp guard protects remote state from stale writes but does not guarantee eventual delivery of an offline-only settings change.
 
 ## Repository layout
 
@@ -49,7 +65,7 @@ After reset, verify the migration chain:
 supabase migration list --local
 ```
 
-Expected baseline versions are the five production versions listed above. Future forward migrations may add later versions.
+Expected baseline versions are the six production versions listed above. Future forward migrations may add later versions.
 
 Do not use `supabase db reset --linked` against production. It is destructive.
 
@@ -73,10 +89,11 @@ Before a production push, review the pending migration list and SQL. Production 
 4. Keep RLS enabled and preserve `auth.uid()` owner policies for account-owned tables.
 5. Grant only the minimum Data API privileges required by the authenticated application; do not restore anonymous table/sequence grants.
 6. Preserve unique constraints/conflict targets used by application upserts.
-7. Verify the clean local chain with `supabase db reset` when a local Docker environment is available.
-8. Run application tests/lint/typecheck/build for application-impacting changes.
-9. Apply production migrations only when production mutation is explicitly intended.
-10. Re-inspect grants/RLS and rerun Supabase security/performance advisors after production DDL.
+7. Preserve the stale-write trigger contract unless a replacement conflict model is deliberately designed and tested.
+8. Verify the clean local chain with `supabase db reset` when a local Docker environment is available.
+9. Run application tests/lint/typecheck/build for application-impacting changes.
+10. Apply production migrations only when production mutation is explicitly intended.
+11. Re-inspect grants/RLS/triggers and rerun Supabase security/performance advisors after production DDL.
 
 ## Current known plan limitation
 
