@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
-import { PachiSleeper } from "@/components/pachi-mascot";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
 
@@ -33,11 +32,22 @@ function isActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  useEffect(() => {
+    // Sync any progress queued while offline, on boot and on reconnect.
+    const flush = () => {
+      void import("@/lib/storage/reader-storage").then(({ flushProgressOutbox }) =>
+        flushProgressOutbox().catch(() => {}),
+      );
+    };
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, []);
   if (pathname.startsWith("/reader/") || pathname.startsWith("/auth") || pathname === "/offline") return <>{children}</>;
 
   return (
     <div className="min-h-dvh bg-[#09080d] text-zinc-100">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[252px] border-r border-white/[.07] bg-[#0b0910] md:flex md:flex-col">
+      <aside className="app-sidebar fixed inset-y-0 left-0 z-40 hidden w-[252px] border-r border-white/[.07] bg-[#0b0910] md:flex md:flex-col">
         <div className="px-5 pb-4 pt-6">
           <Link href="/" className="inline-flex rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70">
             <PachiLogo />
@@ -53,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 className={`group flex min-h-12 items-center gap-3 rounded-[12px] px-3.5 text-[14px] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${
                   active
-                    ? "bg-gradient-to-r from-[#ff79b6] to-[#ff92c2] font-semibold text-[#28101b] shadow-[0_8px_28px_rgba(255,108,174,.12)]"
+                    ? "bg-gradient-to-r from-[#fb923c] to-[#fdba74] font-semibold text-[#2a1503] shadow-[0_8px_28px_rgba(249,115,22,.14)]"
                     : "text-zinc-400 hover:bg-white/[.045] hover:text-zinc-100"
                 }`}
               >
@@ -68,15 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto px-4 pb-4">
-          <div className="sidebar-cozy-scene relative mx-auto mb-1 h-[250px] max-w-[220px]">
-            <div className="absolute left-1 top-1 rounded-[8px] border border-pink-300/40 bg-[#1a111c] px-3 py-2 font-mono text-[10px] font-semibold leading-[1.55] text-pink-100 shadow-[4px_4px_0_rgba(83,37,67,.6)]">
-              Good manga<br />better days. ♡
-              <span className="absolute -bottom-[7px] left-8 h-3 w-3 rotate-45 border-b border-r border-pink-300/40 bg-[#1a111c]" />
-            </div>
-            <PachiSleeper className="absolute -bottom-1 left-[-10px] h-[190px] w-[245px]" />
-          </div>
-
-          <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
+            <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-semibold text-zinc-200">Pachimanga</div>

@@ -1,5 +1,14 @@
 const ORIGIN = "https://weebcentral.com";
 
+const SERIES_ID = /^[0-9A-Z]{20,32}$/;
+
+export function parseSeriesIdFromUrl(url: string): string | null {
+  const match = /\/series\/([0-9A-Za-z]{20,32})(?:\/|$)/.exec(url.trim());
+  if (!match) return null;
+  const id = match[1].toUpperCase();
+  return SERIES_ID.test(id) ? id : null;
+}
+
 export const weebCentralEndpoints = {
   origin: ORIGIN,
   search(query: string, offset = 0) {

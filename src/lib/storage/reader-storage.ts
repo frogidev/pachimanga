@@ -1,5 +1,8 @@
 import type { LibraryEntry, Manga, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
+import { sortOutboxByTime } from '@/lib/offline/sync';
+
+export { sortOutboxByTime };
 
 export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   autoScrollMultiplier: 1,
@@ -14,6 +17,9 @@ async function signedIn() {
   try {
     const { createClient } = await import('@/lib/supabase/client');
     const sb = createClient();
+    // getSession is local-only (no network): offline reads/writes keep working.
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) return { sb, user: session.user };
     const { data: { user } } = await sb.auth.getUser();
     return user ? { sb, user } : null;
   } catch {
@@ -100,6 +106,8 @@ export async function getLibraryEntries() {
       manga: cached?.manga || placeholderManga(row),
       lastReadAt: cached?.lastReadAt,
       progress: cached?.progress,
+      lastChapterRead: cached?.lastChapterRead,
+      lastPageRead: cached?.lastPageRead,
     };
     return entry;
   });
@@ -143,6 +151,30 @@ export async function removeLibraryEntry(mangaId: string) {
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
 }
 
+export async function setEntryProgress(
+  mangaId: string,
+  patch: { progress?: number; lastChapterRead?: number; lastPageRead?: number }
+) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const entry = await idbGet<LibraryEntry>('library', mangaId);
+  if (!entry) return;
+  await idbPut('library', { ...entry, ...patch } as unknown as Record<string, unknown>);
+  window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+}
+
+export async function clearAccountLibrary() {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  for (const table of ['library_entries', 'reading_progress', 'reading_history']) {
+    const { error } = await auth.sb.from(table).delete().eq('user_id', auth.user.id);
+    if (error) throw error;
+  }
+  await Promise.all([idbClear('library'), idbClear('progress'), idbClear('history')]);
+  window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+  window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
+}
+
 export async function getProgress(chapterId: string) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
@@ -170,6 +202,7 @@ export async function getProgress(chapterId: string) {
   return progress;
 }
 
+/** Pure: order queued progress oldest-first so last-write-wins on flush (see '@/lib/offline/sync'). */
 export async function saveProgress(progress: ReadingProgress) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
@@ -181,33 +214,68 @@ export async function saveProgress(progress: ReadingProgress) {
     readAt: progress.updatedAt,
   };
 
-  const [progressResult, historyResult] = await Promise.all([
-    auth.sb.from('reading_progress').upsert({
-      user_id: auth.user.id,
-      source_id: sourceId,
-      manga_id: progress.mangaId,
-      chapter_id: progress.chapterId,
-      page_index: progress.pageIndex,
-      scroll_progress: progress.percentage / 100,
-      completed: progress.percentage >= 99,
-      updated_at: progress.updatedAt,
-    }, { onConflict: 'user_id,source_id,chapter_id' }),
-    auth.sb.from('reading_history').upsert({
-      user_id: auth.user.id,
-      source_id: sourceId,
-      manga_id: progress.mangaId,
-      chapter_id: progress.chapterId,
-      percentage: progress.percentage,
-      read_at: progress.updatedAt,
-    }, { onConflict: 'user_id,source_id,manga_id' }),
-  ]);
-  if (progressResult.error) throw progressResult.error;
-  if (historyResult.error) throw historyResult.error;
-
+  // Local-first: IDB + outbox always land, even with no network.
   await Promise.all([
     idbPut('progress', progress as unknown as Record<string, unknown>),
     idbPut('history', history as unknown as Record<string, unknown>),
+    idbPut('outbox', {
+      ...progress,
+      sourceId,
+      historyReadAt: history.readAt,
+    } as unknown as Record<string, unknown>),
   ]);
+  window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
+  await flushProgressOutbox().catch(() => {
+    // Offline: stays queued, syncs on reconnect.
+  });
+}
+
+/** Push queued progress to Supabase. Safe to call on boot and on 'online'. */
+export async function flushProgressOutbox(): Promise<{ synced: number; pending: number }> {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const queued = sortOutboxByTime(await idbGetAll<ReadingProgress & { sourceId: string; historyReadAt: string }>('outbox'));
+  let synced = 0;
+  for (const entry of queued) {
+    const [progressResult, historyResult] = await Promise.all([
+      auth.sb.from('reading_progress').upsert({
+        user_id: auth.user.id,
+        source_id: entry.sourceId,
+        manga_id: entry.mangaId,
+        chapter_id: entry.chapterId,
+        page_index: entry.pageIndex,
+        scroll_progress: entry.percentage / 100,
+        completed: entry.percentage >= 99,
+        updated_at: entry.updatedAt,
+      }, { onConflict: 'user_id,source_id,chapter_id' }),
+      auth.sb.from('reading_history').upsert({
+        user_id: auth.user.id,
+        source_id: entry.sourceId,
+        manga_id: entry.mangaId,
+        chapter_id: entry.chapterId,
+        percentage: entry.percentage,
+        read_at: entry.historyReadAt,
+      }, { onConflict: 'user_id,source_id,manga_id' }),
+    ]);
+    if (progressResult.error || historyResult.error) break;
+    await idbDelete('outbox', entry.chapterId);
+    synced += 1;
+  }
+  const pending = (await idbGetAll('outbox')).length;
+  if (synced > 0) window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
+  return { synced, pending };
+}
+
+export async function clearProgress(chapterId: string) {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const { error } = await auth.sb
+    .from('reading_progress')
+    .delete()
+    .eq('user_id', auth.user.id)
+    .eq('chapter_id', chapterId);
+  if (error) throw error;
+  await idbDelete('progress', chapterId);
   window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
 }
 
@@ -266,8 +334,27 @@ export async function loadReaderSettings() {
   return settings;
 }
 
+let settingsVersion = 0;
+let cachedSettings: ReaderSettings | null = null;
+let cachedSettingsVersion = -1;
+
+export function subscribeReaderSettings(listener: () => void) {
+  window.addEventListener("pachimanga:settings-change", listener);
+  return () => window.removeEventListener("pachimanga:settings-change", listener);
+}
+
+export function getReaderSettingsSnapshot(): ReaderSettings {
+  if (!cachedSettings || cachedSettingsVersion !== settingsVersion) {
+    cachedSettings = getReaderSettings();
+    cachedSettingsVersion = settingsVersion;
+  }
+  return cachedSettings;
+}
+
 export function saveReaderSettings(settings: ReaderSettings) {
   localStorage.setItem(readerSettingsKey(), JSON.stringify(settings));
+  settingsVersion += 1;
+  window.dispatchEvent(new CustomEvent("pachimanga:settings-change"));
   void (async () => {
     const auth = await requireSignedIn();
     await bindCacheToUser(auth.user.id);

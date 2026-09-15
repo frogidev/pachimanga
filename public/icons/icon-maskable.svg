@@ -1,5 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#09090b"/>
-  <circle cx="256" cy="256" r="150" fill="#34d399"/>
-  <path d="M188 157h168v52H244v63h94v52h-94v106h-56z" fill="#09090b"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" shape-rendering="crispEdges">
+  <rect width="512" height="512" fill="#140d16" />
+  <g transform="translate(128,110) scale(0.5)">
+    <rect x="96" y="144" width="88" height="104" fill="#241c2b" />
+    <rect x="328" y="144" width="88" height="104" fill="#241c2b" />
+    <rect x="120" y="176" width="40" height="56" fill="#f7b1c8" />
+    <rect x="352" y="176" width="40" height="56" fill="#f7b1c8" />
+    <rect x="96" y="144" width="88" height="48" fill="#e8933c" />
+    <rect x="328" y="144" width="88" height="48" fill="#35313c" />
+    <rect x="72" y="240" width="368" height="216" fill="#241c2b" />
+    <rect x="96" y="216" width="320" height="264" fill="#241c2b" />
+    <rect x="128" y="200" width="256" height="296" fill="#241c2b" />
+    <rect x="96" y="256" width="320" height="184" fill="#fff1e0" />
+    <rect x="120" y="232" width="272" height="232" fill="#fff1e0" />
+    <rect x="144" y="216" width="224" height="264" fill="#fff1e0" />
+    <rect x="96" y="256" width="104" height="136" fill="#e8933c" />
+    <rect x="120" y="232" width="88" height="88" fill="#e8933c" />
+    <rect x="144" y="216" width="56" height="64" fill="#e8933c" />
+    <rect x="312" y="216" width="88" height="80" fill="#35313c" />
+    <rect x="336" y="232" width="80" height="72" fill="#35313c" />
+    <rect x="360" y="256" width="56" height="56" fill="#35313c" />
+    <rect x="184" y="336" width="28" height="44" fill="#241c2b" />
+    <rect x="300" y="336" width="28" height="44" fill="#241c2b" />
+    <rect x="240" y="384" width="32" height="24" fill="#f2739e" />
+    <rect x="228" y="408" width="24" height="12" fill="#241c2b" />
+    <rect x="260" y="408" width="24" height="12" fill="#241c2b" />
+    <rect x="252" y="408" width="8" height="20" fill="#241c2b" />
+  
+  </g>
 </svg>

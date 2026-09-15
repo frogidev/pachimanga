@@ -1,7 +1,7 @@
-type StoreName = "library" | "progress" | "history";
+type StoreName = "library" | "progress" | "history" | "outbox";
 
 const DB_NAME = "pachimanga";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function hasIndexedDb() {
   return typeof window !== "undefined" && "indexedDB" in window;
@@ -56,6 +56,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("history")) {
         db.createObjectStore("history", { keyPath: "mangaId" });
+      }
+      if (!db.objectStoreNames.contains("outbox")) {
+        db.createObjectStore("outbox", { keyPath: "chapterId" });
       }
     };
     request.onsuccess = () => resolve(request.result);

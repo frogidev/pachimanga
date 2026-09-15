@@ -20,8 +20,10 @@ export async function parseBackup(file: File): Promise<ImportResult> {
       manga: list.map((x) => ({
         title: String(x.title || x.name || 'Untitled'),
         sourceUrl: typeof x.url === 'string' ? x.url : typeof x.sourceUrl === 'string' ? x.sourceUrl : undefined,
+        coverUrl: typeof x.coverUrl === 'string' ? x.coverUrl : typeof x.cover === 'string' ? x.cover : undefined,
         lastChapterRead: Number(x.lastChapterRead || x.progress || 0),
         lastPageRead: Number(x.lastPageRead || 0),
+        totalChapters: Number(x.totalChapters || 0) || undefined,
         favorite: x.favorite !== false,
       })),
       warnings: [],

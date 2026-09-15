@@ -48,6 +48,8 @@ export interface LibraryEntry {
   manga?: Manga;
   lastReadAt?: string;
   progress?: number;
+  lastChapterRead?: number;
+  lastPageRead?: number;
 }
 
 export interface ReadingHistoryEntry {

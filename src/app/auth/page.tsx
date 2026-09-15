@@ -1,6 +1,5 @@
 import { AuthForm } from '@/components/AuthForm';
 import { PachiLogo } from '@/components/pachi-logo';
-import { PachiMascot } from '@/components/pachi-mascot';
 
 export default function AuthPage() {
   return (
@@ -14,8 +13,7 @@ export default function AuthPage() {
             <p className="pixel-kicker text-[9px] text-pink-400">Private manga library</p>
             <h1 className="mt-3 text-3xl font-bold tracking-[-.045em] text-white sm:text-4xl">Sign in to Pachimanga</h1>
             <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-400">An account is required. Your manga library, imports, reader preferences and reading progress are kept under your own account.</p>
-            <div className="mt-7 flex items-center gap-4 rounded-2xl border border-white/[.07] bg-black/15 p-4">
-              <PachiMascot className="h-24 w-28 shrink-0" />
+            <div className="mt-7 rounded-2xl border border-white/[.07] bg-black/15 p-4">
               <div>
                 <h2 className="font-semibold text-zinc-200">No guest or demo mode</h2>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">Register once, then use the same account from the PWA, browser or native app.</p>
