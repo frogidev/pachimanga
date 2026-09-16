@@ -73,7 +73,7 @@ async function smokeMangaDex() {
   const detail = await getJson(`${base}/manga/${encodeURIComponent(manga.id)}?includes%5B%5D=cover_art`, 'MangaDex detail');
   assert(detail?.data?.id === manga.id, 'MangaDex detail did not match search result');
 
-  const feed = new URLSearchParams({ limit: '24', offset: '0' });
+  const feed = new URLSearchParams({ limit: '24', offset: '0', includeExternalUrl: '0' });
   feed.append('translatedLanguage[]', 'en');
   feed.append('order[chapter]', 'desc');
   feed.append('contentRating[]', 'safe');
@@ -97,7 +97,7 @@ async function smokeMangaDex() {
 
 async function smokeComicK() {
   const base = 'https://api.comick.io';
-  const search = await getJson(`${base}/v1.0/search/?q=One%20Piece&limit=8&page=1`, 'ComicK search');
+  const search = await getJson(`${base}/v1.0/search?q=One%20Piece&limit=8&page=1`, 'ComicK search');
   const items = Array.isArray(search) ? search : search?.data || [];
   const manga = items.find((item) => typeof item?.hid === 'string' && item.hid.length >= 4);
   assert(manga, 'ComicK search returned no usable title');
@@ -120,7 +120,7 @@ async function smokeComicK() {
   await assertImageReachable(`https://meo.comick.pictures/${image.b2key}`, 'ComicK');
 
   const nonePayload = await getJson(
-    `${base}/v1.0/search/?q=${encodeURIComponent(`pachimanga-no-result-${Date.now()}-zzzz`)}&limit=1&page=1`,
+    `${base}/v1.0/search?q=${encodeURIComponent(`pachimanga-no-result-${Date.now()}-zzzz`)}&limit=1&page=1`,
     'ComicK no-result',
   );
   const none = Array.isArray(nonePayload) ? nonePayload : nonePayload?.data || [];
