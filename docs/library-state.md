@@ -42,7 +42,9 @@ The library percentage is derived from account-owned `reading_progress` rows aga
 
 Reader scroll progress remains dynamic and is saved through the existing owner-bound progress outbox. Mark read/unread writes the same `reading_progress` model, so natural reading and manual read controls converge on the same library percentage.
 
-For compatibility with libraries imported or summarized before detailed per-chapter progress existed, an existing legacy summary percentage is retained while there are no detailed chapter-progress rows. This prevents an already-finished title from resetting to 0% merely because the provider chapter baseline was learned later. Once detailed progress exists, the derived per-chapter calculation wins.
+On a clean login, the Library rehydrates the full remote progress snapshot in deterministic bounded pages instead of assuming one Data API response contains every row. The query is ordered before ranged pagination. Only a complete remote snapshot may drive automatic `reading_status` writes; if any page fails, Pachimanga keeps the stored status/account-bound local fallback rather than treating missing pages as unread chapters.
+
+For compatibility with libraries imported or summarized before detailed per-chapter progress existed, an existing legacy summary percentage in the account-bound local cache is retained while there are no detailed chapter-progress rows. Once detailed synchronized progress exists, the derived per-chapter calculation wins.
 
 ## Provider chapter-update tracking
 
