@@ -57,6 +57,25 @@ async function assertImageReachable(url, label) {
   }
 }
 
+async function findReadableMangaDexChapter(base, candidates) {
+  for (const candidate of candidates.slice(0, 8)) {
+    const response = await request(`${base}/at-home/server/${encodeURIComponent(candidate.id)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (response.status === 404) {
+      await response.body?.cancel().catch(() => {});
+      continue;
+    }
+    if (!response.ok) throw new Error(`MangaDex pages HTTP ${response.status}`);
+    const atHome = await response.json();
+    const files = atHome?.chapter?.data?.length ? atHome.chapter.data : atHome?.chapter?.dataSaver || [];
+    if (atHome?.baseUrl && atHome?.chapter?.hash && files.length) {
+      return { chapter: candidate, atHome, files };
+    }
+  }
+  throw new Error('MangaDex returned no at-home-readable chapter in the first 8 filtered results');
+}
+
 async function smokeMangaDex() {
   const base = 'https://api.mangadex.org';
   const search = new URLSearchParams({ title: 'One Piece', limit: '8', hasAvailableChapters: 'true' });
@@ -79,13 +98,15 @@ async function smokeMangaDex() {
   feed.append('contentRating[]', 'safe');
   feed.append('contentRating[]', 'suggestive');
   const chapters = await getJson(`${base}/manga/${encodeURIComponent(manga.id)}/feed?${feed}`, 'MangaDex chapters');
-  const chapter = (chapters.data || []).find((item) => typeof item?.id === 'string');
-  assert(chapter, 'MangaDex returned no readable English chapter');
+  const candidates = (chapters.data || []).filter((item) => typeof item?.id === 'string');
+  assert(candidates.length, 'MangaDex returned no filtered English chapters');
+  assert(
+    candidates.every((item) => !item?.attributes?.externalUrl),
+    'MangaDex includeExternalUrl=0 returned an external-only chapter',
+  );
 
-  const atHome = await getJson(`${base}/at-home/server/${encodeURIComponent(chapter.id)}`, 'MangaDex pages');
-  const files = atHome?.chapter?.data?.length ? atHome.chapter.data : atHome?.chapter?.dataSaver || [];
+  const { chapter, atHome, files } = await findReadableMangaDexChapter(base, candidates);
   const quality = atHome?.chapter?.data?.length ? 'data' : 'data-saver';
-  assert(atHome?.baseUrl && atHome?.chapter?.hash && files.length, 'MangaDex returned no readable page images');
   await assertImageReachable(`${atHome.baseUrl}/${quality}/${atHome.chapter.hash}/${files[0]}`, 'MangaDex');
 
   const noResult = new URLSearchParams({ title: `pachimanga-no-result-${Date.now()}-zzzz`, limit: '1' });
@@ -97,7 +118,7 @@ async function smokeMangaDex() {
 
 async function smokeComicK() {
   const base = 'https://api.comick.io';
-  const search = await getJson(`${base}/v1.0/search?q=One%20Piece&limit=8&page=1`, 'ComicK search');
+  const search = await getJson(`${base}/v1.0/search/?q=One%20Piece&limit=8`, 'ComicK search');
   const items = Array.isArray(search) ? search : search?.data || [];
   const manga = items.find((item) => typeof item?.hid === 'string' && item.hid.length >= 4);
   assert(manga, 'ComicK search returned no usable title');
@@ -120,7 +141,7 @@ async function smokeComicK() {
   await assertImageReachable(`https://meo.comick.pictures/${image.b2key}`, 'ComicK');
 
   const nonePayload = await getJson(
-    `${base}/v1.0/search?q=${encodeURIComponent(`pachimanga-no-result-${Date.now()}-zzzz`)}&limit=1&page=1`,
+    `${base}/v1.0/search/?q=${encodeURIComponent(`pachimanga-no-result-${Date.now()}-zzzz`)}&limit=1`,
     'ComicK no-result',
   );
   const none = Array.isArray(nonePayload) ? nonePayload : nonePayload?.data || [];
