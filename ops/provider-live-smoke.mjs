@@ -67,9 +67,7 @@ async function findReadableMangaDexChapter(base, candidates) {
     if (!response.ok) throw new Error(`MangaDex pages HTTP ${response.status}`);
     const atHome = await response.json();
     const files = atHome?.chapter?.data?.length ? atHome.chapter.data : atHome?.chapter?.dataSaver || [];
-    if (atHome?.baseUrl && atHome?.chapter?.hash && files.length) {
-      return { chapter: candidate, atHome, files };
-    }
+    if (atHome?.baseUrl && atHome?.chapter?.hash && files.length) return { chapter: candidate, atHome, files };
   }
   throw new Error('MangaDex returned no at-home-readable chapter in the first 8 filtered results');
 }
@@ -98,10 +96,7 @@ async function smokeMangaDex() {
   const chapters = await getJson(`${base}/manga/${encodeURIComponent(manga.id)}/feed?${feed}`, 'MangaDex chapters');
   const candidates = (chapters.data || []).filter((item) => typeof item?.id === 'string');
   assert(candidates.length, 'MangaDex returned no filtered English chapters');
-  assert(
-    candidates.every((item) => !item?.attributes?.externalUrl),
-    'MangaDex includeExternalUrl=0 returned an external-only chapter',
-  );
+  assert(candidates.every((item) => !item?.attributes?.externalUrl), 'MangaDex returned an external-only chapter');
 
   const { chapter, atHome, files } = await findReadableMangaDexChapter(base, candidates);
   const quality = atHome?.chapter?.data?.length ? 'data' : 'data-saver';
@@ -110,7 +105,6 @@ async function smokeMangaDex() {
   const noResult = new URLSearchParams({ title: `pachimanga-no-result-${Date.now()}-zzzz`, limit: '1' });
   const none = await getJson(`${base}/manga?${noResult}`, 'MangaDex no-result');
   assert(Array.isArray(none.data) && none.data.length === 0, 'MangaDex no-result query unexpectedly returned data');
-
   return `search/detail/chapters/pages/image/no-result OK (${manga.id}, ${chapter.id})`;
 }
 
@@ -121,19 +115,42 @@ async function smokeComicKMetadata() {
   const manga = items.find((item) => typeof item?.hid === 'string' && item.hid.length >= 4);
   assert(manga, 'ComicK search returned no usable metadata result');
 
-  const nonePayload = await getJson(
-    `${base}/v1.0/search/?q=${encodeURIComponent(`pachimanga-no-result-${Date.now()}-zzzz`)}&limit=1`,
-    'ComicK no-result',
-  );
+  const nonePayload = await getJson(`${base}/v1.0/search/?q=${encodeURIComponent(`pachimanga-no-result-${Date.now()}-zzzz`)}&limit=1`, 'ComicK no-result');
   const none = Array.isArray(nonePayload) ? nonePayload : nonePayload?.data || [];
   assert(none.length === 0, 'ComicK no-result query unexpectedly returned data');
 
-  const detailResponse = await request(`${base}/comic/${encodeURIComponent(manga.hid)}/`, {
-    headers: { Accept: 'application/json' },
-  });
-  const detailStatus = detailResponse.status;
-  await detailResponse.body?.cancel().catch(() => {});
-  return `metadata search/no-result OK (${manga.hid}); direct detail HTTP ${detailStatus}; excluded from reader discovery`;
+  let readerEvidence = 'reader chain unavailable';
+  const detailResponse = await request(`${base}/comic/${encodeURIComponent(manga.hid)}/`, { headers: { Accept: 'application/json' } });
+  if (detailResponse.ok) {
+    await detailResponse.body?.cancel().catch(() => {});
+    const chapterResponse = await request(`${base}/comic/${encodeURIComponent(manga.hid)}/chapters?page=1&limit=12&lang=en&chap-order=1`, { headers: { Accept: 'application/json' } });
+    if (chapterResponse.ok) {
+      const chapterPayload = await chapterResponse.json();
+      const chapter = (chapterPayload?.chapters || []).find((item) => typeof item?.hid === 'string');
+      if (chapter) {
+        const pageResponse = await request(`${base}/chapter/${encodeURIComponent(chapter.hid)}`, { headers: { Accept: 'application/json' } });
+        if (pageResponse.ok) {
+          const pagePayload = await pageResponse.json();
+          const pageChapter = pagePayload?.chapter || pagePayload;
+          const images = (pageChapter?.md_images || []).filter((item) => typeof item?.b2key === 'string' && item.b2key);
+          readerEvidence = images.length ? `reader API returned ${images.length} page image record(s)` : 'chapter API returned no page images';
+        } else {
+          readerEvidence = `chapter detail HTTP ${pageResponse.status}`;
+          await pageResponse.body?.cancel().catch(() => {});
+        }
+      } else {
+        readerEvidence = 'chapter list returned no English chapter metadata';
+      }
+    } else {
+      readerEvidence = `chapter list HTTP ${chapterResponse.status}`;
+      await chapterResponse.body?.cancel().catch(() => {});
+    }
+  } else {
+    readerEvidence = `detail HTTP ${detailResponse.status}`;
+    await detailResponse.body?.cancel().catch(() => {});
+  }
+
+  return `metadata search/no-result OK (${manga.hid}); ${readerEvidence}; excluded from reader discovery pending stable readable-page evidence`;
 }
 
 async function smokeRelayPublicHealth() {
@@ -173,11 +190,7 @@ await run('WeebCentral relay upstream health', smokeRelayAuthenticatedHealth, { 
 
 if (process.env.GITHUB_STEP_SUMMARY) {
   const rows = results.map(({ name, status, detail }) => `| ${name} | ${status} | ${detail.replaceAll('|', '\\|')} |`).join('\n');
-  appendFileSync(
-    process.env.GITHUB_STEP_SUMMARY,
-    `## Provider live smoke\n\n| Check | Result | Detail |\n| --- | --- | --- |\n${rows}\n`,
-  );
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Provider live smoke\n\n| Check | Result | Detail |\n| --- | --- | --- |\n${rows}\n`);
 }
 
-const failures = results.filter((item) => item.status === 'FAIL');
-if (failures.length) process.exitCode = 1;
+if (results.some((item) => item.status === 'FAIL')) process.exitCode = 1;
