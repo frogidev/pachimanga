@@ -5,11 +5,13 @@ import {
   buildMangaDexFeedPath,
 } from '../src/sources/core/provider-request-paths.ts';
 
-test('ComicK search uses the current non-trailing-slash API endpoint', () => {
+test('ComicK search uses the current trailing-slash endpoint without a page parameter', () => {
   const path = buildComicKSearchPath('One Piece');
-  assert.match(path, /^\/v1\.0\/search\?/);
-  assert.doesNotMatch(path, /\/search\/\?/);
-  assert.match(path, /q=One\+Piece/);
+  assert.match(path, /^\/v1\.0\/search\/\?/);
+  const query = new URL(`https://example.test${path}`).searchParams;
+  assert.equal(query.get('q'), 'One Piece');
+  assert.equal(query.get('limit'), '24');
+  assert.equal(query.has('page'), false);
 });
 
 test('MangaDex feed excludes external-only chapters that have no at-home pages', () => {
