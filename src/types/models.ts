@@ -1,3 +1,5 @@
+import type { LibraryReadingStatus } from '@/lib/library/library-state';
+
 export type MangaStatus = "ongoing" | "complete" | "hiatus" | "cancelled" | "unknown";
 
 export interface Manga {
@@ -50,6 +52,16 @@ export interface LibraryEntry {
   progress?: number;
   lastChapterRead?: number;
   lastPageRead?: number;
+  readingStatus?: LibraryReadingStatus;
+  readingStatusManual?: boolean;
+  publicationStatus?: MangaStatus;
+  chapterCount?: number;
+  latestChapterId?: string;
+  latestChapterNumber?: number;
+  latestChapterPublishedAt?: string;
+  newChapterCount?: number;
+  lastChapterChangeAt?: string;
+  lastCheckedAt?: string;
 }
 
 export interface ReadingHistoryEntry {

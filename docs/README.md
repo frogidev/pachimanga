@@ -11,13 +11,14 @@ For a new development or Hermes session, read in this order:
 3. `verification-2026-09-16.md` — latest dated GitHub/Vercel/Supabase/relay evidence and current deployment gap.
 4. `START-HERE-NEW-CHAT.md` — copy/paste handoff prompt for a fresh ChatGPT session.
 5. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
-6. `operations.md` — post-deploy checks, Vercel/relay/Supabase triage, incident flow, and manual-only boundaries.
-7. `../supabase/README.md` — canonical production migration chain, RLS/grants, and safe schema-change workflow.
-8. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
-9. `art-direction.md` — visual language and UI consistency rules.
-10. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
-11. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
-12. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
+6. `library-state.md` — personal reading status, publication status, aggregate progress, and provider chapter-update tracking.
+7. `operations.md` — post-deploy checks, Vercel/relay/Supabase triage, incident flow, and manual-only boundaries.
+8. `../supabase/README.md` — canonical production migration chain, RLS/grants, and safe schema-change workflow.
+9. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
+10. `art-direction.md` — visual language and UI consistency rules.
+11. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
+12. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
+13. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
 
 Older dated verification files are historical evidence. Always prefer the latest dated snapshot, then verify live state before making time-sensitive claims.
 
@@ -29,7 +30,7 @@ Older dated verification files are historical evidence. Always prefer the latest
 | Current priorities | `WORKPLAN.md` | Current GitHub/Vercel/Supabase/relay state after verification |
 | Latest evidence | `verification-2026-09-16.md` | Live GitHub/Vercel/Supabase/relay state |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | Latest workplan + live state verification |
-| Runtime/data architecture | `architecture.md` | `src/**`, `src-tauri/**`, `relay/**`, `supabase/**` |
+| Runtime/data architecture | `architecture.md`, `library-state.md` | `src/**`, `src-tauri/**`, `relay/**`, `supabase/**` |
 | Production operations | `operations.md` | Live GitHub/Vercel/Supabase/relay state |
 | Supabase migration provenance | `../supabase/README.md` | Live production migration history and schema |
 | Vercel build policy | `vercel-build-policy.md` | `vercel.json`, Vercel project settings, Web Quality paths |
@@ -52,9 +53,9 @@ As of the 2026-09-16 snapshot:
 - GitHub merge protection is complete and requires `hygiene` + `quality`.
 - Supabase migration provenance, least-privilege grants, RLS, and stale-write guards are reconciled.
 - Progress and reader-settings sync use owner-bound outboxes.
-- Provider/import/reader hardening through PR #42 is merged.
+- Provider/import/reader hardening through PR #46 is merged.
+- The library status/progress/chapter-update model is implemented in PR #47; production migration `20260916165443_add_library_state_tracking` has been applied and verified, and runtime merge/deploy remains the active step.
 - The homelab WeebCentral relay was redeployed through Portainer and observed healthy.
-- The highest-priority technical issue is that Vercel production is behind current `main`; the ignored-build command can fail with `fatal: bad revision ''` when `VERCEL_GIT_PREVIOUS_SHA` is empty.
 - Real-account auth/account-isolation/two-device checks and real installed-PWA device checks remain manual release evidence.
 
 ## Documentation update rule
