@@ -78,7 +78,7 @@ async function findReadableMangaDexChapter(base, candidates) {
 
 async function smokeMangaDex() {
   const base = 'https://api.mangadex.org';
-  const search = new URLSearchParams({ title: 'One Piece', limit: '8', hasAvailableChapters: 'true' });
+  const search = new URLSearchParams({ title: 'Berserk', limit: '8', hasAvailableChapters: 'true' });
   search.append('includes[]', 'cover_art');
   search.append('availableTranslatedLanguage[]', 'en');
   search.append('contentRating[]', 'safe');
@@ -117,7 +117,7 @@ async function smokeMangaDex() {
 }
 
 async function smokeComicK() {
-  const base = 'https://api.comick.io';
+  const base = 'https://api.comick.dev';
   const search = await getJson(`${base}/v1.0/search/?q=One%20Piece&limit=8`, 'ComicK search');
   const items = Array.isArray(search) ? search : search?.data || [];
   const manga = items.find((item) => typeof item?.hid === 'string' && item.hid.length >= 4);
@@ -132,12 +132,12 @@ async function smokeComicK() {
     'ComicK chapters',
   );
   const chapter = (chaptersPayload?.chapters || []).find((item) => typeof item?.hid === 'string');
-  assert(chapter, 'ComicK returned no readable English chapter');
+  assert(chapter, 'ComicK returned no English chapter metadata');
 
   const chapterPayload = await getJson(`${base}/chapter/${encodeURIComponent(chapter.hid)}`, 'ComicK pages');
   const chapterDetail = chapterPayload?.chapter || chapterPayload;
   const image = (chapterDetail?.md_images || []).find((item) => typeof item?.b2key === 'string' && item.b2key);
-  assert(image, 'ComicK returned no readable page images');
+  assert(image, 'ComicK exposes chapter metadata but no readable page images');
   await assertImageReachable(`https://meo.comick.pictures/${image.b2key}`, 'ComicK');
 
   const nonePayload = await getJson(
