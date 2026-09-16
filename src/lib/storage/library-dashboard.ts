@@ -7,7 +7,7 @@ import {
   type LibraryReadingStatus,
 } from '@/lib/library/library-state';
 import { createClient } from '@/lib/supabase/client';
-import { idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
+import { idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
 import { bindCurrentUserCache } from '@/lib/storage/reader-storage';
 import type { LibraryEntry, Manga, MangaStatus, ReadingProgress } from '@/types/models';
 
@@ -118,6 +118,7 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
   }
 
   const newestByChapter = new Map<string, ReadingProgress>();
+  const progressCacheWrites: Promise<void>[] = [];
   for (const row of localProgress) newestByChapter.set(row.chapterId, row);
   if (!progressResult.error) {
     for (const row of (progressResult.data || []) as ProgressRow[]) {
@@ -131,13 +132,16 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
       };
       const newest = newerProgress(newestByChapter.get(remote.chapterId), remote);
       newestByChapter.set(remote.chapterId, newest);
-      if (newest === remote) void idbPut('progress', remote as unknown as Record<string, unknown>);
+      if (newest === remote) {
+        progressCacheWrites.push(idbPut('progress', remote as unknown as Record<string, unknown>));
+      }
     }
   }
 
   const progress = rowsByManga([...newestByChapter.values()]);
   const localById = new Map(localEntries.map((entry) => [entry.mangaId, entry]));
   const statusWrites: PromiseLike<unknown>[] = [];
+  const libraryCacheWrites: Promise<void>[] = [];
   const remoteEntries: LibraryEntry[] = [];
 
   for (const row of (libraryResult.data || []) as LibraryRow[]) {
@@ -186,7 +190,7 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
       lastCheckedAt: row.last_checked_at || undefined,
     };
     remoteEntries.push(entry);
-    void idbPut('library', entry as unknown as Record<string, unknown>);
+    libraryCacheWrites.push(idbPut('library', entry as unknown as Record<string, unknown>));
 
     if (!row.reading_status_manual && storedStatus !== automaticStatus) {
       statusWrites.push(
@@ -200,6 +204,11 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
     }
   }
 
+  const remoteIds = new Set(remoteEntries.map((entry) => entry.mangaId));
+  const staleLibraryDeletes = localEntries
+    .filter((entry) => !remoteIds.has(entry.mangaId))
+    .map((entry) => idbDelete('library', entry.mangaId));
+  await Promise.all([...progressCacheWrites, ...libraryCacheWrites, ...staleLibraryDeletes]);
   if (statusWrites.length) await Promise.allSettled(statusWrites);
   return remoteEntries;
 }
