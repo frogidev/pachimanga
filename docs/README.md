@@ -9,14 +9,15 @@ For a new development or Hermes session, read in this order:
 1. `../AGENTS.md` — non-negotiable engineering, security, git, validation, and deployment rules.
 2. `WORKPLAN.md` — current priorities, sequencing, acceptance criteria, and exact next work.
 3. `verification-2026-09-16.md` — latest dated GitHub/Vercel/Supabase/relay evidence and current deployment gap.
-4. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
-5. `operations.md` — post-deploy checks, Vercel/relay/Supabase triage, incident flow, and manual-only boundaries.
-6. `../supabase/README.md` — canonical production migration chain, RLS/grants, and safe schema-change workflow.
-7. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
-8. `art-direction.md` — visual language and UI consistency rules.
-9. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
-10. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
-11. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
+4. `START-HERE-NEW-CHAT.md` — copy/paste handoff prompt for a fresh ChatGPT session.
+5. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
+6. `operations.md` — post-deploy checks, Vercel/relay/Supabase triage, incident flow, and manual-only boundaries.
+7. `../supabase/README.md` — canonical production migration chain, RLS/grants, and safe schema-change workflow.
+8. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
+9. `art-direction.md` — visual language and UI consistency rules.
+10. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
+11. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
+12. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
 
 Older dated verification files are historical evidence. Always prefer the latest dated snapshot, then verify live state before making time-sensitive claims.
 
@@ -27,6 +28,7 @@ Older dated verification files are historical evidence. Always prefer the latest
 | Product/auth contract | `../AGENTS.md` | `src/proxy.ts`, `src/lib/supabase/**`, Supabase migrations |
 | Current priorities | `WORKPLAN.md` | Current GitHub/Vercel/Supabase/relay state after verification |
 | Latest evidence | `verification-2026-09-16.md` | Live GitHub/Vercel/Supabase/relay state |
+| New-chat handoff | `START-HERE-NEW-CHAT.md` | Latest workplan + live state verification |
 | Runtime/data architecture | `architecture.md` | `src/**`, `src-tauri/**`, `relay/**`, `supabase/**` |
 | Production operations | `operations.md` | Live GitHub/Vercel/Supabase/relay state |
 | Supabase migration provenance | `../supabase/README.md` | Live production migration history and schema |
