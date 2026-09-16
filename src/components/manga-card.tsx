@@ -53,6 +53,14 @@ export function MangaCard({
           ? "Publication cancelled"
           : manga.sourceId === "import" ? "Imported title" : manga.sourceId;
   const hasMenu = Boolean(onRemove || onStatusChange);
+  const statusOptions: Array<{ value: LibraryReadingStatus | null; label: string }> = [
+    { value: null, label: `Automatic (${statusLabels[readingStatus]})` },
+    { value: "reading", label: "Reading" },
+    { value: "completed", label: "Completed" },
+    { value: "on_hold", label: "On Hold" },
+    { value: "dropped", label: "Dropped" },
+    { value: "plan_to_read", label: "Plan to Read" },
+  ];
 
   const card = (
     <article className="manga-card h-full">
@@ -90,33 +98,34 @@ export function MangaCard({
               className="grid size-7 place-items-center rounded-lg border border-white/10 bg-black/65 text-sm leading-none text-white/80 backdrop-blur-sm"
             >⋮</button>
             {menuOpen ? (
-              <div className="absolute right-0 top-8 z-20 min-w-44 overflow-hidden rounded-xl border border-white/10 bg-[#17161f] p-2 shadow-xl">
+              <div className="absolute right-0 top-8 z-20 min-w-44 overflow-hidden rounded-xl border border-white/10 bg-[#17161f] p-1.5 shadow-xl">
                 {onStatusChange ? (
-                  <label className="block px-1 pb-2 text-[10px] font-medium uppercase tracking-[.14em] text-zinc-500">
-                    My status
-                    <select
-                      value={readingStatusManual ? readingStatus : "auto"}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        onStatusChange(value === "auto" ? null : value as LibraryReadingStatus);
-                      }}
-                      className="mt-1.5 h-9 w-full rounded-lg border border-white/10 bg-[#111019] px-2 text-xs normal-case tracking-normal text-zinc-200 outline-none focus:border-pink-400/50"
-                      aria-label={`Reading status for ${manga.title}`}
-                    >
-                      <option value="auto">Automatic ({statusLabels[readingStatus]})</option>
-                      <option value="reading">Reading</option>
-                      <option value="completed">Completed</option>
-                      <option value="on_hold">On Hold</option>
-                      <option value="dropped">Dropped</option>
-                      <option value="plan_to_read">Plan to Read</option>
-                    </select>
-                  </label>
+                  <div className="pb-1">
+                    <div className="px-2 py-1 text-[9px] font-medium uppercase tracking-[.14em] text-zinc-500">My status</div>
+                    {statusOptions.map((option) => {
+                      const active = option.value === null ? !readingStatusManual : readingStatusManual && option.value === readingStatus;
+                      return (
+                        <button
+                          key={option.value ?? "auto"}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setMenuOpen(false);
+                            onStatusChange(option.value);
+                          }}
+                          className={`block w-full rounded-lg px-2.5 py-1.5 text-left text-xs transition ${active ? "bg-pink-400/12 text-pink-200" : "text-zinc-300 hover:bg-white/[.06]"}`}
+                        >{option.label}</button>
+                      );
+                    })}
+                  </div>
                 ) : null}
                 {onRemove ? (
                   <button
                     type="button"
                     onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMenuOpen(false); onRemove(); }}
-                    className="block w-full rounded-lg px-3 py-2 text-left text-xs text-red-300 transition hover:bg-white/[.06]"
+                    className="block w-full rounded-lg px-2.5 py-2 text-left text-xs text-red-300 transition hover:bg-white/[.06]"
                   >Remove from library</button>
                 ) : null}
               </div>
