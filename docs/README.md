@@ -13,11 +13,12 @@ For a new development or Hermes session, read in this order:
 5. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
 6. `operations.md` — post-deploy checks, Vercel/relay/Supabase triage, incident flow, and manual-only boundaries.
 7. `../supabase/README.md` — canonical production migration chain, RLS/grants, and safe schema-change workflow.
-8. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
-9. `art-direction.md` — visual language and UI consistency rules.
-10. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
-11. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
-12. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
+8. `library-state.md` — personal reading status, dynamic manga progress, publication status, and provider chapter-update semantics.
+9. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
+10. `art-direction.md` — visual language and UI consistency rules.
+11. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
+12. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
+13. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
 
 Older dated verification files are historical evidence. Always prefer the latest dated snapshot, then verify live state before making time-sensitive claims.
 
@@ -30,6 +31,7 @@ Older dated verification files are historical evidence. Always prefer the latest
 | Latest evidence | `verification-2026-09-16.md` | Live GitHub/Vercel/Supabase/relay state |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | Latest workplan + live state verification |
 | Runtime/data architecture | `architecture.md` | `src/**`, `src-tauri/**`, `relay/**`, `supabase/**` |
+| Library state/progress | `library-state.md` | `src/features/library/**`, `src/lib/library/**`, `src/lib/storage/**`, `library_entries`, `reading_progress` |
 | Production operations | `operations.md` | Live GitHub/Vercel/Supabase/relay state |
 | Supabase migration provenance | `../supabase/README.md` | Live production migration history and schema |
 | Vercel build policy | `vercel-build-policy.md` | `vercel.json`, Vercel project settings, Web Quality paths |
