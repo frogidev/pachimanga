@@ -23,23 +23,46 @@ A release-ready claim requires verified production evidence, not only merged cod
 
 ### Repository and CI
 
-- `main`: `2f9f37c4647c8312e114962b4918e4181f8b99ac`.
-- No open pull requests were present at the latest status check.
-- No open GitHub issues were present at the latest status check.
-- GitHub ruleset `Protect main` is active for the default branch.
-- Normal changes require a pull request.
+- Verified runtime `main`: `a5a008f1a5916240358743abd741cda993062ea4`.
+- PR #44, `fix: make Vercel ignored-build comparison fail open`, is merged.
+- GitHub ruleset `Protect main` remains active.
+- Pull requests, up-to-date branches, resolved review threads, and squash merges are required.
 - Force pushes and branch deletion are blocked.
-- Review conversations must be resolved.
-- Squash is the only allowed merge method.
-- Required status checks are `hygiene` and `quality` and branches must be current before merge.
+- Required status checks are `hygiene` and `quality`.
 - No bypass actors are configured.
-- `Repository Hygiene`, Web Quality, Native Quality, and the production anonymous-boundary smoke were green on the current `main` status check.
+- PR #44 passed Repository Hygiene run `35111974840`, Web Quality run `35111974946`, and Native Quality run `35111975250` before merge.
+- Web Quality completed unit tests, lint, typecheck, and production build successfully.
+
+### Vercel production
+
+The earlier deployment drift and ignored-build failure are closed.
+
+Verified production deployment:
+
+```text
+deployment: dpl_E81ypeQLpisZ3KLtbd2xPwBiReLs
+state:      READY
+commit:     a5a008f1a5916240358743abd741cda993062ea4
+alias:      https://pachimanga.frogilab.dev
+```
+
+The repaired ignored-build helper now continues the build when comparison SHAs are missing, unresolvable, or otherwise unsafe to compare. It still ignores valid comparable commits that contain no hosted-runtime changes.
+
+Evidence:
+
+- PR preview `dpl_9hrLo73cW79RDxvGZFt6BukjYv8v` reproduced a missing comparison SHA and continued to a successful build.
+- Production `dpl_E81ypeQLpisZ3KLtbd2xPwBiReLs` detected the hosted-runtime change and continued the build.
+- Production Smoke workflow run `35096959939`, rerun job `104849686289`, passed after deployment: 9 protected routes and 4 PWA icons plus auth/offline/manifest/service-worker assertions.
+- Direct anonymous production access resolves to `/auth` with `Cache-Control: private, no-store`.
+- Post-deploy Vercel production `error`/`fatal` logs for the deployment were empty in the inspected window.
+
+See `verification-2026-09-16.md` and `vercel-build-policy.md` for exact evidence.
 
 ### Supabase
 
 Production project: `gwpgaojsemcfikgynxwv`.
 
-Verified state:
+Most recently verified state:
 
 - project status `ACTIVE_HEALTHY`;
 - PostgreSQL 17;
@@ -50,7 +73,7 @@ Verified state:
 - active migration history is canonical and timestamped under `supabase/migrations/`;
 - stale writes for progress/history/settings are rejected by newer-only timestamp guards;
 - performance advisor is clean;
-- the only security-advisor warning is leaked-password protection, which is unavailable on the current Supabase plan and is accepted as a documented plan limitation.
+- leaked-password protection is the only accepted plan-limited security-advisor warning.
 
 Migration provenance issue #26 is resolved. Do not restore legacy `001`/`002`/`003` SQL into the active migration chain.
 
@@ -79,127 +102,60 @@ Merged hardening includes:
 
 The WeebCentral Portainer stack was redeployed and the relay container was observed healthy. The relay remains operation-limited and token-protected.
 
-### Current Vercel deployment gap
-
-This is the highest-priority technical blocker.
-
-The latest verified production deployment is:
-
-- deployment: `dpl_xpxK7S5rG1EVmAoT1jBw6cgVutPv`;
-- state: `READY`;
-- production commit: `626dbb5aea35ea186107fdb923737ed1ef9dfde8`.
-
-Current `main` is three commits ahead of that deployed commit. The missing runtime-equivalent changes are the merged work from PRs #40, #41, and #42.
-
-The live site itself is responding normally and the latest runtime-error query found no production runtime errors in the selected 24-hour window. Anonymous production `/auth` returned HTTP 200 with the required account-only UI and `Cache-Control: private, no-store`.
-
-A recent Vercel preview failed before building with:
-
-```text
-fatal: bad revision ''
-```
-
-The current `vercel.json` `ignoreCommand` directly diffs `VERCEL_GIT_PREVIOUS_SHA` against `VERCEL_GIT_COMMIT_SHA` and does not guard the case where the previous SHA is empty. Treat this as the leading deployment-pipeline cause until fixed and verified.
-
-See `verification-2026-09-16.md` and `vercel-build-policy.md`.
-
 ## 2. Mandatory session-start checklist
 
 Before choosing work:
 
 - [ ] Read `AGENTS.md`.
 - [ ] Read this workplan.
-- [ ] Read `docs/verification-2026-09-16.md` and then verify live state instead of assuming it is still current.
+- [ ] Read `docs/verification-2026-09-16.md` and verify live state instead of assuming it is still current.
 - [ ] Load the most specific `.hermes/skills/**/SKILL.md` for the task.
 - [ ] Check current `main` HEAD, open PRs, and open issues.
-- [ ] Check the active branch/working tree and preserve unrelated work.
 - [ ] Check latest Vercel production deployment whenever hosted runtime is in scope.
 - [ ] Check Supabase migrations/RLS/advisors whenever auth/data behavior is in scope.
+- [ ] Check relay health when provider/relay behavior is in scope.
 - [ ] Confirm native distribution is still deferred unless explicitly reprioritized.
 
-Default git model:
-
-1. start from current `main`;
-2. create one focused branch;
-3. complete one coherent workstream;
-4. validate;
-5. open one PR;
-6. merge promptly when required checks pass;
-7. verify production when runtime changed;
-8. retire the branch when tooling permits.
-
-Do not create parallel branches for fragments of the same task.
+Default git model: start from current `main`, create one focused branch, complete one coherent workstream, validate, open one PR, merge only after required checks, verify production for runtime changes, and retire the branch when tooling permits.
 
 ---
 
-# P0 — Release blockers
+# P0 — Remaining release blockers
 
-## Phase A — Repair Vercel deployment gating and deploy current `main`
+## Phase A — Vercel deployment gating
 
-### Goal
+Completed 2026-09-16.
 
-Restore reliable automatic production deployment for runtime changes and eliminate the three-commit production drift.
-
-### Tasks
-
-- [ ] Reproduce/confirm the empty-`VERCEL_GIT_PREVIOUS_SHA` failure from Vercel build logs.
-- [ ] Change `vercel.json` so the ignored-build command safely continues the build when either Git SHA needed for comparison is missing or unusable.
-- [ ] Preserve the existing hosted-runtime path allowlist semantics for normal comparable commits.
-- [ ] Add a repository regression test for the ignore-command behavior if practical without coupling CI to Vercel internals.
-- [ ] Run `npm test`, lint, typecheck, and production build through Web Quality.
-- [ ] Merge only after required `hygiene` and `quality` checks pass.
-- [ ] Confirm a production deployment for the merged runtime commit reaches `READY`.
-- [ ] Run Production Smoke against `https://pachimanga.frogilab.dev`.
-- [ ] Confirm anonymous auth boundary and `private, no-store` behavior.
-- [ ] Inspect production runtime errors after smoke.
-- [ ] Update the dated verification snapshot with the deployed commit and deployment ID.
-
-### Exit criteria
-
-Production runs the intended current `main` runtime, the ignore-command no longer fails on an empty previous SHA, Production Smoke passes, and post-deploy runtime-error inspection is clean or fully explained.
-
----
+Evidence is recorded in `docs/verification-2026-09-16.md`. Do not reopen unless live deployment behavior regresses.
 
 ## Phase B — Production authentication/account-isolation E2E
 
-This requires real test identities or user-operated sessions and remains the main manual release blocker.
-
-Verify with fresh accounts:
+This requires real test identities or user-operated sessions and remains a manual release blocker.
 
 - [ ] registration;
 - [ ] email confirmation when enabled;
 - [ ] sign out/sign back in;
 - [ ] password reset/recovery and new-password login;
-- [ ] anonymous route matrix for Library/Browse/Import/History/Settings/manga/reader/source APIs;
+- [ ] anonymous route matrix confirmation with a real browser session where useful;
 - [ ] Account A -> sign out -> Account B in the same browser profile with no A library/history/progress/settings leakage;
 - [ ] switch back to A and confirm A state returns while B state does not;
 - [ ] same-account two-browser/two-device progress/history/settings synchronization;
 - [ ] near-simultaneous updates to observe timestamp/clock-skew behavior.
 
-Supabase leaked-password protection is not a blocker on the current plan. Do not upgrade the plan solely for that advisor warning.
-
-### Exit criteria
-
-No auth bypass or cross-account leak; registration/login/logout/reset work in production; same-account synchronization is demonstrated with real identities.
-
----
+Do not fabricate completion. Do not weaken authentication, RLS, cache isolation, redirects, or secret handling to make these pass.
 
 ## Phase C — Installed-PWA/device matrix
 
 This requires real devices/browser installs.
 
-- [ ] iPhone Safari Add to Home Screen and standalone behavior.
-- [ ] iPad Safari standalone behavior.
-- [ ] Android Chrome install and standalone behavior.
-- [ ] Desktop Chromium install and standalone behavior.
-- [ ] safe-area/navigation behavior in standalone mode.
-- [ ] service-worker update from an older installed version.
-- [ ] offline navigation reaches `/offline` without reusing authenticated HTML as a public shell.
+- [ ] iPhone Safari Add to Home Screen and standalone behavior;
+- [ ] iPad Safari standalone behavior;
+- [ ] Android Chrome install and standalone behavior;
+- [ ] Desktop Chromium install and standalone behavior;
+- [ ] safe-area/navigation behavior in standalone mode;
+- [ ] service-worker update from an older installed version;
+- [ ] offline navigation reaches `/offline` without reusing authenticated HTML as a public shell;
 - [ ] auth/session behavior remains correct after an installed-PWA update.
-
-### Exit criteria
-
-Install/update/offline behavior is repeatable on the intended browser/device set with no account-data caching regression.
 
 ---
 
@@ -207,7 +163,7 @@ Install/update/offline behavior is repeatable on the intended browser/device set
 
 ## Phase D — Provider live smoke and failure behavior
 
-The code-level reliability work is merged; complete live application evidence.
+This is the next autonomous runtime-evidence priority.
 
 For MangaDex, ComicK, and WeebCentral where available:
 
@@ -221,33 +177,40 @@ For MangaDex, ComicK, and WeebCentral where available:
 - [ ] confirm 403/429 are not hidden by retries;
 - [ ] confirm no mock fallback appears in production.
 
-For WeebCentral also verify relay `/health`, authenticated `/health/upstream`, invalid-operation/ID rejection, and no arbitrary destination input.
+For WeebCentral also verify relay `/health`, authenticated `/health/upstream` where credentials are available without exposing secrets, invalid-operation/ID rejection, and no arbitrary destination input.
+
+Do not require private user credentials for merge-critical provider tests.
 
 ## Phase E — Reader release matrix
 
-Automated coverage now protects resume calculations and auto-scroll basics, but finish the full product matrix:
+Automated coverage protects resume calculations and auto-scroll basics; finish the automatable product matrix while leaving real cross-device proof open:
 
 - [ ] conventional manga first/middle/last-page behavior;
 - [ ] long-strip/manhwa width and gap behavior;
-- [ ] progress save/reload/resume;
-- [ ] cross-device percentage resume with a real second session;
+- [ ] progress save/reload/resume in controlled browser tests;
 - [ ] auto-scroll play/pause/speed/manual-interrupt/reduced-motion behavior;
 - [ ] bounded preload and broken-image recovery;
 - [ ] keyboard/touch/fullscreen accessibility.
 
+Real second-session/device synchronization remains under Phase B.
+
 ## Phase F — Import representative-file validation
 
-Parser safety is substantially hardened. Remaining evidence should use representative real files:
+Parser safety is substantially hardened.
+
+Autonomous work:
+
+- [ ] expand deterministic fixtures/regressions for malformed/corrupt variants and duplicate handling without private production-derived files;
+- [ ] validate account ownership boundaries in controlled test data where practical.
+
+Manual/representative evidence still needed before release candidate:
 
 - [ ] OCR/image import and review;
 - [ ] `.tachibk` happy path;
 - [ ] `.proto.gz` happy path;
-- [ ] `.tmb` happy path;
-- [ ] malformed/corrupt variants;
-- [ ] duplicate handling;
-- [ ] account ownership after import.
+- [ ] `.tmb` happy path.
 
-Do not use production-derived private backup data as committed test fixtures.
+Do not commit private backup data as test fixtures.
 
 ## Phase G — Browser E2E automation
 
@@ -260,7 +223,7 @@ Minimum automated scope:
 - [ ] core Library/Browse/detail/reader navigation using controlled/stubbed data where needed;
 - [ ] no horizontal overflow on core routes;
 - [ ] logout/cache-isolation behavior where practical;
-- [ ] dedicated authenticated test flow only if credentials can be managed safely without production-user secrets.
+- [ ] authenticated test flow only if credentials can be managed safely without production-user secrets.
 
 CI must not depend on unstable live manga providers for merge-critical tests.
 
@@ -284,8 +247,9 @@ Pachimanga may be called a PWA release candidate only when all of the following 
 ## Security/account
 
 - [ ] Production auth lifecycle verified with a fresh account.
-- [ ] Anonymous route matrix verified.
 - [ ] Same-browser two-account isolation verified.
+- [ ] Real same-account two-session synchronization verified.
+- [x] Anonymous production route boundary has automated smoke coverage and passed after the current deployment.
 - [x] RLS and least-privilege grants verified.
 - [x] Supabase migration provenance reconciled.
 - [x] No browser-visible service-role or public relay secret variables.
@@ -295,7 +259,6 @@ Pachimanga may be called a PWA release candidate only when all of the following 
 - [ ] Live provider happy/error paths verified.
 - [ ] Conventional reader verified.
 - [ ] Long-strip reader verified.
-- [ ] Real two-session progress/history/settings sync verified.
 - [ ] Representative supported import formats verified.
 
 ## PWA
@@ -303,37 +266,29 @@ Pachimanga may be called a PWA release candidate only when all of the following 
 - [ ] iOS/iPadOS install/standalone verified.
 - [ ] Android install/standalone verified.
 - [ ] Desktop install/standalone verified.
-- [ ] Service-worker update behavior verified.
-- [x] Credential-free manifest/icon/offline/service-worker smoke coverage exists.
+- [ ] Service-worker update behavior verified on an installed PWA.
+- [x] Credential-free manifest/icon/offline/service-worker smoke coverage exists and passed after the current production deployment.
 
 ## Quality/operations
 
 - [x] Required GitHub merge protection active.
 - [x] `hygiene` and `quality` are required checks.
-- [x] Current `main` quality checks are green at the latest verification point.
-- [ ] Vercel production `READY` for the intended current runtime commit.
-- [ ] Production Smoke passes after that deployment.
-- [ ] Post-deploy runtime-error/fatal review clean or explained.
-- [x] No open P0 GitHub issue at the latest verification point.
-- [ ] Documentation matches the final deployed runtime after the Vercel repair.
+- [x] Vercel production `READY` for runtime commit `a5a008f1a5916240358743abd741cda993062ea4`.
+- [x] Production Smoke passed after deployment `dpl_E81ypeQLpisZ3KLtbd2xPwBiReLs`.
+- [x] Post-deploy runtime-error/fatal review was clean in the inspected window.
+- [x] Vercel ignored-build missing-SHA behavior has regression coverage and live preview evidence.
+- [x] No open P0 GitHub issue was present at the latest verification point.
+- [x] Deployment-repair evidence is recorded in project documentation.
 
-When this gate is met, record the exact commit/deployment and freeze unrelated feature expansion until the final platform decision is made.
+When the remaining core/manual gate is met, record the exact final commit/deployment and freeze unrelated feature expansion until the platform decision is made.
 
 ---
 
 # Final phase — Native/platform distribution
 
-Do not start native distribution in parallel with unfinished PWA P0 work.
+Do not start native distribution in parallel with unfinished PWA release-candidate work.
 
-Native work remains:
-
-1. re-audit Tauri capabilities/origin/network bridge against the PWA release-candidate code;
-2. validate Android signing/install/upgrade and decide direct APK vs Play distribution;
-3. validate Windows/Linux packaging and decide macOS native vs PWA-only;
-4. decide whether native iOS is needed beyond the PWA and, if so, validate signing/TestFlight;
-5. publish/tag deliberately with artifact/signing evidence.
-
-Native artifact/release workflows must remain manual-only until an explicit product decision changes this policy.
+Native distribution remains deferred and manual-only until explicitly reprioritized after the PWA gate.
 
 ---
 
@@ -341,10 +296,10 @@ Native artifact/release workflows must remain manual-only until an explicit prod
 
 Unless a new production incident appears:
 
-1. fix the Vercel empty-previous-SHA ignored-build failure;
-2. deploy current `main` and run production smoke/log verification;
-3. continue live provider/reader/import evidence that can be completed without private user credentials;
-4. add browser E2E coverage and finish performance/cleanup work;
+1. complete provider/relay live smoke that does not require private user credentials;
+2. expand reader/import release validation that can run deterministically;
+3. add browser E2E coverage;
+4. finish performance/observability/cleanup work;
 5. complete real-account auth/account-isolation/two-device sync with user-operated test identities;
 6. complete installed-PWA device matrix;
 7. run the PWA release-candidate gate;
@@ -353,8 +308,6 @@ Unless a new production incident appears:
 If a P0 production bug is discovered, fix it before lower-priority polish.
 
 # Session closeout template
-
-At the end of every substantive session record:
 
 ```text
 Date:
