@@ -1,4 +1,4 @@
-import type { LibraryEntry, Manga, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
+import type { LibraryEntry, Manga, MangaStatus, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
 import {
   ACCOUNT_BOUND_IDB_STORES,
@@ -89,7 +89,19 @@ function sourceIdFromMangaId(mangaId: string) {
   return 'import';
 }
 
-function placeholderManga(row: { manga_id: string; source_id: string; title: string; cover_url: string | null }): Manga {
+function normalizeMangaStatus(value: unknown): MangaStatus {
+  return value === 'ongoing' || value === 'complete' || value === 'hiatus' || value === 'cancelled'
+    ? value
+    : 'unknown';
+}
+
+function placeholderManga(row: {
+  manga_id: string;
+  source_id: string;
+  title: string;
+  cover_url: string | null;
+  publication_status?: string | null;
+}): Manga {
   return {
     id: row.manga_id,
     sourceId: row.source_id,
@@ -99,7 +111,7 @@ function placeholderManga(row: { manga_id: string; source_id: string; title: str
     coverUrl: row.cover_url || '',
     author: '',
     artist: '',
-    status: 'unknown',
+    status: normalizeMangaStatus(row.publication_status),
     genres: [],
     sourceUrl: '',
   };
@@ -113,7 +125,7 @@ export async function getLibraryEntries() {
   const localById = new Map(local.map((entry) => [entry.mangaId, entry]));
   const { data, error } = await auth.sb
     .from('library_entries')
-    .select('manga_id,source_id,title,cover_url,added_at')
+    .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
     .eq('user_id', auth.user.id)
     .order('added_at', { ascending: false });
   if (error) {
@@ -122,15 +134,34 @@ export async function getLibraryEntries() {
 
   const remote = (data || []).map((row) => {
     const cached = localById.get(row.manga_id);
+    const rowStatus = normalizeMangaStatus(row.publication_status);
+    const publicationStatus = rowStatus === 'unknown' ? cached?.manga?.status || 'unknown' : rowStatus;
+    const manga = cached?.manga
+      ? {
+          ...cached.manga,
+          id: row.manga_id,
+          sourceId: row.source_id,
+          title: row.title,
+          coverUrl: row.cover_url || cached.manga.coverUrl,
+          status: publicationStatus,
+        }
+      : placeholderManga({ ...row, publication_status: publicationStatus });
     const entry: LibraryEntry = {
+      ...cached,
       mangaId: row.manga_id,
       sourceId: row.source_id,
       addedAt: row.added_at,
-      manga: cached?.manga || placeholderManga(row),
-      lastReadAt: cached?.lastReadAt,
-      progress: cached?.progress,
-      lastChapterRead: cached?.lastChapterRead,
-      lastPageRead: cached?.lastPageRead,
+      manga,
+      readingStatus: row.reading_status,
+      readingStatusManual: Boolean(row.reading_status_manual),
+      publicationStatus,
+      chapterCount: Number(row.chapter_count || 0),
+      latestChapterId: row.latest_chapter_id || undefined,
+      latestChapterNumber: row.latest_chapter_number ?? undefined,
+      latestChapterPublishedAt: row.latest_chapter_published_at || undefined,
+      newChapterCount: Number(row.new_chapter_count || 0),
+      lastChapterChangeAt: row.last_chapter_change_at || undefined,
+      lastCheckedAt: row.last_checked_at || undefined,
     };
     return entry;
   });
@@ -147,7 +178,15 @@ export async function getLibraryEntries() {
 export async function addLibraryEntry(mangaId: string, sourceId = 'import', manga?: Manga) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
-  const entry: LibraryEntry = { mangaId, sourceId, addedAt: new Date().toISOString(), manga };
+  const entry: LibraryEntry = {
+    mangaId,
+    sourceId,
+    addedAt: new Date().toISOString(),
+    manga,
+    readingStatus: 'plan_to_read',
+    readingStatusManual: false,
+    publicationStatus: manga?.status || 'unknown',
+  };
 
   const { error } = await auth.sb.from('library_entries').upsert({
     user_id: auth.user.id,
@@ -155,6 +194,7 @@ export async function addLibraryEntry(mangaId: string, sourceId = 'import', mang
     source_id: sourceId,
     title: manga?.title || mangaId,
     cover_url: manga?.coverUrl || null,
+    publication_status: manga?.status || 'unknown',
     added_at: entry.addedAt,
     updated_at: entry.addedAt,
   }, { onConflict: 'user_id,source_id,manga_id' });
