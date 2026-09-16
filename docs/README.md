@@ -1,6 +1,6 @@
 # Pachimanga documentation map
 
-This directory is the durable project record for Pachimanga. Keep it synchronized with the code and with `AGENTS.md`; do not use chat history as the only source of truth.
+This directory is the durable project record for Pachimanga. Keep it synchronized with code and `AGENTS.md`; chat history must not be the only source of truth.
 
 ## Read order
 
@@ -8,26 +8,28 @@ For a new development or Hermes session, read in this order:
 
 1. `../AGENTS.md` — non-negotiable engineering, security, git, validation, and deployment rules.
 2. `WORKPLAN.md` — current priorities, sequencing, acceptance criteria, and exact next work.
-3. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
-4. `verification-2026-09-15.md` — dated production/CI/Supabase verification evidence and current external blockers.
+3. `verification-2026-09-16.md` — latest dated GitHub/Vercel/Supabase/relay evidence and current deployment gap.
+4. `architecture.md` — production runtime, authentication, storage, synchronization, source, PWA, native, and deployment boundaries.
 5. `operations.md` — post-deploy checks, Vercel/relay/Supabase triage, incident flow, and manual-only boundaries.
-6. `../supabase/README.md` — production migration provenance, historical repository SQL caveats, and safe schema-change workflow.
-7. `vercel-build-policy.md` — hosted-runtime path detection and ignored-build behavior.
+6. `../supabase/README.md` — canonical production migration chain, RLS/grants, and safe schema-change workflow.
+7. `vercel-build-policy.md` — hosted-runtime path detection, ignored-build behavior, and the current empty-previous-SHA failure mode.
 8. `art-direction.md` — visual language and UI consistency rules.
 9. `free-pwa-distribution.md` — current PWA distribution and private WeebCentral relay model.
 10. `hermes-local.md` — Hermes setup, project-local skills, and expected operating protocol.
 11. `../NATIVE.md` and `native-release-pipeline.md` only when native code, signing, packaging, or distribution is intentionally in scope.
 
+Older dated verification files are historical evidence. Always prefer the latest dated snapshot, then verify live state before making time-sensitive claims.
+
 ## Source-of-truth ownership
 
-| Area | Primary document | Code that wins when documentation conflicts |
+| Area | Primary document | Code/live state that wins when documentation conflicts |
 | --- | --- | --- |
 | Product/auth contract | `../AGENTS.md` | `src/proxy.ts`, `src/lib/supabase/**`, Supabase migrations |
-| Current priorities | `WORKPLAN.md` | Current GitHub/Vercel/Supabase state after verification |
+| Current priorities | `WORKPLAN.md` | Current GitHub/Vercel/Supabase/relay state after verification |
+| Latest evidence | `verification-2026-09-16.md` | Live GitHub/Vercel/Supabase/relay state |
 | Runtime/data architecture | `architecture.md` | `src/**`, `src-tauri/**`, `relay/**`, `supabase/**` |
 | Production operations | `operations.md` | Live GitHub/Vercel/Supabase/relay state |
 | Supabase migration provenance | `../supabase/README.md` | Live production migration history and schema |
-| Dated verification evidence | `verification-2026-09-15.md` | Live GitHub/Vercel/Supabase state |
 | Vercel build policy | `vercel-build-policy.md` | `vercel.json`, Vercel project settings, Web Quality paths |
 | UI/visual language | `art-direction.md` | Shared components and `src/app/globals.css` |
 | PWA distribution/relay | `free-pwa-distribution.md` | Vercel config, relay code, service worker |
@@ -35,24 +37,26 @@ For a new development or Hermes session, read in this order:
 | Native runtime | `../NATIVE.md` | `src-tauri/**` |
 | Native releases | `native-release-pipeline.md` | `.github/workflows/*release.yml` |
 
-When code and documentation disagree, verify current runtime behavior, correct the documentation in the same change, and do not preserve known-stale prose for historical reasons.
+When code and documentation disagree, verify current runtime behavior and correct the documentation in the same change.
 
 ## Active delivery policy
 
-The PWA/web product is the only active delivery target until the PWA release-candidate gate in `WORKPLAN.md` is satisfied. Native source remains maintained, but Android/desktop/iOS build and release workflows remain manual-only and platform distribution is deferred to the final phase.
+PWA/web is the only active delivery target until the PWA release-candidate gate in `WORKPLAN.md` is satisfied. Native source remains maintained, but Android/desktop/iOS artifact and release workflows remain manual-only and platform distribution is deferred to the final phase.
+
+## Current handoff summary
+
+As of the 2026-09-16 snapshot:
+
+- GitHub merge protection is complete and requires `hygiene` + `quality`.
+- Supabase migration provenance, least-privilege grants, RLS, and stale-write guards are reconciled.
+- Progress and reader-settings sync use owner-bound outboxes.
+- Provider/import/reader hardening through PR #42 is merged.
+- The homelab WeebCentral relay was redeployed through Portainer and observed healthy.
+- The highest-priority technical issue is that Vercel production is behind current `main`; the ignored-build command can fail with `fatal: bad revision ''` when `VERCEL_GIT_PREVIOUS_SHA` is empty.
+- Real-account auth/account-isolation/two-device checks and real installed-PWA device checks remain manual release evidence.
 
 ## Documentation update rule
 
-A change is incomplete when it materially changes any of the following without updating the corresponding documentation:
+A change is incomplete when it materially changes authentication, Supabase/RLS/sync, account-bound cache ownership, source/relay/native network boundaries, PWA caching/install behavior, reader behavior, import behavior, deployment/CI/release behavior, native packaging, visual rules, project priorities, blockers, or release readiness without updating the corresponding documentation.
 
-- authentication or anonymous-route behavior;
-- Supabase schema, RLS, synchronization, or local cache ownership;
-- source/provider behavior or relay/native network boundaries;
-- PWA caching/install/offline semantics;
-- reader behavior or regression expectations;
-- deployment/CI/release behavior;
-- native capabilities, signing, or packaging;
-- visual system or shared interaction patterns;
-- project priorities, blockers, or release readiness.
-
-`WORKPLAN.md` is operational rather than historical. Remove completed noise, record evidence for completed gates, and keep the next executable tasks explicit. Dated verification files provide evidence snapshots but must not be treated as live state indefinitely.
+`WORKPLAN.md` is operational rather than historical. Remove completed noise, keep only useful evidence, and make the next executable tasks explicit. Dated verification files preserve evidence snapshots but must never be treated as live state indefinitely.
