@@ -4,7 +4,7 @@ Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active m
 
 ## Production migration history
 
-Verified against production on 2026-09-15 and rechecked as healthy on 2026-09-16:
+Verified against production on 2026-09-15 and rechecked after the library-state migration on 2026-09-16:
 
 | Version | Name | Purpose |
 | --- | --- | --- |
@@ -14,6 +14,7 @@ Verified against production on 2026-09-15 and rechecked as healthy on 2026-09-16
 | `20260915080009` | `revoke_anon_account_table_privileges` | Removes anonymous table privileges and prevents future public-table auto-grants to `anon`. |
 | `20260915080109` | `tighten_account_role_privileges` | Removes anonymous sequence access and reduces `authenticated` table/sequence grants to the privileges required by Pachimanga. |
 | `20260915081911` | `reject_stale_sync_writes` | Adds server-side before-update guards so older/equal progress, history, or settings timestamps cannot replace a newer stored value. |
+| `20260916165443` | `add_library_state_tracking` | Adds account-owned reading status plus publication/chapter-update tracking fields and validation checks to `library_entries`. |
 
 Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`.
 
@@ -22,6 +23,12 @@ The production account-data role contract is:
 - `anon`: no table or identity-sequence privileges on Pachimanga account tables;
 - `authenticated`: `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`; `SELECT/INSERT/UPDATE/DELETE` on library/progress/history; `USAGE/SELECT` on identity sequences;
 - row ownership is enforced by RLS policies using `auth.uid()`; grants do not replace RLS.
+
+## Library state tracking
+
+`library_entries` now keeps synchronized account-owned reading state separately from provider publication metadata. The migration adds `reading_status`, `reading_status_manual`, `publication_status`, provider chapter-baseline/update fields, and non-negative count checks while preserving the existing owner RLS policies and unique `(user_id, source_id, manga_id)` upsert constraint.
+
+Production migration `20260916165443_add_library_state_tracking.sql` was applied before the corresponding runtime merge. Post-migration verification confirmed the expected columns/checks, preserved RLS and owner policies, no `anon` table grants, unchanged authenticated CRUD grants, and the existing unique conflict target.
 
 ## Server-side timestamp conflict contract
 
@@ -46,7 +53,7 @@ The current client complements the database guards with owner-bound local retry 
 - legacy, unowned, and cross-account outbox entries are discarded rather than replayed under another account;
 - settings upserts request the stored server row back so local cache can reconcile when the stale-write trigger preserves a newer remote value.
 
-Library add/remove remains remote-first and does not currently use an offline mutation queue.
+Library add/remove remains remote-first and does not currently use an offline mutation queue. Library reading status and provider-update metadata are stored in the same owner-RLS-protected `library_entries` row.
 
 Client timestamps remain the ordering signal for progress/history/settings, so real two-device validation should still observe clock-skew behavior before release-candidate status.
 
@@ -77,7 +84,7 @@ After reset:
 supabase migration list --local
 ```
 
-Expected baseline versions are the six production versions listed above. Future forward migrations may add later versions.
+Expected baseline versions are the seven production versions listed above. Future forward migrations may add later versions.
 
 Do not use `supabase db reset --linked` against production. It is destructive.
 
@@ -109,7 +116,7 @@ Before a production push, review pending migrations and SQL. Production mutation
 
 ## Current advisor state
 
-As of the latest 2026-09-16 check:
+As of the post-migration 2026-09-16 check:
 
 - performance advisor: no lints;
 - security advisor: one warning, leaked-password protection disabled.
