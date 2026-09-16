@@ -126,6 +126,7 @@ export function LibraryView() {
     void refresh();
 
     const onLibraryChange = () => void refresh();
+    const onFocus = () => void refresh();
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -134,10 +135,12 @@ export function LibraryView() {
     };
 
     window.addEventListener("pachimanga:library-change", onLibraryChange);
+    window.addEventListener("focus", onFocus);
     window.addEventListener("keydown", onKey);
     return () => {
       cancelled = true;
       window.removeEventListener("pachimanga:library-change", onLibraryChange);
+      window.removeEventListener("focus", onFocus);
       window.removeEventListener("keydown", onKey);
     };
   }, []);
