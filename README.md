@@ -10,10 +10,12 @@ Production: `https://pachimanga.frogilab.dev`
 
 The production PWA/web app is the only active delivery target until the PWA release-candidate gate in `docs/WORKPLAN.md` is complete.
 
-- Vercel deploys `main` automatically.
+- Vercel Git integration is the production deployment path for hosted runtime changes from `main`.
 - Android, Windows, Linux, macOS, and iOS source remains in the repository.
 - Native test/release workflows are manual-only during the PWA phase.
 - Do not spend product time on platform packaging or distribution unless the workplan reaches the final native phase or the user explicitly changes priority.
+
+Latest dated project evidence: `docs/verification-2026-09-16.md`.
 
 ## Product contract
 
@@ -24,7 +26,7 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - Only authentication flows and `/offline` are intentionally anonymous application paths.
 - Library, progress, history, settings, imports, and local cache state belong to the signed-in user.
 - Supabase Row Level Security is the final database isolation boundary.
-- Browser-local caches are bound to the current account and cleared/rebound across account changes.
+- Browser-local caches and sync outboxes are bound to the current account and cleared/rebound across account changes.
 - Mock providers/data may support tests and local development but must not become a production fallback.
 
 ## Current capabilities
@@ -38,11 +40,13 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - Manga detail pages with chapter pagination and read-state controls
 - Conventional page and long-strip/manhwa reader layouts
 - Elapsed-time auto-scroll, progress restore/save, preload controls, and reduced-motion handling
-- Local-first progress/history outbox that retries on reconnect
+- Owner-bound local-first progress/history outbox that retries on reconnect
+- Owner-bound reader-settings outbox with boot/reconnect retry and newer-only remote conflict semantics
+- Local reader resume by exact pixel position with synchronized percentage fallback for cross-device state
 - OCR/image import with review
 - Tachiyomi/Mihon backup import (`.tachibk`, `.proto.gz`)
 - Tachimanga backup import (`.tmb`)
-- JSON import fallback
+- Validated/bounded JSON import fallback
 - Offline fallback shell without caching authenticated application HTML as public content
 
 ## Runtime architecture
@@ -66,7 +70,23 @@ same production web UI
         +--> dedicated native WeebCentral command
 ```
 
-See `docs/architecture.md` for the detailed boundaries and data flow.
+See `docs/architecture.md` for detailed boundaries and data flow.
+
+## Current release-hardening status
+
+Completed infrastructure/security work includes:
+
+- active GitHub `Protect main` ruleset with required `hygiene` + `quality` checks;
+- canonical Supabase migration chain, least-privilege grants, owner RLS, and newer-only stale-write guards;
+- operation-limited WeebCentral relay deployed through the homelab Portainer stack;
+- bounded provider retries/pagination;
+- owner-bound progress/settings retry queues;
+- hardened backup import parsing;
+- reader resume fixes through merged PR #42.
+
+The current top technical blocker is deployment drift: the latest verified Vercel production deployment is behind current `main`, and the repository's ignored-build command can fail when `VERCEL_GIT_PREVIOUS_SHA` is empty. See `docs/WORKPLAN.md` and `docs/vercel-build-policy.md` for the exact next task.
+
+The main remaining manual release evidence is real-account auth/account-isolation/two-device sync plus installed-PWA testing on iOS/iPadOS/Android/desktop.
 
 ## Local setup
 
@@ -133,8 +153,12 @@ Documentation index: `docs/README.md`.
 Key documents:
 
 - `AGENTS.md` — hard engineering/security/git/deployment contract
-- `docs/WORKPLAN.md` — detailed execution plan and release gates
+- `docs/WORKPLAN.md` — current execution plan and release gates
+- `docs/verification-2026-09-16.md` — latest dated project evidence
 - `docs/architecture.md` — production architecture and invariants
+- `docs/operations.md` — production runbook
+- `docs/vercel-build-policy.md` — Vercel runtime-change/ignored-build policy
+- `supabase/README.md` — canonical migration/RLS/grant/sync contract
 - `docs/art-direction.md` — visual language and UI rules
 - `docs/hermes-local.md` — Hermes setup and project-local skills
 - `docs/free-pwa-distribution.md` — PWA and private relay operations
