@@ -5,8 +5,8 @@ import { collectSourcePages } from '@/sources/core/pagination';
 import { buildComicKSearchPath } from '@/sources/core/provider-request-paths';
 import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 
-const API = 'https://api.comick.io';
-const SITE = 'https://comick.io';
+const API = 'https://api.comick.dev';
+const SITE = 'https://comick.dev';
 const IMAGES = 'https://meo.comick.pictures';
 const HID = /^[A-Za-z0-9_-]{4,64}$/;
 
