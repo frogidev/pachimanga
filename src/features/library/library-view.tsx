@@ -6,8 +6,14 @@ import { MangaCard } from "@/components/manga-card";
 import { PachiCalico } from "@/components/pachi-calico";
 import Image from "next/image";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
+import { shouldRefreshLibrarySource, type LibraryReadingStatus } from "@/lib/library/library-state";
 import { isTauriNative } from "@/lib/native/tauri-bridge";
-import { getLibraryEntries, removeLibraryEntry } from "@/lib/storage/reader-storage";
+import {
+  acknowledgeLibraryUpdates,
+  getLibraryDashboardEntries,
+  setLibraryReadingStatus,
+} from "@/lib/storage/library-dashboard";
+import { removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 
 type SortMode = "recent" | "title";
@@ -15,6 +21,13 @@ type FilterMode = "All" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Pla
 type ViewMode = "grid" | "compact";
 
 const filters: FilterMode[] = ["All", "Reading", "Completed", "On Hold", "Dropped", "Plan to Read"];
+const filterStatus: Record<Exclude<FilterMode, "All">, LibraryReadingStatus> = {
+  Reading: "reading",
+  Completed: "completed",
+  "On Hold": "on_hold",
+  Dropped: "dropped",
+  "Plan to Read": "plan_to_read",
+};
 
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
@@ -57,17 +70,51 @@ export function LibraryView() {
   const [view, setView] = useState<ViewMode>("grid");
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const sourceRefreshRunning = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
+    const refreshSources = async (current: LibraryEntry[]) => {
+      if (sourceRefreshRunning.current) return;
+      const stale = current.filter((entry) =>
+        entry.sourceId !== "import" && shouldRefreshLibrarySource(entry.lastCheckedAt),
+      );
+      if (!stale.length) return;
+      sourceRefreshRunning.current = true;
+      if (!cancelled) setCheckingUpdates(true);
+      try {
+        for (let index = 0; index < stale.length; index += 2) {
+          if (cancelled) break;
+          const chunk = stale.slice(index, index + 2);
+          await Promise.allSettled(chunk.map(async (entry) => {
+            const response = await fetch("/api/library/refresh", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mangaId: entry.mangaId }),
+            });
+            if (!response.ok) throw new Error(`Provider refresh failed with HTTP ${response.status}`);
+          }));
+        }
+        if (!cancelled) {
+          const updated = await getLibraryDashboardEntries();
+          if (!cancelled) setEntries(updated);
+        }
+      } finally {
+        sourceRefreshRunning.current = false;
+        if (!cancelled) setCheckingUpdates(false);
+      }
+    };
+
     const refresh = async () => {
       try {
-        const result = await getLibraryEntries();
+        const result = await getLibraryDashboardEntries();
         if (!cancelled) {
           setEntries(result);
           setLoadError(null);
+          void refreshSources(result);
         }
       } catch (error) {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : "Could not load your library.");
@@ -101,15 +148,14 @@ export function LibraryView() {
       .map((entry) => ({ entry, manga: entry.manga }))
       .filter((item): item is { entry: LibraryEntry; manga: Manga } => Boolean(item.manga))
       .filter((item) => !q || item.manga.title.toLowerCase().includes(q) || item.manga.genres.some((genre) => genre.toLowerCase().includes(q)))
-      .filter((item) => {
-        if (filter === "All") return true;
-        if (filter === "Reading") return item.manga.status === "ongoing" || (item.entry.progress ?? 0) > 0;
-        if (filter === "Completed") return item.manga.status === "complete";
-        if (filter === "On Hold") return item.manga.status === "hiatus";
-        return false;
-      });
+      .filter((item) => filter === "All" || item.entry.readingStatus === filterStatus[filter]);
 
-    pairs.sort((a, b) => sort === "title" ? a.manga.title.localeCompare(b.manga.title) : b.entry.addedAt.localeCompare(a.entry.addedAt));
+    pairs.sort((a, b) => {
+      if (sort === "title") return a.manga.title.localeCompare(b.manga.title);
+      const aUpdated = a.entry.lastChapterChangeAt || a.entry.addedAt;
+      const bUpdated = b.entry.lastChapterChangeAt || b.entry.addedAt;
+      return bUpdated.localeCompare(aUpdated);
+    });
     return pairs;
   }, [entries, filter, query, sort]);
 
@@ -122,6 +168,21 @@ export function LibraryView() {
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not remove this title.");
     }
+  }
+
+  async function changeStatus(entry: LibraryEntry, status: LibraryReadingStatus | null) {
+    try {
+      await setLibraryReadingStatus(entry.mangaId, entry.sourceId, status);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not update the reading status.");
+    }
+  }
+
+  function acknowledgeUpdates(entry: LibraryEntry) {
+    if (!entry.newChapterCount) return;
+    void acknowledgeLibraryUpdates(entry.mangaId, entry.sourceId).catch(() => {
+      // Opening the title should not be blocked if acknowledgement cannot sync yet.
+    });
   }
 
   async function purgeUnmatchedImports() {
@@ -203,6 +264,7 @@ export function LibraryView() {
             </div>
           </div>
           <div className="flex items-center gap-3 pb-1">
+            {checkingUpdates ? <span className="text-xs text-zinc-600">Checking updates…</span> : null}
             {unmatchedImports.length ? (
               <button type="button" onClick={() => void purgeUnmatchedImports()} className="text-xs text-zinc-500 transition hover:text-red-300">Clear {unmatchedImports.length} unmatched import{unmatchedImports.length === 1 ? "" : "s"}</button>
             ) : null}
@@ -226,6 +288,11 @@ export function LibraryView() {
                 href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
                 onRemove={() => void removeEntry(entry, title.title)}
                 lastChapterRead={entry.lastChapterRead}
+                readingStatus={entry.readingStatus}
+                readingStatusManual={entry.readingStatusManual}
+                newChapterCount={entry.newChapterCount}
+                onStatusChange={(status) => void changeStatus(entry, status)}
+                onOpen={() => acknowledgeUpdates(entry)}
               />
             ))}
           </div>
