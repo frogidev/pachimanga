@@ -28,10 +28,20 @@ test('library progress includes partial chapter progress and completes only when
   assert.equal(automaticLibraryReadingStatus(complete), 'completed');
 });
 
-test('legacy progress remains usable until chapter count is known', () => {
-  const summary = summarizeLibraryProgress(0, [], 100);
-  assert.equal(summary.percentage, 100);
-  assert.equal(automaticLibraryReadingStatus(summary), 'completed');
+test('legacy completed summaries remain completed until detailed chapter progress exists', () => {
+  const beforeBaseline = summarizeLibraryProgress(0, [], 100);
+  assert.equal(beforeBaseline.percentage, 100);
+  assert.equal(automaticLibraryReadingStatus(beforeBaseline), 'completed');
+
+  const afterBaseline = summarizeLibraryProgress(147, [], 100);
+  assert.equal(afterBaseline.percentage, 100);
+  assert.equal(afterBaseline.fullyRead, true);
+  assert.equal(automaticLibraryReadingStatus(afterBaseline), 'completed');
+
+  const detailed = summarizeLibraryProgress(147, [{ chapterId: '147', percentage: 50 }], 100);
+  assert.ok(detailed.percentage < 1);
+  assert.equal(detailed.fullyRead, false);
+  assert.equal(automaticLibraryReadingStatus(detailed), 'reading');
 });
 
 test('initial provider snapshot establishes a baseline without flagging every existing chapter as new', () => {
