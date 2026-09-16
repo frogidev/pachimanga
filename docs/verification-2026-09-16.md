@@ -4,18 +4,15 @@ This file records concrete project state observed during the current release-har
 
 ## Repository
 
-Observed `main`:
+Observed `main` after the Vercel ignored-build repair:
 
 ```text
-2f9f37c4647c8312e114962b4918e4181f8b99ac
+a5a008f1a5916240358743abd741cda993062ea4
 ```
 
-Latest merged work at that point was PR #42, `fix: restore reader progress after chapter layout`.
+That commit is the squash merge of PR #44, `fix: make Vercel ignored-build comparison fail open`.
 
-The latest repository query showed:
-
-- no open pull requests;
-- no open GitHub issues.
+At the start of the repair pass, `main` was `94f3bbf45ae55b30ef183f48d38e094857d795b7`. No open pull requests or issues were present before PR #44 was opened.
 
 ### Required merge controls
 
@@ -27,170 +24,191 @@ Verified rules:
 - non-fast-forward/force pushes blocked;
 - pull requests required;
 - review-thread resolution required;
-- zero approving reviews required for the current single-maintainer workflow;
 - squash is the only allowed merge method;
 - branches must be up to date;
 - required GitHub Actions checks are `hygiene` and `quality`;
 - no bypass actors are configured.
 
-On the observed `main` commit, required quality/hygiene checks were successful. Native Quality was also successful. Scheduled production anonymous-boundary smoke was successful on 2026-09-16.
-
-## Recent merged hardening
-
-The latest autonomous hardening sequence includes:
-
-- PR #36: canonical Supabase migration baseline and least-privilege grants;
-- PR #37: bounded provider retry/pagination reliability;
-- PR #38: server-side stale-write rejection for progress/history/settings;
-- PR #39: owner-bound reader-settings outbox and eventual delivery;
-- PR #40: bounded/validated backup imports;
-- PR #41: preserve reader settings/pending settings sync when clearing the library;
-- PR #42: stable local/cross-device reader resume after chapter layout.
-
-These changes are merged into `main`; deployment state is tracked separately below.
-
-## Supabase
-
-Project:
+PR #44 merged only after the required checks were green. Observed successful runs for head commit `dfd30ff46a87fd76ec2c51bb51ba4a001771168b`:
 
 ```text
-gwpgaojsemcfikgynxwv
+Repository Hygiene: run 35111974840, job hygiene, success
+Web Quality:        run 35111974946, job quality, success
+Native Quality:     run 35111975250, job quality, success
+Vercel preview:     dpl_9hrLo73cW79RDxvGZFt6BukjYv8v, READY
 ```
 
-Observed production state:
+Web Quality completed dependency installation, unit tests, lint, typecheck, and the production build successfully.
 
-- project status: `ACTIVE_HEALTHY`;
-- PostgreSQL: 17;
-- RLS enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`;
-- owner-scoped policies remain in place;
-- `anon` has no account-table or identity-sequence access;
-- authenticated grants are restricted to application-required operations;
-- canonical timestamped migration history is represented under `supabase/migrations/`;
-- performance advisor returned no lints.
+## Vercel ignored-build repair
 
-Security advisor returned one warning only:
+The previously observed failure was reproduced from Vercel build logs:
 
 ```text
-Leaked Password Protection Disabled
+fatal: bad revision ''
 ```
 
-That feature is unavailable on the current Supabase plan and is an accepted documented limitation rather than a release blocker. Do not weaken authentication, RLS, account-bound cache isolation, redirect controls, or secret handling as a substitute.
+The failure occurred before application compilation because the inline ignored-build command tried to diff an empty/unusable Vercel comparison SHA.
 
-## Synchronization contract
+PR #44 replaced the inline Git command with `scripts/vercel-ignore-build.mjs` and added regression coverage. The helper follows fail-open-to-build semantics:
 
-Current implementation now has both client and server protection against stale/cross-account replay.
+- missing comparison SHA -> continue build;
+- unresolvable comparison SHA -> continue build;
+- Git comparison error -> continue build;
+- hosted-runtime change -> continue build;
+- both SHAs valid and no hosted-runtime path changed -> ignore build.
 
-Progress:
+The hosted-runtime path set includes the helper itself so changes to build-decision behavior cannot be accidentally skipped.
 
-- local-first IndexedDB save;
-- owner-bound progress outbox;
-- reconnect/boot retry;
-- newest local/remote reconciliation by `updated_at`;
-- production trigger rejects older/equal updates.
+Targeted isolated regression coverage passed 5/5 before the PR was opened. Repository CI then ran the same test through the normal unit-test gate.
 
-History:
+### Live preview proof of the missing-SHA case
 
-- account-bound local fallback;
-- progress flush also upserts history;
-- production trigger rejects older/equal `read_at` updates.
-
-Reader settings:
-
-- account-specific localStorage cache;
-- owner-bound IndexedDB settings outbox;
-- boot/reconnect flush;
-- stale/cross-account queue entries discarded;
-- returned server row reconciles local cache after an upsert;
-- production trigger rejects older/equal `updated_at` updates.
-
-Reader resume now prefers an exact local scroll position where available and falls back to synchronized percentage for remote/cross-device state. Restoration occurs after chapter content layout rather than while the loading skeleton is rendered.
-
-Library mutations intentionally remain remote-first/online-only unless a future workplan decision adds an owner-bound mutation queue.
-
-## Provider/relay state
-
-Provider code uses one bounded retry only for transient network/socket failures or HTTP 502/503/504. It does not retry 429, normal 4xx, authentication/refusal, validation errors, or caller aborts.
-
-MangaDex and ComicK chapter pagination are bounded. Empty/failed provider responses remain explicit failures; production does not substitute mock content.
-
-WeebCentral relay operational state recorded from the Portainer rollout:
-
-- stack: `pachimanga-relay`;
-- container: `pachimanga-weebcentral-relay`;
-- container observed healthy after update/redeploy;
-- existing relay token retained;
-- relay remains operation-limited rather than an arbitrary proxy.
-
-## Import hardening
-
-Merged parser safety includes:
-
-- JSON schema-shaped validation and explicit malformed/unsupported-root errors;
-- partial-invalid record reporting;
-- duplicate suppression and finite progress parsing;
-- bounded JSON/Tachiyomi/Tachimanga input sizes;
-- bounded gzip expansion;
-- ZIP extracted-size verification;
-- corrupt/unsupported backup errors rather than silent fallback.
-
-Representative real backup files still need final end-to-end validation before release-candidate status.
-
-## Vercel production state
-
-Current Vercel project:
+Preview deployment for PR #44:
 
 ```text
-project: prj_GyTPSiO9QYhLA8KbBsZDj5QNND3s
-team:    team_olxGiaGFWp0OqdcoiwuTIVYl
-plan:    Hobby
-```
-
-Latest verified production deployment:
-
-```text
-deployment: dpl_xpxK7S5rG1EVmAoT1jBw6cgVutPv
+deployment: dpl_9hrLo73cW79RDxvGZFt6BukjYv8v
+commit:     dfd30ff46a87fd76ec2c51bb51ba4a001771168b
 state:      READY
-commit:     626dbb5aea35ea186107fdb923737ed1ef9dfde8
 ```
 
-Aliases include `pachimanga.frogilab.dev`.
+Its build log showed the exact previously failing condition handled safely:
 
-The production deployment is three commits behind the observed `main` commit `2f9f37c...`; PRs #40, #41, and #42 are merged but were not yet represented by a newer READY production deployment at the time of this snapshot.
+```text
+Running "node scripts/vercel-ignore-build.mjs"
+Vercel ignore build: missing comparison SHA; continuing build.
+Running "vercel build"
+```
 
-### Live runtime check
+The application build then completed successfully.
 
-A production fetch of `https://pachimanga.frogilab.dev` resolved to the authentication experience and returned HTTP 200. Observed response headers included:
+### Production proof of the runtime-change case
+
+Merged runtime commit:
+
+```text
+a5a008f1a5916240358743abd741cda993062ea4
+```
+
+Production deployment:
+
+```text
+deployment: dpl_E81ypeQLpisZ3KLtbd2xPwBiReLs
+state:      READY
+commit:     a5a008f1a5916240358743abd741cda993062ea4
+alias:      https://pachimanga.frogilab.dev
+```
+
+The production build log showed valid comparable SHAs and a runtime change correctly continuing the build:
+
+```text
+Running "node scripts/vercel-ignore-build.mjs"
+Vercel ignore build: hosted-runtime changes detected; continuing build.
+Running "vercel build"
+```
+
+The production deployment reached `READY` with no alias error.
+
+## Post-deploy Production Smoke
+
+The repository's existing Production Smoke `anonymous-boundary` job was explicitly re-run after `dpl_E81ypeQLpisZ3KLtbd2xPwBiReLs` reached `READY`.
+
+Evidence:
+
+```text
+workflow run: 35096959939
+rerun job:    104849686289
+result:       success
+BASE_URL:     https://pachimanga.frogilab.dev
+```
+
+The job log reported:
+
+```text
+Production smoke passed for https://pachimanga.frogilab.dev
+Protected routes checked: 9
+PWA icons checked: 4
+```
+
+The smoke covers the anonymous authentication boundary and `private, no-store` cache policy across protected routes, the public auth/offline pages, manifest fields, required icons, and service-worker navigation/API/offline behavior.
+
+A direct post-deploy production fetch also resolved anonymous application access to `/auth` with:
 
 ```text
 cache-control: private, no-store
 x-matched-path: /auth
 ```
 
-The production UI stated that an account is required and exposed no guest/demo mode.
+## Post-deploy runtime errors
 
-The Vercel runtime-error query for the selected recent window returned no runtime errors.
+Vercel runtime logs were queried for deployment `dpl_E81ypeQLpisZ3KLtbd2xPwBiReLs` after the smoke, filtering production `error` and `fatal` levels over the selected recent window.
 
-### Current deployment-pipeline defect
-
-A recent preview deployment failed before application build with:
+Result:
 
 ```text
-fatal: bad revision ''
+No logs found for the specified criteria.
 ```
 
-Current `vercel.json` contains an ignored-build command equivalent to:
+No production runtime error/fatal was observed for the repaired deployment during the post-deploy verification window.
 
-```sh
-git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" "$VERCEL_GIT_COMMIT_SHA" -- src public package.json package-lock.json next.config.ts postcss.config.mjs tsconfig.json vercel.json
+## Supabase
+
+Production project:
+
+```text
+gwpgaojsemcfikgynxwv
 ```
 
-The command does not guard an empty/unusable `VERCEL_GIT_PREVIOUS_SHA`. The next runtime task is to make the command fail-safe: if comparison SHAs are unavailable, Vercel should continue the build rather than fail before compilation. Normal comparable commits should continue to skip non-runtime-only deployments.
+The most recently verified state before this deployment-only repair was:
 
-Do not claim PRs #40-#42 are live until a runtime-equivalent descendant reaches production `READY` and passes Production Smoke.
+- project status `ACTIVE_HEALTHY`;
+- PostgreSQL 17;
+- RLS enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`;
+- owner-scoped policies in place;
+- `anon` has no account-table or identity-sequence access;
+- authenticated grants restricted to application-required operations;
+- canonical timestamped migration history under `supabase/migrations/`;
+- server-side newer-only guards for progress/history/settings;
+- performance advisor clean;
+- leaked-password protection remains the single accepted plan-limited security-advisor warning.
+
+PR #44 did not change authentication, database, RLS, migrations, grants, synchronization, or secrets, so no production Supabase mutation was required for this repair.
+
+## Synchronization and reader state
+
+Current implementation retains the previously verified hardening:
+
+- owner-bound progress and reader-settings outboxes;
+- stale/cross-account queue entries are discarded;
+- reconnect/boot delivery retry;
+- newest local/remote reconciliation;
+- server-side rejection of stale progress/history/settings writes;
+- account-bound local fallbacks for library/history;
+- exact local reader-position resume with synchronized percentage fallback for remote/cross-device state;
+- resume restoration after chapter layout.
+
+Library mutations intentionally remain remote-first/online-only unless a future workplan decision adds an owner-bound mutation queue.
+
+## Provider/relay state
+
+Previously verified hardening remains in place:
+
+- one bounded retry only for transient network/socket failures or HTTP 502/503/504;
+- no retry for 429, normal 4xx, authentication/refusal, validation errors, or caller aborts;
+- bounded MangaDex and ComicK chapter pagination;
+- explicit provider failure instead of mock fallback.
+
+The WeebCentral relay stack was previously redeployed and its container observed healthy. PR #44 did not alter provider or relay behavior. Live provider/relay application evidence remains a P1 work item.
+
+## Import hardening
+
+Merged parser safety remains in place for JSON/Tachiyomi/Mihon/Tachimanga inputs, including schema-shaped validation, malformed-input errors, duplicate filtering, finite progress parsing, input/expansion bounds, and corrupt/unsupported backup handling.
+
+Representative real backup files still require final end-to-end validation before release-candidate status.
 
 ## Remaining manual release blockers
 
-The work that still inherently needs real identities/devices is narrow:
+The work that still inherently needs real identities/devices remains:
 
 1. fresh-account registration/confirmation/password-reset lifecycle;
 2. same-browser Account A/B isolation;
@@ -198,8 +216,14 @@ The work that still inherently needs real identities/devices is narrow:
 4. installed-PWA validation on iPhone/iPad, Android, and desktop Chromium;
 5. service-worker update behavior on an actually installed PWA.
 
-Repository/application work can continue without user input, including the Vercel ignored-build repair, live provider smoke where credentials are not required, reader/import regression coverage, browser E2E automation, performance review, and documentation cleanup.
+Do not fabricate completion of those items.
 
-## Exact next task
+## Exact next autonomous work
 
-Repair the Vercel ignored-build command for missing previous SHA, merge through required `hygiene`/`quality`, obtain a READY production deployment for current runtime code, run Production Smoke, and re-check runtime errors.
+The Vercel deployment-gap P0 is closed. Continue, without private identities or device claims, through:
+
+1. live provider/relay smoke where credentials are not required;
+2. reader/import release validation that can be automated safely;
+3. browser E2E automation;
+4. performance/observability/cleanup;
+5. PWA release-candidate preparation while leaving real-account and installed-device evidence explicitly open.
