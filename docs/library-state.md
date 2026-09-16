@@ -66,6 +66,6 @@ Provider refusal remains explicit. A 403/429/other source failure does not fabri
 
 ## Database migration
 
-The forward migration `20260916160400_add_library_state_tracking.sql` extends `public.library_entries` with these fields and check constraints. It does not replace existing owner RLS policies, unique conflict targets, or least-privilege grants.
+Production migration `20260916165443_add_library_state_tracking.sql` extends `public.library_entries` with these fields and check constraints. It does not replace existing owner RLS policies, unique conflict targets, or least-privilege grants.
 
-The migration is non-destructive but still requires the normal production-mutation gate before application. Code must not be merged to production until the production schema contains these columns, because the synchronized library query selects them directly.
+The migration was applied to production project `gwpgaojsemcfikgynxwv` on 2026-09-16 before the runtime merge. Post-migration verification confirmed the new columns and checks, preserved owner-scoped RLS policies, preserved the library upsert unique constraint, no `anon` table grants, unchanged authenticated CRUD grants, a clean performance advisor, and only the already-accepted leaked-password-protection security warning.
