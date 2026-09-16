@@ -47,16 +47,6 @@ export function summarizeLibraryProgress(
   fallbackProgress = 0,
 ) {
   const total = Math.max(0, Math.floor(Number(chapterCount) || 0));
-  if (!total) {
-    const percentage = clampPercentage(fallbackProgress);
-    return {
-      percentage,
-      completedChapters: percentage >= 99 ? 1 : 0,
-      chapterCount: 0,
-      fullyRead: percentage >= 99,
-    };
-  }
-
   const byChapter = new Map<string, number>();
   for (const row of progressRows) {
     if (!row.chapterId) continue;
@@ -64,6 +54,16 @@ export function summarizeLibraryProgress(
   }
 
   const percentages = [...byChapter.values()];
+  if (!total || percentages.length === 0) {
+    const percentage = clampPercentage(fallbackProgress);
+    return {
+      percentage,
+      completedChapters: percentage >= 99 ? (total || 1) : 0,
+      chapterCount: total,
+      fullyRead: percentage >= 99,
+    };
+  }
+
   const completedChapters = percentages.filter((value) => value >= 99).length;
   const sum = percentages.reduce((totalPercentage, value) => totalPercentage + value, 0);
   const percentage = Math.max(0, Math.min(100, sum / total));
