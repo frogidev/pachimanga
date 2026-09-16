@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" \"$VERCEL_GIT_COMMIT_SHA\" -- src public package.json package-lock.json next.config.ts postcss.config.mjs tsconfig.json vercel.json"
+  "ignoreCommand": "node scripts/vercel-ignore-build.mjs"
 }
