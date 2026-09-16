@@ -2,10 +2,11 @@ import type { Chapter, Manga, MangaStatus, Page } from '@/types/models';
 import type { MangaSource } from '@/sources/core/manga-source';
 import { SourceUnavailableError } from '@/sources/core/manga-source';
 import { collectSourcePages } from '@/sources/core/pagination';
+import { buildComicKSearchPath } from '@/sources/core/provider-request-paths';
 import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 
-const API = 'https://api.comick.io';
-const SITE = 'https://comick.io';
+const API = 'https://api.comick.dev';
+const SITE = 'https://comick.dev';
 const IMAGES = 'https://meo.comick.pictures';
 const HID = /^[A-Za-z0-9_-]{4,64}$/;
 
@@ -192,8 +193,7 @@ export class ComickSource implements MangaSource {
   async search(query: string): Promise<Manga[]> {
     const q = query.trim().slice(0, 100);
     if (!q) return [];
-    const params = new URLSearchParams({ q, limit: '24', page: '1' });
-    const payload = await ckFetch<ComickComic[] | { data?: ComickComic[] }>(`/v1.0/search/?${params.toString()}`, 120);
+    const payload = await ckFetch<ComickComic[] | { data?: ComickComic[] }>(buildComicKSearchPath(q), 120);
     const items = Array.isArray(payload) ? payload : payload.data || [];
     return items
       .filter((item) => Boolean(item.hid && HID.test(item.hid)))

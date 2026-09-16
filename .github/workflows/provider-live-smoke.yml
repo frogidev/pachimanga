@@ -1,0 +1,32 @@
+name: Provider Live Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 11 * * *'
+  pull_request:
+    paths:
+      - 'ops/provider-live-smoke.mjs'
+      - '.github/workflows/provider-live-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-live-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      RELAY_BASE_URL: https://wc-relay.frogilab.dev
+      RELAY_TOKEN: ${{ secrets.WEEBCENTRAL_RELAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Provider and relay live smoke
+        run: node ops/provider-live-smoke.mjs

@@ -2,6 +2,7 @@ import type { Chapter, Manga, MangaStatus, Page } from '@/types/models';
 import type { MangaSource } from '@/sources/core/manga-source';
 import { SourceUnavailableError } from '@/sources/core/manga-source';
 import { collectSourcePages } from '@/sources/core/pagination';
+import { buildMangaDexFeedPath } from '@/sources/core/provider-request-paths';
 import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 
 const API = 'https://api.mangadex.org';
@@ -170,13 +171,8 @@ export class MangaDexSource implements MangaSource {
     const rid = rawMangaId(mangaId);
     const all = await collectSourcePages<MangaDexChapter>(
       async (_page, offset, limit) => {
-        const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-        params.append('translatedLanguage[]', 'en');
-        params.append('order[chapter]', 'desc');
-        params.append('contentRating[]', 'safe');
-        params.append('contentRating[]', 'suggestive');
         const payload = await mdFetch<{ data?: MangaDexChapter[]; total?: number }>(
-          `/manga/${rid}/feed?${params.toString()}`,
+          buildMangaDexFeedPath(rid, offset, limit),
           120,
         );
         return { items: payload.data || [], total: payload.total };

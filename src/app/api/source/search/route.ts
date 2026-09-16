@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { comickSource } from '@/sources/comick/comick-source';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
 import {
   getWeebCentralTransport,
@@ -11,12 +10,12 @@ export async function GET(request: Request) {
   const transport = getWeebCentralTransport();
   if (!query) return NextResponse.json({ items: [], source: null, transport });
 
-  let weebCentralError: string | undefined;
+  const sourceErrors: string[] = [];
   try {
     const items = await weebCentralSource.search(query);
     if (items.length) return NextResponse.json({ items, source: 'WeebCentral', transport });
   } catch (error) {
-    weebCentralError = error instanceof Error ? error.message : 'WeebCentral unavailable';
+    sourceErrors.push(error instanceof Error ? error.message : 'WeebCentral unavailable');
   }
 
   try {
@@ -26,33 +25,24 @@ export async function GET(request: Request) {
         items,
         source: 'MangaDex',
         transport,
-        warning: weebCentralError,
+        warning: sourceErrors.length ? sourceErrors.join(' · ') : undefined,
       });
     }
   } catch (error) {
-    weebCentralError = [weebCentralError, error instanceof Error ? error.message : 'MangaDex unavailable']
-      .filter(Boolean)
-      .join(' · ');
+    sourceErrors.push(error instanceof Error ? error.message : 'MangaDex unavailable');
   }
 
-  try {
-    const items = await comickSource.search(query);
-    return NextResponse.json({
-      items,
-      source: 'ComicK',
-      transport,
-      warning: weebCentralError,
-    });
-  } catch (error) {
-    const comickError = error instanceof Error ? error.message : 'ComicK unavailable';
+  if (sourceErrors.length) {
     return NextResponse.json(
       {
         items: [],
         source: null,
         transport,
-        error: [weebCentralError, comickError].filter(Boolean).join(' · '),
+        error: sourceErrors.join(' · '),
       },
       { status: 502 },
     );
   }
+
+  return NextResponse.json({ items: [], source: null, transport });
 }
