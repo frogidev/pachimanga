@@ -30,6 +30,7 @@ jobs:
               /^public\//,
               /^relay\//,
               /^tests\//,
+              /^scripts\/vercel-ignore-build\.mjs$/,
               /^next\.config\./,
               /^postcss\.config\./,
               /^tsconfig\.json$/,
