@@ -4,7 +4,7 @@ Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active m
 
 ## Production migration history
 
-Verified against production on 2026-09-15:
+Verified against production on 2026-09-15 and rechecked as healthy on 2026-09-16:
 
 | Version | Name | Purpose |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ The production account-data role contract is:
 
 - `anon`: no table or identity-sequence privileges on Pachimanga account tables;
 - `authenticated`: `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`; `SELECT/INSERT/UPDATE/DELETE` on library/progress/history; `USAGE/SELECT` on identity sequences;
-- row ownership is still enforced by RLS policies using `auth.uid()`; grants do not replace RLS.
+- row ownership is enforced by RLS policies using `auth.uid()`; grants do not replace RLS.
 
 ## Server-side timestamp conflict contract
 
@@ -36,15 +36,27 @@ Timestamped account synchronization is last-newer-write-wins at the database bou
 
 This prevents a delayed offline device from rolling remote state backward merely because its request arrived later. It does not remove the need for owner RLS or account-bound client storage.
 
-Library add/remove remains remote-first and does not use this timestamp conflict model. Settings still do not have an IndexedDB outbox; the timestamp guard protects remote state from stale writes but does not guarantee eventual delivery of an offline-only settings change.
+## Client synchronization relationship
+
+The current client complements the database guards with owner-bound local retry state:
+
+- reading progress is written locally first and queued in an IndexedDB progress outbox owned by the active user;
+- reader settings are cached under an account-specific localStorage key and queued in an IndexedDB settings outbox owned by the active user;
+- both outboxes flush on save and on authenticated boot/reconnect;
+- legacy, unowned, and cross-account outbox entries are discarded rather than replayed under another account;
+- settings upserts request the stored server row back so local cache can reconcile when the stale-write trigger preserves a newer remote value.
+
+Library add/remove remains remote-first and does not currently use an offline mutation queue.
+
+Client timestamps remain the ordering signal for progress/history/settings, so real two-device validation should still observe clock-skew behavior before release-candidate status.
 
 ## Repository layout
 
-- `config.toml` — local Supabase project configuration, pinned to Postgres 17 and migrations enabled.
-- `migrations/` — active timestamped migration chain. This directory is the only migration directory that `supabase db reset` should replay.
-- `legacy-migrations/` — preserved pre-canonical SQL artifacts (`001`/`002`/`003`). They are retained for provenance only and must never be copied back into the active migration chain.
+- `config.toml` — local Supabase project configuration, pinned to Postgres 17 with migrations enabled.
+- `migrations/` — active timestamped migration chain. This is the only migration directory that `supabase db reset` should replay.
+- `legacy-migrations/` — preserved pre-canonical SQL artifacts (`001`/`002`/`003`). They are provenance only and must never be copied back into the active migration chain.
 
-The legacy files were moved without rewriting their contents. They do not correspond one-for-one with the production migration history and are intentionally excluded from local resets and future `db push` operations.
+The legacy files were moved without rewriting their contents. They do not correspond one-for-one with production migration history and are intentionally excluded from local resets and future `db push` operations.
 
 ## Local clean-room bootstrap
 
@@ -59,7 +71,7 @@ supabase db reset
 
 `db reset` is local by default and replays only `supabase/migrations/`. `supabase/config.toml` disables seed execution because Pachimanga does not commit production-derived user data or credentials.
 
-After reset, verify the migration chain:
+After reset:
 
 ```bash
 supabase migration list --local
@@ -79,12 +91,12 @@ supabase link --project-ref gwpgaojsemcfikgynxwv
 supabase migration list --linked
 ```
 
-Before a production push, review the pending migration list and SQL. Production mutation requires explicit intent under `AGENTS.md` and `.hermes/skills/pachimanga-supabase/SKILL.md`.
+Before a production push, review pending migrations and SQL. Production mutation requires explicit intent under `AGENTS.md` and `.hermes/skills/pachimanga-supabase/SKILL.md`.
 
 ## Safe schema-change workflow
 
 1. Start from current `main` and read `AGENTS.md`, `docs/WORKPLAN.md`, `docs/architecture.md`, and the Supabase Hermes skill.
-2. Inspect current production schema, migration history, RLS, grants, and advisors before changing account data behavior.
+2. Inspect current production schema, migration history, RLS, grants, triggers, and advisors before changing account-data behavior.
 3. Create a new timestamped forward migration; never edit an applied production migration.
 4. Keep RLS enabled and preserve `auth.uid()` owner policies for account-owned tables.
 5. Grant only the minimum Data API privileges required by the authenticated application; do not restore anonymous table/sequence grants.
@@ -95,6 +107,11 @@ Before a production push, review the pending migration list and SQL. Production 
 10. Apply production migrations only when production mutation is explicitly intended.
 11. Re-inspect grants/RLS/triggers and rerun Supabase security/performance advisors after production DDL.
 
-## Current known plan limitation
+## Current advisor state
 
-Supabase security advisor reports leaked-password protection as disabled. The current plan does not include that feature, so the warning is documented and accepted rather than treated as a release blocker. Mandatory authentication, owner-scoped RLS, account-bound local storage, restricted redirects, and publishable-key-only browser access remain the compensating controls.
+As of the latest 2026-09-16 check:
+
+- performance advisor: no lints;
+- security advisor: one warning, leaked-password protection disabled.
+
+The current Supabase plan does not include leaked-password protection, so that warning is accepted/documented rather than treated as a release blocker. Mandatory authentication, owner-scoped RLS, account-bound local storage/outboxes, restricted redirects, and publishable-key-only browser access remain the compensating controls.
