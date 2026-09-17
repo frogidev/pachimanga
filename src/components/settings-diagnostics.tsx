@@ -143,7 +143,7 @@ export function SettingsDiagnostics() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const initialTimer = window.setTimeout(() => void refresh(), 0);
     const handle = () => void refresh();
     window.addEventListener('online', handle);
     window.addEventListener('offline', handle);
@@ -151,6 +151,7 @@ export function SettingsDiagnostics() {
     window.addEventListener('pachimanga:library-change', handle);
     window.addEventListener('pachimanga:offline-cache-change', handle);
     return () => {
+      window.clearTimeout(initialTimer);
       window.removeEventListener('online', handle);
       window.removeEventListener('offline', handle);
       window.removeEventListener('pachimanga:sync-change', handle);
