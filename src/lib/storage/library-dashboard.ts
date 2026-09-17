@@ -170,23 +170,28 @@ async function loadDetailedProgressFallback(
 export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
   const user = await bindCurrentUserCache();
   const sb = createClient();
-  const [localEntries, localProgress, localOutbox, libraryResult] = await Promise.all([
+  const [localEntries, localProgress, localOutbox] = await Promise.all([
     idbGetAll<LibraryEntry>('library'),
     idbGetAll<ReadingProgress>('progress'),
     idbGetAll<ProgressOutboxRow>('outbox'),
-    sb
-      .from('library_entries')
-      .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
-      .eq('user_id', user.id)
-      .order('added_at', { ascending: false }),
   ]);
 
-  if (libraryResult.error) {
+  let libraryRows: LibraryRow[];
+  try {
+    libraryRows = await collectPagedRows<LibraryRow>(async (from, to) => {
+      const result = await sb
+        .from('library_entries')
+        .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
+        .eq('user_id', user.id)
+        .order('added_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to);
+      return { data: (result.data || []) as LibraryRow[], error: result.error };
+    });
+  } catch {
     return withDerivedLocalState(localEntries, localProgress)
       .sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
   }
-
-  const libraryRows = (libraryResult.data || []) as LibraryRow[];
   const pendingMangaIds = new Set(
     localOutbox
       .filter((entry) => !entry.userId || entry.userId === user.id)
