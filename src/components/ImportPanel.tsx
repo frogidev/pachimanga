@@ -195,7 +195,7 @@ export function ImportPanel() {
       const response = await fetch(`/api/source/search?q=${encodeURIComponent(item.title)}`);
       const body = await response.json();
       const match = exactTitleMatch((body.items || []) as Manga[], item.title);
-      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
+      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match, reviewed: true } : candidate));
       return Boolean(match);
     } catch {
       return false;
@@ -355,7 +355,7 @@ export function ImportPanel() {
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
                   <input className="w-full bg-transparent font-medium text-zinc-200 outline-none" value={manga.title} onChange={(event) => patch(index, { title: event.target.value, match: undefined })} />
-                  <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · ${matchSourceLabel(manga.match.sourceId)}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{!manga.reviewed ? 'Needs review · ' : ''}{manga.match ? `Matched: ${manga.match.title} · ${matchSourceLabel(manga.match.sourceId)}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
                 </div>
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
                 <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
@@ -386,7 +386,7 @@ export function ImportPanel() {
           onClick={() => void wipe()}
           className="mt-3 rounded-xl border border-red-300/25 px-4 py-2 text-sm text-red-300 transition hover:bg-red-400/10 disabled:opacity-50"
         >
-          {wiping ? 'Removing…' : 'Remove everything I imported'}
+          {wiping ? 'Removing…' : 'Remove entire library'}
         </button>
       </section>
     </div>
