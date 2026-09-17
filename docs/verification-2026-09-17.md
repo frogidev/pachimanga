@@ -203,4 +203,6 @@ PR #68 also establishes the current behavior:
 - same-title library provider refresh requests are coalesced, very recent automatic checks can be reused, and refresh execution has a hard timeout;
 - WeebCentral raw chapter HTML is not inserted into Next.js Data Cache when it can exceed the cache item limit; parsed chapter lists use bounded short-lived in-process caching and in-flight coalescing.
 
-Manual release evidence remains unchanged in principle: real registration/confirmation/recovery, Account A -> B -> A isolation, two-session/two-device sync, installed-PWA/device testing, reader-device validation, representative imports, and a fresh direct post-merge Production Smoke from a network-capable environment are still required before release-candidate status.
+Fresh post-merge Production Smoke was rerun on 2026-09-17 from a GitHub-hosted Ubuntu runner against `https://pachimanga.frogilab.dev` and passed: 12 protected routes checked and 4 PWA icons checked. This satisfies the credential-free production-smoke evidence for runtime `c9060fd177b7d3cdf607cbde1945af875e283fa7`.
+
+Manual release evidence still required: real registration/confirmation/recovery, Account A -> B -> A isolation, two-session/two-device sync, installed-PWA/device testing, reader-device validation, and representative imports.
