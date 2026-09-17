@@ -92,6 +92,23 @@ cp .env.example .env.local
 npm run dev
 ```
 
+Windows PowerShell can use the repository launcher:
+
+```powershell
+.\start-local.ps1
+```
+
+Useful options:
+
+```powershell
+.\start-local.ps1 -Verify
+.\start-local.ps1 -Install
+.\start-local.ps1 -NoBrowser
+.\start-local.ps1 -Port 3001
+```
+
+The launcher verifies Node.js 22+, checks required Supabase values in `.env.local`, installs dependencies with `npm ci` when needed (or when `-Install` is supplied), optionally runs the full quality gate with `-Verify`, starts the Next.js development server, and opens the local app when it becomes reachable.
+
 Required browser-visible values:
 
 ```text
