@@ -12,7 +12,10 @@ const ACCOUNT_B = {
 
 const protectedPaths = ['/', '/library', '/browse', '/import', '/history', '/settings'];
 const viewports = [
+  { name: 'phone-320', width: 320, height: 720 },
   { name: 'phone-360', width: 360, height: 800 },
+  { name: 'phone-390', width: 390, height: 844 },
+  { name: 'tablet-768', width: 768, height: 1024 },
   { name: 'desktop-1280', width: 1280, height: 900 },
 ];
 
@@ -42,11 +45,49 @@ async function assertNoHorizontalOverflow(page, label) {
   );
 }
 
+async function assertKeyboardFocusVisible(page, label) {
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  await page.keyboard.press('Tab');
+  const focus = await page.evaluate(() => {
+    const element = document.activeElement;
+    if (!(element instanceof HTMLElement)) return null;
+    const style = getComputedStyle(element);
+    return {
+      tagName: element.tagName,
+      outlineStyle: style.outlineStyle,
+      outlineWidth: Number.parseFloat(style.outlineWidth || '0'),
+      boxShadow: style.boxShadow,
+    };
+  });
+  assert.ok(focus && focus.tagName !== 'BODY', `${label}: Tab did not move focus to an interactive element`);
+  assert.ok(
+    (focus.outlineStyle !== 'none' && focus.outlineWidth > 0) || (focus.boxShadow && focus.boxShadow !== 'none'),
+    `${label}: keyboard focus is not visibly indicated`,
+  );
+}
+
+async function assertInteractiveLabels(page, label) {
+  const unlabeled = await page.evaluate(() => Array.from(document.querySelectorAll('button, a[href]'))
+    .filter((element) => {
+      const text = element.textContent?.trim();
+      const ariaLabel = element.getAttribute('aria-label')?.trim();
+      const title = element.getAttribute('title')?.trim();
+      const imageAlt = element.querySelector('img[alt]')?.getAttribute('alt')?.trim();
+      return !text && !ariaLabel && !title && !imageAlt;
+    })
+    .map((element) => element.outerHTML.slice(0, 180)));
+  assert.deepEqual(unlabeled, [], `${label}: found unlabeled interactive controls: ${unlabeled.join(' | ')}`);
+}
+
 async function assertAuthExperience(page, label) {
   await page.getByRole('heading', { name: 'Sign in to Pachimanga' }).waitFor();
   await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Register', exact: true }).waitFor();
   await assertNoHorizontalOverflow(page, label);
+  await assertInteractiveLabels(page, label);
+  await assertKeyboardFocusVisible(page, label);
 }
 
 async function login(context, account, label) {
@@ -86,6 +127,8 @@ async function runAnonymousMatrix(browser) {
     await page.goto(`${BASE_URL}/offline`, { waitUntil: 'domcontentloaded' });
     await page.getByText(/offline/i).first().waitFor();
     await assertNoHorizontalOverflow(page, `${viewport.name} /offline`);
+    await assertInteractiveLabels(page, `${viewport.name} /offline`);
+    await assertKeyboardFocusVisible(page, `${viewport.name} /offline`);
 
     for (const path of protectedPaths) {
       await page.goto(`${BASE_URL}${path}`, { waitUntil: 'domcontentloaded' });
@@ -112,6 +155,8 @@ async function runAuthenticatedMatrix(browser) {
   await first.page.goto(`${BASE_URL}/settings`, { waitUntil: 'domcontentloaded' });
   await first.page.getByRole('heading', { name: 'Settings' }).waitFor();
   await assertNoHorizontalOverflow(first.page, 'authenticated /settings');
+  await assertInteractiveLabels(first.page, 'authenticated /settings');
+  await assertKeyboardFocusVisible(first.page, 'authenticated /settings');
   await signOut(first.page, 'account A / first session');
   await firstContext.close();
   await secondContext.close();
