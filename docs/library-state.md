@@ -129,3 +129,19 @@ Post-migration verification confirmed owner RLS/upsert constraints/grants remain
 The latest merged runtime hardening passed required Repository Hygiene and Web Quality, including unit tests, lint, typecheck, and production build. PR Production Smoke passed against protected anonymous routes and PWA assets. The exact deployed runtime is `dcc14856863ee3ab7a9877e5c7cd9bf953582c95` on Vercel deployment `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`.
 
 Real Account A -> B -> A isolation, two-device synchronization/clock-skew behavior, live signed-in production data, installed-PWA behavior, reader-device checks, representative imports, and a fresh direct production smoke from a network-capable environment remain manual release-candidate evidence.
+
+## PR #68 library/read-state refinements — 2026-09-17
+
+The consolidated PWA merge adds two important behavioral refinements without changing account ownership semantics:
+
+- a title with no real progress starts at the earliest available chapter; `Read latest` is not used as the entry action for a brand-new reader;
+- `Continue` is shown only when real progress exists for a currently available chapter, preventing stale history alone from manufacturing a continuation target.
+
+Provider freshness is also less expensive:
+
+- concurrent refresh requests for the same title are coalesced;
+- very recent automatic refreshes can reuse the stored check instead of immediately repeating provider I/O;
+- refresh requests have an overall timeout and preserve the previous baseline on failure;
+- WeebCentral parsed chapter lists use a bounded short-lived process cache so large raw HTML responses are not repeatedly parsed or pushed into Next.js Data Cache.
+
+None of these optimizations changes `new_chapter_count`, owner RLS, personal reading status, progress synchronization, acknowledgement semantics, or the rule that provider failures must remain explicit rather than becoming zero-update results.
