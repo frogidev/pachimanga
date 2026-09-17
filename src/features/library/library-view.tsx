@@ -33,6 +33,16 @@ const LIBRARY_VIEW_KEY = "pachimanga:library-view";
 const INITIAL_VISIBLE = 48;
 const LOAD_MORE_COUNT = 48;
 
+function initialLibraryView(): ViewMode {
+  if (typeof window === "undefined") return "grid";
+  try {
+    const stored = localStorage.getItem(LIBRARY_VIEW_KEY);
+    return stored === "compact" ? "compact" : "grid";
+  } catch {
+    return "grid";
+  }
+}
+
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
 }
@@ -76,7 +86,7 @@ export function LibraryView() {
   const [sort, setSort] = useState<SortMode>("recent");
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
-  const [view, setView] = useState<ViewMode>("grid");
+  const [view, setView] = useState<ViewMode>(initialLibraryView);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -85,21 +95,8 @@ export function LibraryView() {
   const sourceRefreshRunning = useRef(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(LIBRARY_VIEW_KEY);
-      if (stored === "grid" || stored === "compact") setView(stored);
-    } catch {
-      // Storage can be unavailable in restrictive/private contexts.
-    }
-  }, []);
-
-  useEffect(() => {
     try { localStorage.setItem(LIBRARY_VIEW_KEY, view); } catch { /* optional preference */ }
   }, [view]);
-
-  useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE);
-  }, [filter, query, sort, view]);
 
   useEffect(() => {
     let cancelled = false;
