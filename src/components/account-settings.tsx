@@ -1,12 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { buildPasswordRecoveryRedirect } from '@/lib/auth/redirects';
-import { clearChapterCache } from '@/lib/offline/chapter-cache';
 import { createClient } from '@/lib/supabase/client';
-import { clearLocalUserCache } from '@/lib/storage/reader-storage';
 
 type AccountProfile = {
   email: string;
@@ -23,7 +20,6 @@ function cleanAvatarUrl(value: string) {
 }
 
 export function AccountSettings() {
-  const router = useRouter();
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileBusy, setProfileBusy] = useState(false);
@@ -122,22 +118,6 @@ export function AccountSettings() {
     }
   }
 
-  async function logout() {
-    setSecurityBusy(true);
-    setSecurityMessage('');
-    try {
-      const sb = createClient();
-      const { error } = await sb.auth.signOut();
-      if (error) throw error;
-      await Promise.all([clearLocalUserCache(), clearChapterCache()]);
-      router.replace('/auth');
-      router.refresh();
-    } catch (error) {
-      setSecurityMessage(error instanceof Error ? error.message : 'Could not sign out.');
-      setSecurityBusy(false);
-    }
-  }
-
   if (loading) {
     return <section className="surface-card p-5 text-sm text-zinc-500 sm:p-6" aria-live="polite">Loading account…</section>;
   }
@@ -148,7 +128,7 @@ export function AccountSettings() {
         <p className="pixel-kicker text-[9px] text-pink-400">Account</p>
         <h2 className="mt-1 text-lg font-semibold text-zinc-100">Sign in required</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-500">Your profile and security controls are available after signing in.</p>
-        <Link href="/auth?next=/account" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Sign in</Link>
+        <Link href="/auth?next=/settings" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Sign in</Link>
       </section>
     );
   }
@@ -218,13 +198,6 @@ export function AccountSettings() {
           <button type="button" onClick={sendResetEmail} disabled={securityBusy} className="button-secondary px-4 py-2.5 text-sm disabled:opacity-50">Send reset email</button>
         </div>
         {securityMessage ? <p className="mt-3 rounded-xl border border-white/[.06] bg-white/[.025] px-3 py-2.5 text-sm text-zinc-400" aria-live="polite">{securityMessage}</p> : null}
-      </section>
-
-      <section className="surface-card p-5 sm:p-6">
-        <p className="pixel-kicker text-[9px] text-pink-400">Session</p>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-100">This device</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">Signing out clears the account-bound local caches on this device before returning to the authentication page.</p>
-        <button type="button" onClick={logout} disabled={securityBusy} className="button-secondary mt-5 px-4 py-2.5 text-sm disabled:opacity-50">Sign out</button>
       </section>
     </div>
   );
