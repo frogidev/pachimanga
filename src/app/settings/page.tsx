@@ -33,15 +33,11 @@ export default function SettingsPage() {
 
   return (
     <div className="app-page max-w-4xl">
-      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune your reader, device behavior and private Pachimanga account in one place." />
+      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune your account, reading experience, appearance and device behavior in one place." />
       <div className="mt-6 grid gap-4">
         <section id="account" className="scroll-mt-24">
           <AccountSettings />
         </section>
-
-        <SyncStatusPanel />
-        <SettingsDiagnostics />
-        <AccountDataExport />
 
         <section className="surface-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
@@ -93,7 +89,10 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <SyncStatusPanel />
         <PwaDeviceStatus />
+        <AccountDataExport />
+        <SettingsDiagnostics />
       </div>
     </div>
   );
