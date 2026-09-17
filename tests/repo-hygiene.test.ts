@@ -64,6 +64,10 @@ test("production runtime excludes mock providers and reader fallbacks", () => {
   assert.doesNotMatch(registry, /sources\/mock|mockSource/);
   assert.doesNotMatch(reader, /mock-data|getMock/);
   assert.doesNotMatch(mangaDetail, /MockCoverArt|sourceId === ["']mock["']/);
+  assert.equal(existsSync(join(ROOT, "src/lib/mock-data.ts")), false);
+  assert.equal(existsSync(join(ROOT, "src/components/mock-cover-art.tsx")), false);
+  assert.equal(existsSync(join(ROOT, "src/sources/mock/mock-source.ts")), false);
+  assert.equal(existsSync(join(ROOT, "public/mock")), false);
 });
 
 test("native artifact and release workflows remain manual-only during the PWA phase", () => {
