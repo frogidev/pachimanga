@@ -223,7 +223,7 @@ export function AccountSettings() {
       <section className="surface-card p-5 sm:p-6">
         <p className="pixel-kicker text-[9px] text-pink-400">Session</p>
         <h2 className="mt-1 text-lg font-semibold text-zinc-100">This device</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">Signing out clears this device's account-bound local caches before returning to the authentication page.</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-500">Signing out clears the account-bound local caches on this device before returning to the authentication page.</p>
         <button type="button" onClick={logout} disabled={securityBusy} className="button-secondary mt-5 px-4 py-2.5 text-sm disabled:opacity-50">Sign out</button>
       </section>
     </div>
