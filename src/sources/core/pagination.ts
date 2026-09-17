@@ -14,7 +14,7 @@ export async function collectSourcePages<T>(
   options: PaginationOptions = {},
 ): Promise<T[]> {
   const pageSize = Math.max(1, Math.min(options.pageSize ?? 100, 500));
-  const maxPages = Math.max(1, Math.min(options.maxPages ?? 5, 10));
+  const maxPages = Math.max(1, Math.min(options.maxPages ?? 5, 50));
   const all: T[] = [];
 
   for (let page = 0; page < maxPages; page += 1) {
@@ -25,8 +25,14 @@ export async function collectSourcePages<T>(
 
     all.push(...batch);
 
-    if (typeof result.total === 'number' && Number.isFinite(result.total) && all.length >= result.total) break;
-    if (batch.length < pageSize) break;
+    const reportedTotal = typeof result.total === 'number' && Number.isFinite(result.total) ? result.total : null;
+    if (reportedTotal != null && all.length >= reportedTotal) return all;
+    if (batch.length < pageSize) return all;
+
+    if (page === maxPages - 1) {
+      const detail = reportedTotal != null ? ` before the reported total of ${reportedTotal}` : '';
+      throw new Error(`Provider chapter pagination reached the ${pageSize * maxPages} item safety limit${detail}; refusing a partial chapter snapshot.`);
+    }
   }
 
   return all;
