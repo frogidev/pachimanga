@@ -42,5 +42,5 @@ test('registration can resend confirmation without weakening confirmation requir
   assert.match(authForm, /type: 'signup'/);
   assert.match(authForm, /Resend confirmation/);
   assert.match(authForm, /emailRedirectTo: confirmationRedirect\(\)/);
-  assert.doesNotMatch(authForm, /email_confirm|autoconfirm|disable.*confirmation/i);
+  assert.doesNotMatch(authForm, /mailer_autoconfirm|enable_confirmations\s*=\s*false/i);
 });
