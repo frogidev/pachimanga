@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { nextLibrarySourceSnapshot } from '@/lib/library/library-state';
+import { classifyProviderError, providerErrorHttpStatus, providerErrorPayload } from '@/lib/source/provider-error';
 import { createClient } from '@/lib/supabase/server';
 import { getSource } from '@/sources/core/registry';
 
@@ -13,17 +14,17 @@ function json(body: unknown, status = 200) {
 export async function POST(request: Request) {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
-  if (!user) return json({ error: 'Authentication required.' }, 401);
+  if (!user) return json({ error: { kind: 'upstream', title: 'Authentication required', message: 'Sign in before refreshing a library title.', retryable: false } }, 401);
 
   let body: { mangaId?: unknown };
   try {
     body = await request.json() as { mangaId?: unknown };
   } catch {
-    return json({ error: 'Invalid request body.' }, 400);
+    return json({ error: { kind: 'upstream', title: 'Invalid request', message: 'Invalid request body.', retryable: false } }, 400);
   }
 
   const mangaId = typeof body.mangaId === 'string' ? body.mangaId.trim() : '';
-  if (!mangaId || mangaId.length > 160) return json({ error: 'Invalid mangaId.' }, 400);
+  if (!mangaId || mangaId.length > 160) return json({ error: { kind: 'upstream', title: 'Invalid request', message: 'Invalid mangaId.', retryable: false } }, 400);
 
   const { data: row, error: rowError } = await sb
     .from('library_entries')
@@ -31,12 +32,12 @@ export async function POST(request: Request) {
     .eq('user_id', user.id)
     .eq('manga_id', mangaId)
     .maybeSingle();
-  if (rowError) return json({ error: 'Could not load the library entry.' }, 500);
-  if (!row) return json({ error: 'Library entry not found.' }, 404);
+  if (rowError) return json({ error: { kind: 'upstream', title: 'Library unavailable', message: 'Could not load the library entry.', retryable: true } }, 500);
+  if (!row) return json({ error: { kind: 'missing', title: 'Library entry not found', message: 'This title is no longer in the signed-in account library.', retryable: false } }, 404);
   if (row.source_id === 'import') return json({ skipped: true, reason: 'Imported titles do not have a live provider.' });
 
   const source = getSource(row.source_id);
-  if (!source) return json({ error: 'Unknown manga source.' }, 400);
+  if (!source) return json({ error: { kind: 'upstream', title: 'Unknown provider', message: 'This library entry references an unsupported provider.', retryable: false } }, 400);
 
   try {
     const [manga, chapters] = await Promise.all([
@@ -75,13 +76,14 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .eq('source_id', row.source_id)
       .eq('manga_id', row.manga_id);
-    if (updateError) return json({ error: 'Could not save the provider update.' }, 500);
+    if (updateError) return json({ error: { kind: 'upstream', title: 'Refresh could not be saved', message: 'Provider data loaded, but the account library update could not be saved.', retryable: true } }, 500);
 
     return json({
       publicationStatus: manga.status,
       ...snapshot,
     });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : 'Source unavailable.' }, 502);
+    const info = classifyProviderError(error);
+    return json(providerErrorPayload(error), providerErrorHttpStatus(info.kind));
   }
 }
