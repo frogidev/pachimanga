@@ -11,19 +11,30 @@ function source(path: string) {
 
 const updatesPage = source('src/app/updates/page.tsx');
 const updatesView = source('src/features/updates/updates-view.tsx');
+const availabilityRoute = source('src/app/api/library/availability/route.ts');
 const historyView = source('src/features/history/history-view.tsx');
 const browseView = source('src/features/browse/browse-view.tsx');
 const libraryView = source('src/features/library/library-view.tsx');
 
-test('updates renders account/provider availability instead of a static empty screen', () => {
+test('updates renders live account/provider availability instead of a static empty screen', () => {
   assert.match(updatesPage, /<UpdatesView\s*\/>/);
-  assert.match(updatesView, /getLibraryDashboardEntries/);
+  assert.match(updatesView, /\/api\/library\/availability/);
   assert.match(updatesView, /\/api\/library\/refresh/);
   assert.match(updatesView, /shouldRefreshLibrarySource/);
   assert.match(updatesView, /Check all now/);
   assert.match(updatesView, /Library availability/);
+  assert.match(updatesView, /Live Supabase account state/);
+  assert.doesNotMatch(updatesView, /getLibraryDashboardEntries/);
   assert.doesNotMatch(updatesView, /Nothing new yet/);
   assert.doesNotMatch(updatesView, /empty-shelves\.avif/);
+});
+
+test('live availability endpoint remains signed-in, owner-scoped and private', () => {
+  assert.match(availabilityRoute, /sb\.auth\.getUser\(\)/);
+  assert.match(availabilityRoute, /\.eq\('user_id', user\.id\)/);
+  assert.match(availabilityRoute, /Cache-Control': 'private, no-store'/);
+  assert.match(availabilityRoute, /library_entries/);
+  assert.doesNotMatch(availabilityRoute, /service_role|SERVICE_ROLE/);
 });
 
 test('history distinguishes loading, failure, confirmed zero and real metadata', () => {
