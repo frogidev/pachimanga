@@ -39,6 +39,23 @@ type ProgressRow = {
   updated_at: string;
 };
 
+type ProgressSummaryRow = {
+  source_id: string;
+  manga_id: string;
+  progress_percentage: number;
+  progress_row_count: number | string;
+  completed_chapter_count: number | string;
+  last_read_at: string | null;
+  last_chapter_id: string | null;
+  last_chapter_percentage: number | null;
+};
+
+type ProgressOutboxRow = ReadingProgress & {
+  userId?: string;
+  sourceId: string;
+  historyReadAt: string;
+};
+
 function mangaStatus(value: unknown): MangaStatus {
   return value === 'ongoing' || value === 'complete' || value === 'hiatus' || value === 'cancelled'
     ? value
@@ -74,6 +91,10 @@ function progressKey(row: Pick<ReadingProgress, 'mangaId' | 'chapterId'>) {
   return `${row.mangaId}\u0000${row.chapterId}`;
 }
 
+function summaryKey(sourceId: string, mangaId: string) {
+  return `${sourceId}\u0000${mangaId}`;
+}
+
 function rowsByManga(rows: ReadingProgress[]) {
   const grouped = new Map<string, ReadingProgress[]>();
   for (const row of rows) {
@@ -101,12 +122,58 @@ function withDerivedLocalState(entries: LibraryEntry[], progressRows: ReadingPro
   });
 }
 
+async function loadDetailedProgressFallback(
+  sb: ReturnType<typeof createClient>,
+  userId: string,
+  localProgress: ReadingProgress[],
+) {
+  const newestByChapter = new Map<string, ReadingProgress>();
+  for (const row of localProgress) newestByChapter.set(progressKey(row), row);
+
+  const progressCacheWrites: Promise<void>[] = [];
+  const remoteRows = await collectPagedRows<ProgressRow>(async (from, to) => {
+    const result = await sb
+      .from('reading_progress')
+      .select('manga_id,source_id,chapter_id,page_index,scroll_progress,updated_at')
+      .eq('user_id', userId)
+      .order('manga_id', { ascending: true })
+      .order('source_id', { ascending: true })
+      .order('chapter_id', { ascending: true })
+      .range(from, to);
+    return {
+      data: (result.data || []) as ProgressRow[],
+      error: result.error,
+    };
+  });
+
+  for (const row of remoteRows) {
+    const remote: ReadingProgress = {
+      mangaId: row.manga_id,
+      chapterId: row.chapter_id,
+      pageIndex: row.page_index,
+      scrollPosition: 0,
+      percentage: Number(row.scroll_progress) * 100,
+      updatedAt: row.updated_at,
+    };
+    const key = progressKey(remote);
+    const newest = newerProgress(newestByChapter.get(key), remote);
+    newestByChapter.set(key, newest);
+    if (newest === remote) {
+      progressCacheWrites.push(idbPut('progress', remote as unknown as Record<string, unknown>));
+    }
+  }
+
+  await Promise.all(progressCacheWrites);
+  return rowsByManga([...newestByChapter.values()]);
+}
+
 export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
   const user = await bindCurrentUserCache();
   const sb = createClient();
-  const [localEntries, localProgress, libraryResult] = await Promise.all([
+  const [localEntries, localProgress, localOutbox, libraryResult] = await Promise.all([
     idbGetAll<LibraryEntry>('library'),
     idbGetAll<ReadingProgress>('progress'),
+    idbGetAll<ProgressOutboxRow>('outbox'),
     sb
       .from('library_entries')
       .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
@@ -119,73 +186,72 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
       .sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
   }
 
-  let remoteProgressRows: ProgressRow[] = [];
-  let progressSnapshotComplete = true;
-  try {
-    remoteProgressRows = await collectPagedRows<ProgressRow>(async (from, to) => {
-      const result = await sb
-        .from('reading_progress')
-        .select('manga_id,source_id,chapter_id,page_index,scroll_progress,updated_at')
-        .eq('user_id', user.id)
-        .order('manga_id', { ascending: true })
-        .order('source_id', { ascending: true })
-        .order('chapter_id', { ascending: true })
-        .range(from, to);
-      return {
-        data: (result.data || []) as ProgressRow[],
-        error: result.error,
-      };
-    });
-  } catch {
-    // Never derive/write automatic status from a partial remote snapshot.
-    // The account-bound local cache and stored library status remain the fallback.
-    progressSnapshotComplete = false;
+  const libraryRows = (libraryResult.data || []) as LibraryRow[];
+  const pendingMangaIds = new Set(
+    localOutbox
+      .filter((entry) => !entry.userId || entry.userId === user.id)
+      .map((entry) => entry.mangaId),
+  );
+  const localProgressByManga = rowsByManga(localProgress);
+
+  let progressSummaryByKey = new Map<string, ProgressSummaryRow>();
+  let detailedProgressByManga: Map<string, ReadingProgress[]> | null = null;
+  let progressSnapshotComplete = false;
+
+  const aggregateResult = await sb.rpc('get_library_progress_summaries');
+  if (!aggregateResult.error) {
+    progressSummaryByKey = new Map(
+      ((aggregateResult.data || []) as ProgressSummaryRow[]).map((row) => [summaryKey(row.source_id, row.manga_id), row]),
+    );
+    progressSnapshotComplete = libraryRows.every((row) => progressSummaryByKey.has(summaryKey(row.source_id, row.manga_id)));
   }
 
-  const newestByChapter = new Map<string, ReadingProgress>();
-  const progressCacheWrites: Promise<void>[] = [];
-  for (const row of localProgress) newestByChapter.set(progressKey(row), row);
-  if (progressSnapshotComplete) {
-    for (const row of remoteProgressRows) {
-      const remote: ReadingProgress = {
-        mangaId: row.manga_id,
-        chapterId: row.chapter_id,
-        pageIndex: row.page_index,
-        scrollPosition: 0,
-        percentage: Number(row.scroll_progress) * 100,
-        updatedAt: row.updated_at,
-      };
-      const key = progressKey(remote);
-      const newest = newerProgress(newestByChapter.get(key), remote);
-      newestByChapter.set(key, newest);
-      if (newest === remote) {
-        progressCacheWrites.push(idbPut('progress', remote as unknown as Record<string, unknown>));
-      }
+  if (!progressSnapshotComplete) {
+    try {
+      detailedProgressByManga = await loadDetailedProgressFallback(sb, user.id, localProgress);
+      progressSnapshotComplete = true;
+    } catch {
+      progressSnapshotComplete = false;
     }
   }
 
-  const progress = rowsByManga([...newestByChapter.values()]);
   const localById = new Map(localEntries.map((entry) => [entry.mangaId, entry]));
   const statusWrites: PromiseLike<unknown>[] = [];
   const libraryCacheWrites: Promise<void>[] = [];
   const remoteEntries: LibraryEntry[] = [];
 
-  for (const row of (libraryResult.data || []) as LibraryRow[]) {
+  for (const row of libraryRows) {
     const cached = localById.get(row.manga_id);
     const rowPublicationStatus = mangaStatus(row.publication_status);
     const effectivePublicationStatus = rowPublicationStatus === 'unknown'
       ? cached?.manga?.status || 'unknown'
       : rowPublicationStatus;
-    const mangaProgress = progress.get(row.manga_id) || [];
-    const summary = summarizeLibraryProgress(
-      Number(row.chapter_count || 0),
-      mangaProgress,
-      cached?.progress || 0,
-    );
     const storedStatus = normalizeLibraryReadingStatus(row.reading_status);
-    const automaticStatus = automaticLibraryReadingStatus(summary);
-    const hasLocalProgressEvidence = mangaProgress.length > 0 || Number(cached?.progress || 0) > 0;
-    const canDeriveAutomaticStatus = progressSnapshotComplete || hasLocalProgressEvidence;
+    const hasPendingProgress = pendingMangaIds.has(row.manga_id);
+    const aggregate = progressSummaryByKey.get(summaryKey(row.source_id, row.manga_id));
+    const detailedRows = detailedProgressByManga?.get(row.manga_id) || localProgressByManga.get(row.manga_id) || [];
+
+    let progressPercentage = Number(cached?.progress || 0);
+    let completedChapters = 0;
+    if (detailedProgressByManga) {
+      const summary = summarizeLibraryProgress(Number(row.chapter_count || 0), detailedRows, progressPercentage);
+      progressPercentage = summary.percentage;
+      completedChapters = summary.completedChapters;
+    } else if (aggregate) {
+      const remotePercentage = Math.max(0, Math.min(100, Number(aggregate.progress_percentage) || 0));
+      progressPercentage = hasPendingProgress && cached?.progress != null
+        ? Number(cached.progress)
+        : remotePercentage;
+      completedChapters = Math.max(0, Number(aggregate.completed_chapter_count) || 0);
+    } else if (detailedRows.length) {
+      const summary = summarizeLibraryProgress(Number(row.chapter_count || 0), detailedRows, progressPercentage);
+      progressPercentage = summary.percentage;
+      completedChapters = summary.completedChapters;
+    }
+
+    const fullyRead = Number(row.chapter_count || 0) > 0 && completedChapters >= Number(row.chapter_count || 0);
+    const automaticStatus = automaticLibraryReadingStatus({ percentage: progressPercentage, fullyRead });
+    const canDeriveAutomaticStatus = progressSnapshotComplete || progressPercentage > 0;
     const readingStatus = row.reading_status_manual
       ? storedStatus
       : canDeriveAutomaticStatus
@@ -207,8 +273,8 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
       sourceId: row.source_id,
       addedAt: row.added_at,
       manga,
-      lastReadAt: cached?.lastReadAt,
-      progress: summary.percentage,
+      lastReadAt: aggregate?.last_read_at || cached?.lastReadAt,
+      progress: progressPercentage,
       lastChapterRead: cached?.lastChapterRead,
       lastPageRead: cached?.lastPageRead,
       readingStatus,
@@ -225,7 +291,12 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
     remoteEntries.push(entry);
     libraryCacheWrites.push(idbPut('library', entry as unknown as Record<string, unknown>));
 
-    if (progressSnapshotComplete && !row.reading_status_manual && storedStatus !== automaticStatus) {
+    if (
+      progressSnapshotComplete
+      && !hasPendingProgress
+      && !row.reading_status_manual
+      && storedStatus !== automaticStatus
+    ) {
       statusWrites.push(
         sb
           .from('library_entries')
@@ -241,7 +312,7 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
   const staleLibraryDeletes = localEntries
     .filter((entry) => !remoteIds.has(entry.mangaId))
     .map((entry) => idbDelete('library', entry.mangaId));
-  await Promise.all([...progressCacheWrites, ...libraryCacheWrites, ...staleLibraryDeletes]);
+  await Promise.all([...libraryCacheWrites, ...staleLibraryDeletes]);
   if (statusWrites.length) await Promise.allSettled(statusWrites);
   return remoteEntries;
 }

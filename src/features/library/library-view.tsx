@@ -1,10 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PachiCalico } from "@/components/pachi-calico";
-import Image from "next/image";
 import { PixelRoomBanner } from "@/components/pixel-room-banner";
 import { shouldRefreshLibrarySource, type LibraryReadingStatus } from "@/lib/library/library-state";
 import { isTauriNative } from "@/lib/native/tauri-bridge";
@@ -16,18 +16,32 @@ import {
 import { removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 
-type SortMode = "recent" | "title";
-type FilterMode = "All" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Plan to Read";
+type SortMode = "recent" | "lastRead" | "progress" | "added" | "title";
+type FilterMode = "All" | "Unread Updates" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Plan to Read";
+type StatusFilterMode = Exclude<FilterMode, "All" | "Unread Updates">;
 type ViewMode = "grid" | "compact";
 
-const filters: FilterMode[] = ["All", "Reading", "Completed", "On Hold", "Dropped", "Plan to Read"];
-const filterStatus: Record<Exclude<FilterMode, "All">, LibraryReadingStatus> = {
+const filters: FilterMode[] = ["All", "Unread Updates", "Reading", "Completed", "On Hold", "Dropped", "Plan to Read"];
+const filterStatus: Record<StatusFilterMode, LibraryReadingStatus> = {
   Reading: "reading",
   Completed: "completed",
   "On Hold": "on_hold",
   Dropped: "dropped",
   "Plan to Read": "plan_to_read",
 };
+const LIBRARY_VIEW_KEY = "pachimanga:library-view";
+const INITIAL_VISIBLE = 48;
+const LOAD_MORE_COUNT = 48;
+
+function initialLibraryView(): ViewMode {
+  if (typeof window === "undefined") return "grid";
+  try {
+    const stored = localStorage.getItem(LIBRARY_VIEW_KEY);
+    return stored === "compact" ? "compact" : "grid";
+  } catch {
+    return "grid";
+  }
+}
 
 function SearchIcon() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>;
@@ -61,18 +75,28 @@ function subscribeNative() {
   return () => {};
 }
 
+function mangaHref(manga: Manga, native: boolean) {
+  if (manga.sourceId === "import") return null;
+  return native && manga.sourceId === "weebcentral" ? `/native/manga/${manga.id}` : `/manga/${manga.id}`;
+}
+
 export function LibraryView() {
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
-  const [view, setView] = useState<ViewMode>("grid");
+  const [view, setView] = useState<ViewMode>(initialLibraryView);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const sourceRefreshRunning = useRef(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(LIBRARY_VIEW_KEY, view); } catch { /* optional preference */ }
+  }, [view]);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,10 +175,17 @@ export function LibraryView() {
       .map((entry) => ({ entry, manga: entry.manga }))
       .filter((item): item is { entry: LibraryEntry; manga: Manga } => Boolean(item.manga))
       .filter((item) => !q || item.manga.title.toLowerCase().includes(q) || item.manga.genres.some((genre) => genre.toLowerCase().includes(q)))
-      .filter((item) => filter === "All" || item.entry.readingStatus === filterStatus[filter]);
+      .filter((item) => {
+        if (filter === "All") return true;
+        if (filter === "Unread Updates") return Number(item.entry.newChapterCount || 0) > 0;
+        return item.entry.readingStatus === filterStatus[filter];
+      });
 
     pairs.sort((a, b) => {
       if (sort === "title") return a.manga.title.localeCompare(b.manga.title);
+      if (sort === "progress") return Number(b.entry.progress || 0) - Number(a.entry.progress || 0);
+      if (sort === "lastRead") return (b.entry.lastReadAt || "").localeCompare(a.entry.lastReadAt || "");
+      if (sort === "added") return b.entry.addedAt.localeCompare(a.entry.addedAt);
       const aUpdated = a.entry.lastChapterChangeAt || a.entry.addedAt;
       const bUpdated = b.entry.lastChapterChangeAt || b.entry.addedAt;
       return bUpdated.localeCompare(aUpdated);
@@ -162,7 +193,16 @@ export function LibraryView() {
     return pairs;
   }, [entries, filter, query, sort]);
 
-  const unmatchedImports = useMemo(() => manga.filter((item) => item.manga.sourceId === "import"), [manga]);
+  const visibleManga = manga.slice(0, visibleCount);
+  const continueReading = useMemo(() => entries
+    .map((entry) => ({ entry, manga: entry.manga }))
+    .filter((item): item is { entry: LibraryEntry; manga: Manga } => Boolean(item.manga))
+    .filter(({ entry, manga: title }) => title.sourceId !== "import" && Number(entry.progress || 0) > 0 && Number(entry.progress || 0) < 99)
+    .sort((a, b) => (b.entry.lastReadAt || b.entry.addedAt).localeCompare(a.entry.lastReadAt || a.entry.addedAt))
+    .slice(0, 5), [entries]);
+  const unmatchedImports = useMemo(() => entries
+    .filter((entry) => entry.manga?.sourceId === "import")
+    .map((entry) => ({ entry, manga: entry.manga as Manga })), [entries]);
 
   async function removeEntry(entry: LibraryEntry, title: string) {
     if (!window.confirm(`Remove "${title}" from your library?`)) return;
@@ -233,6 +273,9 @@ export function LibraryView() {
               className="h-13 min-w-44 rounded-[12px] border border-white/[.09] bg-[#15151f] px-4 text-sm text-zinc-300 outline-none transition hover:border-white/[.14] focus:border-pink-400/45"
             >
               <option value="recent">Recently Updated</option>
+              <option value="lastRead">Last Read</option>
+              <option value="progress">Progress</option>
+              <option value="added">Recently Added</option>
               <option value="title">Title A–Z</option>
             </select>
             <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1">
@@ -258,6 +301,36 @@ export function LibraryView() {
           ))}
         </div>
 
+        {ready && continueReading.length > 0 && !query && filter === "All" ? (
+          <section className="mt-7" aria-labelledby="continue-reading-heading">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="pixel-kicker text-[9px] text-sky-300">Pick up where you left off</p>
+                <h2 id="continue-reading-heading" className="mt-1 text-lg font-semibold text-zinc-100">Continue Reading</h2>
+              </div>
+              <button type="button" onClick={() => setSort("lastRead")} className="text-xs text-zinc-500 transition hover:text-zinc-200">Sort by last read</button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              {continueReading.map(({ entry, manga: title }) => {
+                const href = mangaHref(title, native);
+                if (!href) return null;
+                return (
+                  <Link key={`continue-${entry.sourceId}-${entry.mangaId}`} href={href} onClick={() => acknowledgeUpdates(entry)} className="group flex min-w-0 items-center gap-3 rounded-xl border border-white/[.08] bg-[#12121b] p-2.5 transition hover:border-sky-300/25 hover:bg-[#151520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70">
+                    <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-[#17151d]">
+                      {title.coverUrl ? <Image src={title.coverUrl} alt="" fill sizes="44px" unoptimized className="object-cover" /> : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-semibold text-zinc-200 group-hover:text-white">{title.title}</div>
+                      <div className="mt-1 text-[10px] text-zinc-500">{Math.round(Number(entry.progress || 0))}% read</div>
+                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[.08]"><div className="h-full rounded-full bg-sky-300" style={{ width: `${Math.min(100, Math.max(0, Number(entry.progress || 0)))}%` }} /></div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         <div className="mt-6 flex items-end justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-lg bg-pink-400/10 text-pink-400" aria-hidden="true"><BookIcon /></span>
@@ -282,23 +355,30 @@ export function LibraryView() {
             {Array.from({ length: 6 }, (_, index) => <div key={index} className="aspect-[2/3.55] animate-pulse rounded-2xl bg-white/[.045]" />)}
           </div>
         ) : manga.length ? (
-          <div className={`mt-4 grid gap-x-3 gap-y-5 sm:gap-x-4 ${view === "compact" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
-            {manga.map(({ manga: title, entry }) => (
-              <MangaCard
-                key={`${entry.sourceId}-${title.id}`}
-                manga={title}
-                progress={entry.progress}
-                href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
-                onRemove={() => void removeEntry(entry, title.title)}
-                lastChapterRead={entry.lastChapterRead}
-                readingStatus={entry.readingStatus}
-                readingStatusManual={entry.readingStatusManual}
-                newChapterCount={entry.newChapterCount}
-                onStatusChange={(status) => void changeStatus(entry, status)}
-                onOpen={() => acknowledgeUpdates(entry)}
-              />
-            ))}
-          </div>
+          <>
+            <div className={`mt-4 grid gap-x-3 gap-y-5 sm:gap-x-4 ${view === "compact" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
+              {visibleManga.map(({ manga: title, entry }) => (
+                <MangaCard
+                  key={`${entry.sourceId}-${title.id}`}
+                  manga={title}
+                  progress={entry.progress}
+                  href={native && title.sourceId === "weebcentral" ? `/native/manga/${title.id}` : undefined}
+                  onRemove={() => void removeEntry(entry, title.title)}
+                  lastChapterRead={entry.lastChapterRead}
+                  readingStatus={entry.readingStatus}
+                  readingStatusManual={entry.readingStatusManual}
+                  newChapterCount={entry.newChapterCount}
+                  onStatusChange={(status) => void changeStatus(entry, status)}
+                  onOpen={() => acknowledgeUpdates(entry)}
+                />
+              ))}
+            </div>
+            {visibleCount < manga.length ? (
+              <div className="mt-7 flex justify-center">
+                <button type="button" onClick={() => setVisibleCount((count) => count + LOAD_MORE_COUNT)} className="button-secondary px-5 py-2.5 text-sm">Show more ({manga.length - visibleCount} remaining)</button>
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="mt-8 flex min-h-64 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">
             <Image
@@ -309,11 +389,11 @@ export function LibraryView() {
               loading="lazy"
               className="h-32 w-auto rounded-xl object-cover"
             />
-            <h3 className="mt-1 font-semibold text-zinc-200">Your library is empty</h3>
-            <p className="mt-1 max-w-md text-sm leading-6 text-zinc-500">Search the catalog to add manga, or import an existing Tachiyomi, Mihon or Tachimanga library into this account.</p>
+            <h3 className="mt-1 font-semibold text-zinc-200">{entries.length ? "No titles match these filters" : "Your library is empty"}</h3>
+            <p className="mt-1 max-w-md text-sm leading-6 text-zinc-500">{entries.length ? "Try another reading status, clear the search, or review titles with unread updates." : "Search the catalog to add manga, or import an existing Tachiyomi, Mihon or Tachimanga library into this account."}</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              <Link href="/browse" className="button-primary px-4 py-2.5 text-sm">Browse manga</Link>
-              <Link href="/import" className="button-secondary px-4 py-2.5 text-sm">Import library</Link>
+              {entries.length ? <button type="button" onClick={() => { setFilter("All"); setQuery(""); }} className="button-primary px-4 py-2.5 text-sm">Clear filters</button> : <Link href="/browse" className="button-primary px-4 py-2.5 text-sm">Browse manga</Link>}
+              {!entries.length ? <Link href="/import" className="button-secondary px-4 py-2.5 text-sm">Import library</Link> : null}
             </div>
           </div>
         )}
