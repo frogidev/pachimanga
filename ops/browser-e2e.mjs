@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { chromium } from 'playwright';
 
 const BASE_URL = (process.env.BASE_URL || 'https://pachimanga.frogilab.dev').replace(/\/$/, '');
 const ACCOUNT_A = {
@@ -19,6 +18,17 @@ const viewports = [
 
 function configured(account) {
   return Boolean(account.email && account.password);
+}
+
+async function loadChromium() {
+  try {
+    const { chromium } = await import('playwright');
+    return chromium;
+  } catch {
+    throw new Error(
+      'Browser E2E requires Playwright in the execution environment. The Pachimanga project does not install it as a dependency; run this optional evidence check only from an environment where Playwright and Chromium are already available.',
+    );
+  }
 }
 
 async function assertNoHorizontalOverflow(page, label) {
@@ -124,6 +134,7 @@ async function runAuthenticatedMatrix(browser) {
   await returnContext.close();
 }
 
+const chromium = await loadChromium();
 const browser = await chromium.launch({ headless: true });
 try {
   await runAnonymousMatrix(browser);
