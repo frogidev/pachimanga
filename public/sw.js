@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pachimanga-pwa-v4-auth";
+const CACHE_VERSION = "pachimanga-pwa-v5-auth";
 const PUBLIC_SHELL = [
   "/offline",
   "/icons/icon-192.png",
@@ -9,7 +9,10 @@ const PUBLIC_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(PUBLIC_SHELL)));
-  self.skipWaiting();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
