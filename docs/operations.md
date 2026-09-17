@@ -6,29 +6,31 @@ Production UI: `https://pachimanga.frogilab.dev`
 
 ## Current operating mode — 2026-09-17
 
-- observed `main`: `ef67bc255134ec9bf033846bb8d062131195c715`;
-- latest production runtime deployment: `dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN`, `READY`;
-- production runtime commit: `605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6`;
-- PR #52 is tests/ops/docs only and does not require a new hosted-runtime deployment;
-- user-operated local `npm run verify` passed 94/94 tests, lint, typecheck, and production build;
-- user-operated production smoke passed 9 protected routes and 4 PWA icons;
-- GitHub Actions capacity is unavailable for the remainder of the current month.
+- observed `main`: `b54beabf1b6dcc23a67f977e834487ada595a44f`;
+- latest production runtime deployment: `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`;
+- production runtime commit: `dcc14856863ee3ab7a9877e5c7cd9bf953582c95`;
+- the current `main` tip is verification/docs-only and runtime-equivalent to that deployed commit;
+- required Repository Hygiene and Web Quality checks are active and passed for the latest merged runtime hardening;
+- PR Production Smoke passed against the anonymous production boundary;
+- the latest direct post-deploy `node ops/production-smoke.mjs` attempt from the agent container did not run assertions because DNS resolution failed with `EAI_AGAIN`; rerun it from a network-capable environment before release-candidate status;
+- Vercel Hobby build-rate capacity can temporarily block preview creation; treat that as a platform blocker, not as permission to skip runtime preview/build evidence.
 
-Do not weaken auth/RLS/account isolation/cache/secret boundaries as a substitute for unavailable Actions.
+Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around CI, preview, provider, or platform limitations.
 
 ## Standard runtime-change verification
 
 For every `main` change that affects hosted runtime:
 
 1. run `npm ci` and `npm run verify` from an updated local clone or equivalent trusted environment;
-2. require a successful Vercel preview/build signal when available;
-3. merge only after the branch/diff is reviewed and the repository's active merge rules permit it;
-4. confirm the exact intended runtime commit (or runtime-equivalent descendant) reaches a Vercel production deployment in `READY`;
-5. run `node ops/production-smoke.mjs` against production;
-6. confirm anonymous protected routes still resolve to auth with `Cache-Control: private, no-store`;
-7. inspect recent Vercel production `error`/`fatal` logs;
-8. if provider/API behavior changed, exercise the implicated source path without using unstable live providers as a general build gate;
-9. record exact evidence in the latest dated verification document.
+2. require the repository's Repository Hygiene and Web Quality checks to pass;
+3. require a successful Vercel preview/build signal for runtime changes when the project can produce one;
+4. merge only after the branch/diff is reviewed and the repository's active merge rules permit it;
+5. confirm the exact intended runtime commit (or runtime-equivalent descendant) reaches a Vercel production deployment in `READY`;
+6. run `node ops/production-smoke.mjs` against production;
+7. confirm anonymous protected routes still resolve to auth with `Cache-Control: private, no-store`;
+8. inspect recent Vercel production `error`/`fatal` logs;
+9. if provider/API behavior changed, exercise the implicated source path without using unstable live providers as a general build gate;
+10. record exact evidence in the latest dated verification document.
 
 PowerShell smoke:
 
@@ -37,19 +39,18 @@ $env:BASE_URL="https://pachimanga.frogilab.dev"
 node .\ops\production-smoke.mjs
 ```
 
-## GitHub Actions monthly limitation
+## CI and Vercel capacity handling
 
-Actions workflows remain in the repository, but capacity is currently unavailable. During this period:
+Keep repository quality signals and platform capacity separate.
 
-- do not wait indefinitely for Actions jobs that cannot run;
-- do not add workflows solely to compensate;
-- do not remove security/quality requirements from code or tests;
-- preserve `npm run verify` as the local full gate;
-- use Vercel as the hosted build/deployment signal;
-- use direct production smoke and Vercel runtime logs for post-deploy evidence;
-- treat optional browser E2E separately from the merge-critical local gate.
+- GitHub Repository Hygiene/Web Quality failures are code/repository blockers and must be investigated from the failing job/log.
+- A Vercel build-rate/quota failure is a platform-capacity blocker. It does not validate the branch and must not be reclassified as an application pass.
+- Do not add redundant workflows merely to work around temporary capacity limits.
+- Do not remove security/quality requirements to get a branch merged.
+- Preserve `npm run verify` as the local full gate.
+- Keep optional browser E2E separate from the merge-critical static gate unless the workplan explicitly promotes it.
 
-When Actions capacity returns, re-evaluate ruleset/check behavior before assuming previous required-check configuration is still active.
+When platform capacity returns, rerun the missing hosted evidence against the exact current branch head rather than relying on an older preview.
 
 ## Vercel ignored-build policy
 
