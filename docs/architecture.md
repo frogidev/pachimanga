@@ -6,12 +6,15 @@ Production UI: `https://pachimanga.frogilab.dev`
 
 ## Current runtime state — 2026-09-17
 
-- observed `main`: `ef67bc255134ec9bf033846bb8d062131195c715`;
-- latest production runtime: `605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6`;
-- Vercel deployment: `dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN`, `READY`;
-- `main` is newer only by tests/ops/docs from PR #52;
-- user-operated local quality gate passed 94/94 tests, lint, typecheck, and production build;
-- production smoke passed 9 protected routes and 4 PWA icons.
+- observed `main`: `b54beabf1b6dcc23a67f977e834487ada595a44f`;
+- latest production runtime: `dcc14856863ee3ab7a9877e5c7cd9bf953582c95`;
+- Vercel deployment: `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`;
+- `main` is newer only by the PR #63 verification/docs commit and is runtime-equivalent to the deployed PR #62 squash commit;
+- PR #62 passed required Repository Hygiene and Web Quality, including install, unit tests, lint, typecheck, and production build;
+- PR Production Smoke passed against the anonymous production boundary;
+- direct post-deploy production smoke still needs a fresh rerun from a network-capable environment because the latest agent-container attempt failed DNS resolution before assertions ran.
+
+The remaining PWA release-candidate blockers are real-account/device/import evidence, not missing autonomous runtime hardening. See `WORKPLAN.md` for the exact matrix.
 
 ## Non-negotiable boundaries
 
@@ -132,7 +135,7 @@ Reader settings use an account-specific local cache plus owner-bound outbox. Ser
 
 ### Visible sync state
 
-The shell/Settings expose `Synced`, `Syncing · N pending`, and offline/pending states based on the real owner-bound queues. A richer explicit `Sync now`/retry control is still planned in `WORKPLAN.md`.
+The shell/Settings expose `Synced`, `Syncing · N pending`, and offline/pending states based on the real owner-bound queues. Settings also exposes explicit `Sync now` and retry controls; these flush the same owner-bound queues rather than creating a separate synchronization path.
 
 ## Library state model
 
@@ -222,31 +225,35 @@ Imported titles always resolve into the normal signed-in Library model; there is
 
 Vercel deploys hosted-runtime changes from `main`. `scripts/vercel-ignore-build.mjs` fails open to build when comparison SHAs are missing/unusable and skips only proven non-runtime changes.
 
-GitHub Actions capacity is temporarily unavailable. Current validation path is:
+Current validation path is:
 
 ```text
-local npm ci + npm run verify
-        -> Vercel preview/build for runtime changes
+npm ci + npm run verify
+        -> required GitHub Repository Hygiene/Web Quality checks
+        -> Vercel preview/build for runtime changes when available
         -> merge
         -> exact production READY deployment
         -> production smoke
         -> Vercel runtime error/fatal inspection
 ```
 
+A temporary Vercel Hobby build-rate limit is a platform/capacity blocker, not evidence that a runtime change is safe. Keep runtime PRs unmerged until required preview/build evidence can be obtained under the active project policy.
+
 Do not interpret a docs/tests-only `main` commit without a new Vercel production build as deployment drift when runtime-equivalence is proven.
 
-## Remaining architecture/product work before human testing
+## Remaining release-candidate work
 
-Planned but not yet implemented:
+Autonomous pre-human-testing hardening is complete. The remaining gate requires observed real-world evidence for:
 
-- richer safe diagnostics panel;
-- explicit Sync now / retry control;
-- more specific provider/network/403/429/relay error presentation;
-- account data JSON export without secrets;
-- final accessibility/responsive/error-state pass;
-- manual per-title provider refresh + last-checked UI.
+- registration, confirmation, recovery, logout/login, and Account A -> B -> A isolation;
+- two-session/two-device synchronization and clock-skew behavior;
+- live production data on Library/Browse/Updates/History without placeholder substitution;
+- installed PWA behavior on representative iPhone/iPad/Android/desktop devices;
+- conventional and long-strip reader behavior;
+- representative supported import formats;
+- a fresh credential-free production smoke on the current runtime from a network-capable environment.
 
-See `WORKPLAN.md`.
+Do not replace this evidence with additional unrelated feature expansion. See `WORKPLAN.md` for the exact checklist.
 
 ## Required verification
 
