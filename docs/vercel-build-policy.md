@@ -70,8 +70,8 @@ The policy has remained in effect through later runtime deployments.
 Latest observed hosted runtime deployment:
 
 ```text
-deployment: dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN
-runtime:    605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6
+deployment: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
 state:      READY
 alias:      https://pachimanga.frogilab.dev
 ```
@@ -79,26 +79,23 @@ alias:      https://pachimanga.frogilab.dev
 Observed repository `main`:
 
 ```text
-ef67bc255134ec9bf033846bb8d062131195c715
+c9060fd177b7d3cdf607cbde1945af875e283fa7
 ```
 
-That newer `main` commit is PR #52, which changes tests/operations/documentation but no hosted-runtime paths. Therefore production remaining on `605c723...` is expected and is evidence that valid non-runtime skipping still works rather than deployment drift.
-
-User-operated production smoke against the current site passed 9 protected routes and 4 PWA icons. Recent production runtime error/fatal inspection was clean in the inspected window.
+PR #68 exercised both sides of the policy. Several branch preview attempts were rejected by the Vercel Hobby build-rate limit, which is external capacity and not an application build result. The exact merged runtime commit was accepted as a production build and reached `READY`. Post-deploy error/fatal inspection for that exact deployment returned no matching entries in the inspected window.
 
 ## Current validation mode
 
-GitHub Actions capacity is unavailable for the remainder of the current month. This does not change the Vercel policy.
+Repository Hygiene and Web Quality are active again and remain the primary repository gates. For runtime changes use:
 
-For runtime changes use:
+1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
+2. local `npm ci` + `npm run verify` when available;
+3. Vercel preview/build signal when platform capacity permits;
+4. exact production deployment `READY` check after merge;
+5. `node ops/production-smoke.mjs` against production;
+6. Vercel production error/fatal inspection.
 
-1. local `npm ci` + `npm run verify`;
-2. Vercel preview/build signal;
-3. exact production deployment `READY` check after merge;
-4. `node ops/production-smoke.mjs` against production;
-5. Vercel production error/fatal inspection.
-
-Do not disable ignored-build safety, auth boundaries, RLS, or cache isolation to compensate for unavailable Actions.
+A Vercel build-rate-limit status is not a successful preview and must not be relabeled as one. It also must not be worked around by weakening ignored-build safety, auth boundaries, RLS, or cache isolation.
 
 ## Safety rules
 
