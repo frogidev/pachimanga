@@ -40,6 +40,13 @@ test('account security exposes password change and recovery email actions', () =
   assert.match(accountSettings, /Send reset email/);
 });
 
+test('auth and account sign-out do not clear local ownership after a rejected sign-out', () => {
+  assert.match(authForm, /const \{ error \} = await sb\.auth\.signOut\(\);\s*if \(error\) throw error;/s);
+  assert.match(accountSettings, /const \{ error \} = await sb\.auth\.signOut\(\);\s*if \(error\) throw error;/s);
+  assert.match(authForm, /await Promise\.all\(\[clearLocalUserCache\(\), clearChapterCache\(\)\]\)/);
+  assert.match(accountSettings, /await Promise\.all\(\[clearLocalUserCache\(\), clearChapterCache\(\)\]\)/);
+});
+
 test('registration can resend confirmation without weakening confirmation requirements', () => {
   assert.match(authForm, /auth\.resend\(\{/);
   assert.match(authForm, /type: 'signup'/);
