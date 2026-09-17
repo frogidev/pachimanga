@@ -11,16 +11,25 @@ import {
 } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
-const WEB_STATUS = "Search WeebCentral through the private relay, with MangaDex and ComicK fallback.";
-const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
+const WEB_STATUS = "Search the live WeebCentral relay first, with MangaDex as the readable fallback.";
+const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device, with MangaDex fallback.";
 
 type RuntimeMode = "checking" | "web" | "native";
 type SourceHealth = "idle" | "checking" | "reachable" | "unreachable";
+type SearchState = "idle" | "searching" | "done" | "error";
 
 type WebRelayStatus = {
   configured?: boolean;
   reachable?: boolean;
   transport?: "relay" | "direct";
+  error?: string;
+};
+
+type SearchResponse = {
+  items?: Manga[];
+  source?: string | null;
+  transport?: string;
+  warning?: string;
   error?: string;
 };
 
@@ -35,6 +44,9 @@ export function BrowseView() {
   const [sourceHealth, setSourceHealth] = useState<SourceHealth>("idle");
   const [status, setStatus] = useState(WEB_STATUS);
   const [sourceNotice, setSourceNotice] = useState<string | null>(null);
+  const [searchState, setSearchState] = useState<SearchState>("idle");
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,10 +78,10 @@ export function BrowseView() {
             setSourceHealth(relayReady ? "reachable" : "unreachable");
             setSourceNotice(
               relayReady
-                ? "Private WeebCentral relay connected · PWA/web has full WeebCentral access."
+                ? "Private WeebCentral relay connected · PWA/web can query WeebCentral."
                 : body.configured
                   ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."} MangaDex remains available.`
-                  : "Private WeebCentral relay is not configured yet · MangaDex fallback remains available.",
+                  : "Private WeebCentral relay is not configured · MangaDex remains available.",
             );
           })
           .catch((error) => {
@@ -89,18 +101,24 @@ export function BrowseView() {
   useEffect(() => {
     if (runtime === "checking") return;
     const q = query.trim();
-    if (!q) {
-      const resetTimer = window.setTimeout(() => {
+    const stateTimer = window.setTimeout(() => {
+      if (!q) {
         setResults([]);
+        setSearchState("idle");
+        setSearchError(null);
         setStatus(runtime === "native" ? NATIVE_STATUS : WEB_STATUS);
-      }, 0);
-      return () => clearTimeout(resetTimer);
-    }
+      } else {
+        setResults([]);
+        setSearchState("searching");
+        setSearchError(null);
+      }
+    }, 0);
+    if (!q) return () => window.clearTimeout(stateTimer);
 
     const controller = new AbortController();
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setStatus(runtime === "native" ? "Searching WeebCentral from this device…" : "Searching manga sources…");
+      setStatus(runtime === "native" ? "Searching live WeebCentral from this device…" : "Searching live manga sources…");
       if (runtime === "native") setSourceNotice("Native WeebCentral search in progress…");
       let nativeError: string | undefined;
 
@@ -110,54 +128,67 @@ export function BrowseView() {
           if (cancelled) return;
           if (nativeItems.length) {
             setResults(nativeItems);
+            setSearchState("done");
             setSourceHealth("reachable");
             setSourceNotice(`Using WeebCentral directly from this device · ${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"}.`);
-            setStatus(`${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
+            setStatus(`${nativeItems.length} readable result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
             return;
           }
-          setSourceNotice("WeebCentral answered the native search but returned no matching titles. Trying MangaDex…");
+          setSourceNotice("WeebCentral answered the native search with 0 matching titles. Checking MangaDex fallback…");
         } catch (error) {
           nativeError = nativeErrorMessage(error);
           setSourceHealth("unreachable");
-          setSourceNotice(`Native WeebCentral failed: ${nativeError} · Trying MangaDex fallback…`);
+          setSourceNotice(`Native WeebCentral failed: ${nativeError} · Checking MangaDex fallback…`);
         }
       }
 
       try {
-        const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "Search failed");
+        const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}`, { signal: controller.signal, cache: "no-store" });
+        const body = await response.json() as SearchResponse;
+        if (!response.ok) throw new Error(body.error || `Search failed with HTTP ${response.status}`);
         if (cancelled) return;
-        const items = body.items || [];
-        setResults(items);
-        const source = body.source || "source";
-        const viaRelay = runtime === "web" && source === "WeebCentral" && body.transport === "relay";
-        const fallbackNote = runtime === "native" && nativeError
-          ? ` · Native WeebCentral unavailable (${nativeError}); ${source} was used.`
-          : body.warning && source === "MangaDex"
-            ? " · WeebCentral is unavailable, so MangaDex was used."
-            : viaRelay
-              ? " · private relay"
-              : "";
 
+        const items = Array.isArray(body.items) ? body.items : [];
+        const source = typeof body.source === "string" ? body.source : null;
+        setResults(items);
+        setSearchState("done");
+
+        const viaRelay = runtime === "web" && source === "WeebCentral" && body.transport === "relay";
         if (runtime === "native") {
           setSourceNotice(
-            nativeError
-              ? `Showing ${source} fallback · native WeebCentral error: ${nativeError}`
-              : `Showing ${source} fallback because native WeebCentral returned no matching titles.`,
+            source
+              ? nativeError
+                ? `Showing ${source} fallback · native WeebCentral error: ${nativeError}`
+                : `Showing ${source} fallback because native WeebCentral returned 0 matching titles.`
+              : nativeError
+                ? `No readable fallback result · native WeebCentral error: ${nativeError}`
+                : "WeebCentral and MangaDex both returned 0 readable matches.",
           );
         } else if (viaRelay) {
           setSourceHealth("reachable");
           setSourceNotice(`Using WeebCentral through the private relay · ${items.length} result${items.length === 1 ? "" : "s"}.`);
         } else if (body.warning) {
           setSourceHealth("unreachable");
-          setSourceNotice(`Showing ${source} fallback · ${body.warning}`);
+          setSourceNotice(source ? `Showing ${source} fallback · ${body.warning}` : `Live source warning · ${body.warning}`);
         }
-        setStatus(`${items.length} result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
+
+        if (items.length && source) {
+          const fallbackNote = body.warning && source === "MangaDex"
+            ? " · WeebCentral unavailable"
+            : viaRelay
+              ? " · private relay"
+              : "";
+          setStatus(`${items.length} readable result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
+        } else {
+          setStatus(`0 readable titles returned by the live sources for “${q}”.`);
+        }
       } catch (error) {
         if (!cancelled && (error as Error).name !== "AbortError") {
           const message = nativeErrorMessage(error);
-          setStatus(message);
+          setResults([]);
+          setSearchState("error");
+          setSearchError(message);
+          setStatus(`Live search failed: ${message}`);
           setSourceNotice(`Search failed: ${message}`);
         }
       }
@@ -165,10 +196,11 @@ export function BrowseView() {
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      window.clearTimeout(stateTimer);
+      window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, runtime]);
+  }, [query, retryNonce, runtime]);
 
   const sourceDot = sourceHealth === "reachable"
     ? "bg-emerald-400"
@@ -182,7 +214,8 @@ export function BrowseView() {
       ? "PWA/Web · private relay + MangaDex"
       : "PWA/Web · MangaDex fallback";
 
-  const hasQuery = Boolean(query.trim());
+  const q = query.trim();
+  const hasQuery = Boolean(q);
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
@@ -224,9 +257,9 @@ export function BrowseView() {
       <div className="mt-6 flex items-end justify-between">
         <div>
           <p className="pixel-kicker text-[9px] text-pink-400">Catalog</p>
-          <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{hasQuery ? "Search results" : "Search your manga sources"}</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{hasQuery ? "Live search results" : "Live source search"}</h2>
         </div>
-        {hasQuery ? <span className="text-xs text-zinc-500">{results.length} title{results.length === 1 ? "" : "s"}</span> : null}
+        {hasQuery && searchState === "done" ? <span className="text-xs text-zinc-500">{results.length} title{results.length === 1 ? "" : "s"}</span> : null}
       </div>
 
       {results.length ? (
@@ -239,13 +272,21 @@ export function BrowseView() {
             />
           ))}
         </div>
-      ) : (
-        <div className="surface-card mt-6 px-6 py-14 text-center">
-          <div className="text-3xl">⌕</div>
-          <h3 className="mt-3 font-semibold text-zinc-200">{hasQuery ? "No matching readable manga" : "Search to build your library"}</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">{hasQuery ? "Try a shorter title or remove punctuation. MangaDex fallback results are limited to titles that report available chapters." : "Pachimanga does not preload demo titles. Search a real source, open a manga, and add it to your private account."}</p>
+      ) : searchState === "searching" && hasQuery ? (
+        <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-sm text-zinc-400" role="status" aria-live="polite">
+          Searching live sources for “{q}”…
         </div>
-      )}
+      ) : searchState === "done" && hasQuery ? (
+        <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-sm text-zinc-400">
+          <strong className="text-zinc-200">0 readable titles returned.</strong>
+          <span className="ml-2">The current live sources returned no readable matches for “{q}”.</span>
+        </div>
+      ) : searchState === "error" && hasQuery ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-300/20 bg-amber-300/[.05] px-4 py-3 text-sm text-amber-100/80 sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <span>Live search failed{searchError ? `: ${searchError}` : "."}</span>
+          <button type="button" onClick={() => setRetryNonce((value) => value + 1)} className="button-secondary shrink-0 px-3 py-2 text-xs">Retry live search</button>
+        </div>
+      ) : null}
     </div>
   );
 }

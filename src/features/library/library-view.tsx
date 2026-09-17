@@ -379,22 +379,20 @@ export function LibraryView() {
               </div>
             ) : null}
           </>
-        ) : (
-          <div className="mt-8 flex min-h-64 flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-pink-300/20 bg-[#101018] px-6 text-center">
-            <Image
-              src="/ai-art/empty-shelves.avif"
-              alt="Sleeping cat on an empty manga shelf"
-              width={384}
-              height={256}
-              loading="lazy"
-              className="h-32 w-auto rounded-xl object-cover"
-            />
-            <h3 className="mt-1 font-semibold text-zinc-200">{entries.length ? "No titles match these filters" : "Your library is empty"}</h3>
-            <p className="mt-1 max-w-md text-sm leading-6 text-zinc-500">{entries.length ? "Try another reading status, clear the search, or review titles with unread updates." : "Search the catalog to add manga, or import an existing Tachiyomi, Mihon or Tachimanga library into this account."}</p>
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {entries.length ? <button type="button" onClick={() => { setFilter("All"); setQuery(""); }} className="button-primary px-4 py-2.5 text-sm">Clear filters</button> : <Link href="/browse" className="button-primary px-4 py-2.5 text-sm">Browse manga</Link>}
-              {!entries.length ? <Link href="/import" className="button-secondary px-4 py-2.5 text-sm">Import library</Link> : null}
-            </div>
+        ) : loadError ? null : (
+          <div className="surface-card mt-4 flex flex-col gap-3 px-5 py-4 text-sm text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              <strong className="text-zinc-200">{entries.length ? "0 titles match the current library filters." : "0 titles are stored in this account."}</strong>
+              <span className="ml-2">{entries.length ? "The loaded account data has no rows matching this view." : "The signed-in library returned no titles."}</span>
+            </p>
+            {entries.length ? (
+              <button type="button" onClick={() => { setFilter("All"); setQuery(""); }} className="button-secondary shrink-0 px-3 py-2 text-xs">Clear filters</button>
+            ) : (
+              <div className="flex shrink-0 gap-2">
+                <Link href="/browse" className="button-primary px-3 py-2 text-xs">Browse live sources</Link>
+                <Link href="/import" className="button-secondary px-3 py-2 text-xs">Import account data</Link>
+              </div>
+            )}
           </div>
         )}
 

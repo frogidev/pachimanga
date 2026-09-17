@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { MockCoverArt } from "@/components/mock-cover-art";
 import type { LibraryReadingStatus } from "@/lib/library/library-state";
 import type { Manga } from "@/types/models";
 
@@ -41,7 +40,7 @@ export function MangaCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const pct = typeof progress === "number" ? Math.min(100, Math.max(0, progress)) : 0;
-  const placeholderCover = !manga.coverUrl || imgError;
+  const missingCover = !manga.coverUrl || imgError;
   const targetHref = href ?? (manga.sourceId === "import" ? null : `/manga/${manga.id}`);
   const publication = manga.status === "complete"
     ? "Publication complete"
@@ -65,8 +64,13 @@ export function MangaCard({
   const card = (
     <article className="manga-card h-full">
       <div className="relative aspect-[2/3] overflow-hidden rounded-[13px] bg-[#17151d] ring-1 ring-white/[.08]">
-        {placeholderCover ? (
-          <MockCoverArt manga={manga} className="h-full w-full transition duration-300 group-hover:scale-[1.018]" />
+        {missingCover ? (
+          <div className="grid h-full w-full place-items-center bg-[#12111a] px-4 text-center">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-zinc-500">No cover available</div>
+              <div className="mt-2 line-clamp-3 text-xs leading-5 text-zinc-600">{manga.title}</div>
+            </div>
+          </div>
         ) : (
           <Image
             src={manga.coverUrl}

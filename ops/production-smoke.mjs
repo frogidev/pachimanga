@@ -7,8 +7,10 @@ const protectedPaths = [
   '/import',
   '/history',
   '/settings',
+  '/updates',
   '/manga/invalid-id',
   '/reader/invalid-id',
+  '/api/library/availability',
   '/api/source/weebcentral/status',
 ];
 
