@@ -50,7 +50,6 @@ export function AuthForm() {
   const message = override ?? urlMessage;
   const [busy, setBusy] = useState(false);
   const [signedIn, setSignedIn] = useState<string | null>(null);
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
@@ -101,8 +100,7 @@ export function AuthForm() {
           router.refresh();
           return;
         }
-        setAwaitingConfirmation(true);
-        setOverride('Account created. Check your email to confirm the account. If it does not arrive, use Resend confirmation below after the provider cooldown.');
+        setOverride('Registration request accepted. Check your email for a confirmation link. If it does not arrive, use Resend confirmation after the provider cooldown.');
       } else {
         const { error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -132,7 +130,6 @@ export function AuthForm() {
         options: { emailRedirectTo: confirmationRedirect() },
       });
       if (error) throw error;
-      setAwaitingConfirmation(true);
       setOverride('Confirmation email requested. Check your inbox and spam folder. If the provider reports a rate limit, wait before retrying.');
     } catch (error) {
       setOverride(error instanceof Error ? error.message : 'Could not resend the confirmation email.');
@@ -241,14 +238,14 @@ export function AuthForm() {
   return (
     <div className="surface-card p-5 sm:p-6">
       <div className="grid grid-cols-2 rounded-xl border border-white/[.07] bg-[#0d0c12] p-1">
-        <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'login' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('login'); setAwaitingConfirmation(false); setOverride(''); }}>Sign in</button>
+        <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'login' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('login'); setOverride(''); }}>Sign in</button>
         <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'signup' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('signup'); setOverride(''); }}>Register</button>
       </div>
 
       <form onSubmit={submit} className="mt-5 grid gap-4">
         <label className="grid gap-2 text-sm text-zinc-400">
           Email
-          <input className="field px-3.5 py-3 text-white" type="email" required value={email} onChange={(event) => { setEmail(event.target.value); setAwaitingConfirmation(false); }} placeholder="you@example.com" autoComplete="email" />
+          <input className="field px-3.5 py-3 text-white" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" />
         </label>
         <label className="grid gap-2 text-sm text-zinc-400">
           Password
@@ -263,10 +260,10 @@ export function AuthForm() {
           </div>
         ) : null}
 
-        {mode === 'signup' && (awaitingConfirmation || urlMessage.includes('confirmation')) ? (
+        {mode === 'signup' || urlMessage.includes('confirmation') ? (
           <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.04] p-3">
             <p className="text-xs font-medium uppercase tracking-[.1em] text-amber-300">Confirmation email</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">Delivery can be delayed or rate-limited by the configured email provider. Retrying repeatedly can extend the cooldown.</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">Use this if a previous registration link expired or a confirmation email never arrived. Delivery can be delayed or rate-limited by the configured provider.</p>
             <button type="button" onClick={resendConfirmation} disabled={busy} className="button-secondary mt-3 px-3 py-2 text-sm disabled:opacity-50">Resend confirmation</button>
           </div>
         ) : null}
