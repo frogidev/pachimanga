@@ -84,7 +84,7 @@ function names(items?: ComickNamed[]) {
 
 function coverUrl(resource: ComickComic) {
   const key = resource.md_covers?.[0]?.b2key;
-  return key ? `${IMAGES}/${key}` : '/icons/icon-512.png';
+  return key ? `${IMAGES}/${key}` : '';
 }
 
 function genres(resource: ComickComic, detail?: ComickDetail) {
@@ -226,7 +226,7 @@ export class ComickSource implements MangaSource {
         );
         return { items: payload.chapters || [], total: payload.total };
       },
-      { pageSize: 100, maxPages: 6 },
+      { pageSize: 100, maxPages: 20 },
     );
 
     const seen = new Set<string>();
