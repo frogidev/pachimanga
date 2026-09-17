@@ -70,7 +70,7 @@ export function PwaInstall() {
           </button>
         ) : null}
 
-        {installResult ? <p className="mt-3 text-xs text-zinc-500">{installResult}</p> : null}
+        <p className="mt-3 min-h-5 text-xs text-zinc-500" role="status" aria-live="polite">{installResult || ""}</p>
       </div>
 
       {!installed ? (
