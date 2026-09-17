@@ -1,59 +1,51 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { ProviderFailure } from '@/components/provider-failure';
+import { ProviderRefreshStatus } from '@/components/provider-refresh-status';
 import { MangaDetail } from '@/features/manga/manga-detail';
+import { classifyProviderError } from '@/lib/source/provider-error';
 import { comickSource } from '@/sources/comick/comick-source';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
 import { weebCentralSource } from '@/sources/weebcentral/weebcentral-source';
 
 async function resolve(id: string) {
-  if (id.startsWith('wc-')) {
-    try {
-      const [manga, chapters] = await Promise.all([
-        weebCentralSource.getManga(id),
-        weebCentralSource.getChapters(id),
-      ]);
-      return { manga, chapters };
-    } catch {
-      return null;
-    }
-  }
+  const source = id.startsWith('wc-')
+    ? weebCentralSource
+    : id.startsWith('ck-')
+      ? comickSource
+      : id.startsWith('md-')
+        ? mangaDexSource
+        : null;
+  if (!source) return null;
 
-  if (id.startsWith('ck-')) {
-    try {
-      const [manga, chapters] = await Promise.all([
-        comickSource.getManga(id),
-        comickSource.getChapters(id),
-      ]);
-      return { manga, chapters };
-    } catch {
-      return null;
-    }
+  try {
+    const [manga, chapters] = await Promise.all([
+      source.getManga(id),
+      source.getChapters(id),
+    ]);
+    return { data: { manga, chapters }, error: null };
+  } catch (error) {
+    return { data: null, error: classifyProviderError(error) };
   }
-
-  if (id.startsWith('md-')) {
-    try {
-      const [manga, chapters] = await Promise.all([
-        mangaDexSource.getManga(id),
-        mangaDexSource.getChapters(id),
-      ]);
-      return { manga, chapters };
-    } catch {
-      return null;
-    }
-  }
-
-  return null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const data = await resolve(id);
-  return data ? { title: data.manga.title, description: data.manga.description } : { title: 'Manga not found' };
+  const result = await resolve(id);
+  if (!result) return { title: 'Manga not found' };
+  if (result.error) return { title: result.error.title };
+  return { title: result.data.manga.title, description: result.data.manga.description };
 }
 
 export default async function MangaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const data = await resolve(id);
-  if (!data) notFound();
-  return <MangaDetail manga={data.manga} chapters={data.chapters} />;
+  const result = await resolve(id);
+  if (!result) notFound();
+  if (result.error) return <ProviderFailure info={result.error} />;
+  return (
+    <>
+      <ProviderRefreshStatus mangaId={result.data.manga.id} sourceId={result.data.manga.sourceId} />
+      <MangaDetail manga={result.data.manga} chapters={result.data.chapters} />
+    </>
+  );
 }
