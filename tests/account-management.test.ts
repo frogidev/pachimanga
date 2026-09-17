@@ -14,11 +14,14 @@ const accountSettings = source('src/components/account-settings.tsx');
 const authForm = source('src/components/AuthForm.tsx');
 const appShell = source('src/components/app-shell.tsx');
 const settingsPage = source('src/app/settings/page.tsx');
+const productionSmoke = source('ops/production-smoke.mjs');
+const browserE2E = source('ops/browser-e2e.mjs');
 
 test('signed-in account management lives inside the normal app shell', () => {
   assert.match(accountPage, /<AccountSettings\s*\/>/);
   assert.match(appShell, /href="\/account"/);
   assert.match(settingsPage, /href="\/account"/);
+  assert.match(appShell, /aria-label="Manage account"[^>]*size-10/);
   assert.doesNotMatch(settingsPage, /href="\/auth"[^>]*>Manage account/);
 });
 
@@ -41,6 +44,14 @@ test('registration can resend confirmation without weakening confirmation requir
   assert.match(authForm, /auth\.resend\(\{/);
   assert.match(authForm, /type: 'signup'/);
   assert.match(authForm, /Resend confirmation/);
+  assert.match(authForm, /mode === 'signup' \|\| urlMessage\.includes\('confirmation'\)/);
   assert.match(authForm, /emailRedirectTo: confirmationRedirect\(\)/);
   assert.doesNotMatch(authForm, /mailer_autoconfirm|enable_confirmations\s*=\s*false/i);
+});
+
+test('account route is included in anonymous boundary and optional browser coverage', () => {
+  assert.match(productionSmoke, /'\/account'/);
+  assert.match(browserE2E, /'\/account'/);
+  assert.match(browserE2E, /Your Pachimanga account/);
+  assert.match(browserE2E, /Personalize your account/);
 });
