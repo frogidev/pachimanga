@@ -23,7 +23,7 @@ function assert(condition, message) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${BASE_URL}${path}`, {
+  return fetch(`${BASE_URL}${path}`, {
     redirect: 'manual',
     headers: {
       'User-Agent': 'PachimangaProductionSmoke/1.0',
@@ -31,7 +31,6 @@ async function request(path, options = {}) {
     },
     ...options,
   });
-  return response;
 }
 
 async function checkProtectedPath(path) {
@@ -88,7 +87,9 @@ async function checkServiceWorker() {
   assert((response.headers.get('content-type') || '').includes('javascript'), '/sw.js: expected JavaScript content type');
   assert(text.includes('request.mode === "navigate"'), '/sw.js: expected navigation handling');
   assert(text.includes('url.pathname.startsWith("/api/")'), '/sw.js: expected API exclusion');
-  assert(text.includes('caches.match("/offline")'), '/sw.js: expected offline navigation fallback');
+  assert(text.includes('cache.match("/offline")') || text.includes('caches.match("/offline")'), '/sw.js: expected offline navigation fallback');
+  assert(text.includes('RUNTIME_CACHE_LIMIT'), '/sw.js: expected bounded runtime cache');
+  assert(text.includes('CHAPTER_CACHE'), '/sw.js: expected explicit chapter cache boundary');
 }
 
 async function main() {
