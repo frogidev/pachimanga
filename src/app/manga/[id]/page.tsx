@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { ProviderRefreshStatus } from '@/components/provider-refresh-status';
 import { MangaDetail } from '@/features/manga/manga-detail';
 import { comickSource } from '@/sources/comick/comick-source';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
@@ -55,5 +56,10 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const data = await resolve(id);
   if (!data) notFound();
-  return <MangaDetail manga={data.manga} chapters={data.chapters} />;
+  return (
+    <>
+      <ProviderRefreshStatus mangaId={data.manga.id} sourceId={data.manga.sourceId} />
+      <MangaDetail manga={data.manga} chapters={data.chapters} />
+    </>
+  );
 }
