@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { idbGetAll } from '@/lib/storage/idb';
+import { flushProgressOutbox, flushSettingsOutbox } from '@/lib/storage/reader-storage';
 
 type SyncSnapshot = {
   online: boolean;
@@ -9,6 +10,13 @@ type SyncSnapshot = {
   pendingSettings: number;
   lastSyncedAt: string | null;
 };
+
+type SyncActionState =
+  | { kind: 'idle'; message: '' }
+  | { kind: 'running'; message: string }
+  | { kind: 'success'; message: string }
+  | { kind: 'pending'; message: string }
+  | { kind: 'error'; message: string };
 
 const initialSnapshot: SyncSnapshot = {
   online: true,
@@ -133,6 +141,7 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean }) 
 
 export function SyncStatusPanel() {
   const snapshot = useSyncSnapshot();
+  const [action, setAction] = useState<SyncActionState>({ kind: 'idle', message: '' });
   const pending = snapshot.pendingProgress + snapshot.pendingSettings;
   const relative = formatRelative(snapshot.lastSyncedAt);
   const title = !snapshot.online ? 'Offline' : pending ? 'Changes waiting to sync' : 'Account data synchronized';
@@ -146,16 +155,68 @@ export function SyncStatusPanel() {
         ? `No pending changes. Last queue flush completed ${relative}.`
         : 'No pending reading-progress or settings changes.';
 
+  async function runSync(label: string) {
+    if (!snapshot.online || action.kind === 'running') return;
+    setAction({ kind: 'running', message: `${label}…` });
+    try {
+      const [progressResult, settingsResult] = await Promise.all([
+        flushProgressOutbox(),
+        flushSettingsOutbox(),
+      ]);
+      const remaining = progressResult.pending + settingsResult.pending;
+      const synced = progressResult.synced + settingsResult.synced;
+      if (remaining > 0) {
+        setAction({
+          kind: 'pending',
+          message: `${synced} change${synced === 1 ? '' : 's'} synced; ${remaining} still pending. Retry is safe and never bypasses provider or account controls.`,
+        });
+      } else {
+        const now = new Date().toISOString();
+        writeLastSyncedAt(now);
+        setAction({
+          kind: 'success',
+          message: synced > 0 ? `${synced} change${synced === 1 ? '' : 's'} synced.` : 'Sync check complete. No pending changes.',
+        });
+      }
+    } catch {
+      setAction({ kind: 'error', message: 'Sync could not complete. Pending changes remain queued for a later retry.' });
+    } finally {
+      window.dispatchEvent(new CustomEvent('pachimanga:sync-change'));
+    }
+  }
+
   return (
-    <section className="surface-card p-5 sm:p-6" aria-live="polite">
-      <div className="flex items-start justify-between gap-4">
+    <section className="surface-card p-5 sm:p-6" aria-labelledby="settings-sync-title">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="pixel-kicker text-[9px] text-sky-300">Synchronization</p>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-100">{title}</h2>
+          <h2 id="settings-sync-title" className="mt-1 text-lg font-semibold text-zinc-100">{title}</h2>
           <p className="mt-1 text-sm leading-6 text-zinc-500">{detail}</p>
         </div>
         <SyncStatusIndicator />
       </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void runSync('Syncing')}
+          disabled={!snapshot.online || action.kind === 'running'}
+          className="button-primary px-4 py-2.5 text-sm disabled:opacity-50"
+        >
+          {action.kind === 'running' ? 'Syncing…' : 'Sync now'}
+        </button>
+        {pending > 0 ? (
+          <button
+            type="button"
+            onClick={() => void runSync('Retrying pending sync')}
+            disabled={!snapshot.online || action.kind === 'running'}
+            className="button-secondary px-4 py-2.5 text-sm disabled:opacity-50"
+          >
+            Retry pending sync
+          </button>
+        ) : null}
+      </div>
+      {!snapshot.online ? <p className="mt-3 text-xs text-amber-300/80">Reconnect before starting a manual sync.</p> : null}
+      <p className="mt-3 min-h-5 text-xs text-zinc-500" role="status" aria-live="polite">{action.message}</p>
     </section>
   );
 }

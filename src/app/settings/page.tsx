@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PageHeading } from '@/components/page-heading';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
+import { SettingsDiagnostics } from '@/components/settings-diagnostics';
 import { SyncStatusPanel } from '@/components/sync-status';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune your reader and manage your private Pachimanga account." />
       <div className="mt-6 grid gap-4">
         <SyncStatusPanel />
+        <SettingsDiagnostics />
 
         <section className="surface-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
