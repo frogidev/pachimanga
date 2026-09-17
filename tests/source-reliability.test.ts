@@ -1,11 +1,31 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { classifyProviderError, providerErrorHttpStatus } from '../src/lib/source/provider-error.ts';
 import { collectSourcePages } from '../src/sources/core/pagination.ts';
 import {
   fetchWithSourceRetry,
   isRetryableSourceNetworkError,
   isTransientSourceStatus,
 } from '../src/sources/core/source-fetch.ts';
+
+test('provider error classification distinguishes safe user-facing failure states', () => {
+  assert.equal(classifyProviderError('HTTP 403').kind, 'refused');
+  assert.equal(classifyProviderError('rate limited; HTTP 429').kind, 'rate_limited');
+  assert.equal(classifyProviderError('private relay network request failed').kind, 'relay_unavailable');
+  assert.equal(classifyProviderError('HTTP 404').kind, 'missing');
+  assert.equal(classifyProviderError(new TypeError('fetch failed')).kind, 'network');
+  assert.equal(classifyProviderError('unexpected response').kind, 'upstream');
+  assert.equal(classifyProviderError(null, { offline: true }).kind, 'offline');
+});
+
+test('provider error HTTP mapping preserves provider refusal and rate-limit semantics', () => {
+  assert.equal(providerErrorHttpStatus('refused'), 403);
+  assert.equal(providerErrorHttpStatus('rate_limited'), 429);
+  assert.equal(providerErrorHttpStatus('missing'), 404);
+  assert.equal(providerErrorHttpStatus('network'), 503);
+  assert.equal(providerErrorHttpStatus('relay_unavailable'), 503);
+  assert.equal(providerErrorHttpStatus('upstream'), 502);
+});
 
 test('source retry policy only treats transient gateway statuses as retryable HTTP failures', () => {
   assert.equal(isTransientSourceStatus(502), true);
