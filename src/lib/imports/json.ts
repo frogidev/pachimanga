@@ -1,4 +1,4 @@
-import type { ImportManga, ImportResult } from './types';
+import type { ImportManga, ImportProgress, ImportReaderSettings, ImportResult } from './types';
 
 const MAX_JSON_RECORDS = 10_000;
 const MAX_WARNING_DETAILS = 100;
@@ -21,6 +21,103 @@ function nonNegativeNumber(value: unknown): number | undefined {
   return Number.isFinite(number) && number >= 0 ? number : undefined;
 }
 
+function validIso(value: unknown) {
+  const text = optionalString(value);
+  return text && Number.isFinite(Date.parse(text)) ? text : undefined;
+}
+
+function safeReaderSettings(value: unknown): ImportReaderSettings | undefined {
+  const input = objectRecord(value);
+  if (!input) return undefined;
+  const output: ImportReaderSettings = {};
+  if (typeof input.autoScrollMultiplier === 'number' && Number.isFinite(input.autoScrollMultiplier)) output.autoScrollMultiplier = input.autoScrollMultiplier;
+  if (typeof input.baseSpeedPxPerSecond === 'number' && Number.isFinite(input.baseSpeedPxPerSecond)) output.baseSpeedPxPerSecond = input.baseSpeedPxPerSecond;
+  if (input.fitMode === 'width' || input.fitMode === 'screen') output.fitMode = input.fitMode;
+  if (input.theme === 'dark' || input.theme === 'light') output.theme = input.theme;
+  if (typeof input.keepScreenAwake === 'boolean') output.keepScreenAwake = input.keepScreenAwake;
+  return Object.keys(output).length ? output : undefined;
+}
+
+function parsePachimangaExport(root: Record<string, unknown>): ImportResult | null {
+  if (root.format !== 'pachimanga-account-export') return null;
+  if (root.version !== 1) throw new Error('Unsupported Pachimanga export version.');
+
+  const library = Array.isArray(root.library) ? root.library : [];
+  if (library.length > MAX_JSON_RECORDS) {
+    throw new Error(`Pachimanga export contains ${library.length} library records; maximum supported is ${MAX_JSON_RECORDS}.`);
+  }
+
+  const warnings: string[] = [];
+  const manga: ImportManga[] = [];
+  for (const [index, raw] of library.entries()) {
+    const row = objectRecord(raw);
+    const title = optionalString(row?.title);
+    const sourceId = optionalString(row?.source_id);
+    const mangaId = optionalString(row?.manga_id);
+    if (!row || !title || !sourceId || !mangaId) {
+      warnings.push(`Skipped Pachimanga library row ${index + 1}: missing title/source_id/manga_id.`);
+      continue;
+    }
+
+    manga.push({
+      title,
+      sourceId,
+      mangaId,
+      coverUrl: optionalString(row.cover_url),
+      favorite: true,
+      totalChapters: nonNegativeNumber(row.chapter_count),
+      readingStatus: optionalString(row.reading_status),
+      readingStatusManual: row.reading_status_manual === true,
+      publicationStatus: optionalString(row.publication_status),
+    });
+  }
+
+  const historyByManga = new Map<string, { chapterId?: string; readAt?: string }>();
+  for (const raw of Array.isArray(root.history) ? root.history : []) {
+    const row = objectRecord(raw);
+    const mangaId = optionalString(row?.manga_id);
+    if (!row || !mangaId) continue;
+    historyByManga.set(mangaId, {
+      chapterId: optionalString(row.chapter_id),
+      readAt: validIso(row.read_at),
+    });
+  }
+
+  const progress: ImportProgress[] = [];
+  const rawProgress = Array.isArray(root.progress) ? root.progress : [];
+  if (rawProgress.length > MAX_JSON_RECORDS * 20) {
+    throw new Error('Pachimanga export contains too many progress rows.');
+  }
+  for (const [index, raw] of rawProgress.entries()) {
+    const row = objectRecord(raw);
+    const sourceId = optionalString(row?.source_id);
+    const mangaId = optionalString(row?.manga_id);
+    const chapterId = optionalString(row?.chapter_id);
+    const updatedAt = validIso(row?.updated_at);
+    const scrollProgress = nonNegativeNumber(row?.scroll_progress);
+    if (!row || !sourceId || !mangaId || !chapterId || !updatedAt || scrollProgress == null) {
+      if (warnings.length < MAX_WARNING_DETAILS) warnings.push(`Skipped Pachimanga progress row ${index + 1}: invalid identifiers, timestamp, or progress.`);
+      continue;
+    }
+    const history = historyByManga.get(mangaId);
+    progress.push({
+      sourceId,
+      mangaId,
+      chapterId,
+      pageIndex: Math.max(0, Math.floor(nonNegativeNumber(row.page_index) || 0)),
+      percentage: Math.max(0, Math.min(100, scrollProgress * 100)),
+      updatedAt,
+      historyReadAt: history?.chapterId === chapterId ? history.readAt : undefined,
+    });
+  }
+
+  const readerRoot = objectRecord(root.readerSettings);
+  const readerSettings = safeReaderSettings(readerRoot?.settings);
+
+  if (!manga.length && library.length) throw new Error('Pachimanga export contains no valid library rows.');
+  return { format: 'pachimanga', manga, warnings, progress, readerSettings };
+}
+
 function listFromRoot(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   const root = objectRecord(value);
@@ -31,6 +128,12 @@ function listFromRoot(value: unknown): unknown[] {
 }
 
 export function parseJsonBackupValue(value: unknown): ImportResult {
+  const root = objectRecord(value);
+  if (root) {
+    const pachimanga = parsePachimangaExport(root);
+    if (pachimanga) return pachimanga;
+  }
+
   const source = listFromRoot(value);
   if (source.length > MAX_JSON_RECORDS) {
     throw new Error(`JSON backup contains ${source.length} records; maximum supported is ${MAX_JSON_RECORDS}.`);
