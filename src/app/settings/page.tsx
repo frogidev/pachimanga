@@ -1,11 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AccountDataExport } from '@/components/account-data-export';
+import { AccountSettings } from '@/components/account-settings';
 import { PageHeading } from '@/components/page-heading';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
+import { SignOutSettings } from '@/components/sign-out-settings';
 import { SyncStatusPanel } from '@/components/sync-status';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
@@ -25,19 +26,17 @@ export default function SettingsPage() {
     setS((value) => {
       const next = { ...value, ...p };
       saveReaderSettings(next);
-      document.documentElement.dataset.theme = next.theme;
-      try { localStorage.setItem('pachimanga-theme', next.theme); } catch { /* private mode */ }
       return next;
     });
   }
 
   return (
     <div className="app-page max-w-4xl">
-      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune your reader and manage your private Pachimanga account." />
+      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Manage your account, reading experience, sync and device behavior in one place." />
       <div className="mt-6 grid gap-4">
-        <SyncStatusPanel />
-        <SettingsDiagnostics />
-        <AccountDataExport />
+        <section id="account" className="scroll-mt-24">
+          <AccountSettings />
+        </section>
 
         <section className="surface-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
@@ -79,33 +78,11 @@ export default function SettingsPage() {
           </label>
         </section>
 
-        <section className="surface-card p-5 sm:p-6">
-          <p className="pixel-kicker text-[9px] text-pink-400">Appearance</p>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-100">Theme</h2>
-          <p className="mt-1 text-sm text-zinc-500">Calico dark (black & orange) or day white (white & orange). Syncs to your account.</p>
-          <div className="mt-4 inline-flex rounded-xl border border-white/[.08] bg-[#0d0c12] p-1" role="radiogroup" aria-label="Color theme">
-            <button role="radio" aria-checked={s.theme === 'dark'} className={`rounded-[9px] px-4 py-2 text-sm transition ${s.theme === 'dark' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ theme: 'dark' })}>Calico dark</button>
-            <button role="radio" aria-checked={s.theme === 'light'} className={`rounded-[9px] px-4 py-2 text-sm transition ${s.theme === 'light' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ theme: 'light' })}>Day white</button>
-          </div>
-        </section>
-
+        <SyncStatusPanel />
         <PwaDeviceStatus />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <section className="surface-card p-5 sm:p-6">
-            <div className="grid size-10 place-items-center rounded-xl bg-sky-400/10 text-sky-300">↻</div>
-            <h2 className="mt-4 font-semibold text-zinc-100">Account</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">Your library, imports, reader preferences and reading progress belong to your signed-in account.</p>
-            <Link href="/auth" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Manage account</Link>
-          </section>
-
-          <section className="surface-card p-5 sm:p-6">
-            <div className="grid size-10 place-items-center rounded-xl bg-amber-400/10 text-amber-300">⇩</div>
-            <h2 className="mt-4 font-semibold text-zinc-100">Import library</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">Bring over screenshots or backups from Tachiyomi, Mihon, and Tachimanga into your private library.</p>
-            <Link href="/import" className="button-secondary mt-5 inline-flex px-4 py-2.5 text-sm">Open importer</Link>
-          </section>
-        </div>
+        <AccountDataExport />
+        <SettingsDiagnostics />
+        <SignOutSettings />
       </div>
     </div>
   );

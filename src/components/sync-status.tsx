@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { idbGetAll } from '@/lib/storage/idb';
+import { useState, useSyncExternalStore } from 'react';
+import { idbCount } from '@/lib/storage/idb';
 import { flushProgressOutbox, flushSettingsOutbox } from '@/lib/storage/reader-storage';
 
 type SyncSnapshot = {
@@ -24,6 +24,13 @@ const initialSnapshot: SyncSnapshot = {
   pendingSettings: 0,
   lastSyncedAt: null,
 };
+
+let currentSnapshot = initialSnapshot;
+let previousPending: number | null = null;
+let refreshPromise: Promise<void> | null = null;
+let intervalId: number | null = null;
+let initialTimerId: number | null = null;
+const snapshotListeners = new Set<() => void>();
 
 function lastSyncStorageKey() {
   if (typeof window === 'undefined') return null;
@@ -52,16 +59,109 @@ function writeLastSyncedAt(value: string) {
 }
 
 async function readSyncSnapshot(): Promise<SyncSnapshot> {
-  const [progress, settings] = await Promise.all([
-    idbGetAll('outbox'),
-    idbGetAll('settingsOutbox'),
+  const [pendingProgress, pendingSettings] = await Promise.all([
+    idbCount('outbox'),
+    idbCount('settingsOutbox'),
   ]);
   return {
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
-    pendingProgress: progress.length,
-    pendingSettings: settings.length,
+    pendingProgress,
+    pendingSettings,
     lastSyncedAt: readLastSyncedAt(),
   };
+}
+
+function snapshotsEqual(a: SyncSnapshot, b: SyncSnapshot) {
+  return a.online === b.online
+    && a.pendingProgress === b.pendingProgress
+    && a.pendingSettings === b.pendingSettings
+    && a.lastSyncedAt === b.lastSyncedAt;
+}
+
+function publishSnapshot(next: SyncSnapshot) {
+  if (snapshotsEqual(currentSnapshot, next)) return;
+  currentSnapshot = next;
+  snapshotListeners.forEach((listener) => listener());
+}
+
+function refreshSyncSnapshot() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = readSyncSnapshot()
+    .then((next) => {
+      const pending = next.pendingProgress + next.pendingSettings;
+      if (next.online && previousPending != null && previousPending > 0 && pending === 0) {
+        const now = new Date().toISOString();
+        writeLastSyncedAt(now);
+        next.lastSyncedAt = now;
+      }
+      previousPending = pending;
+      publishSnapshot(next);
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      refreshPromise = null;
+    });
+  return refreshPromise;
+}
+
+function handleSyncSignal() {
+  void refreshSyncSnapshot();
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') handleSyncSignal();
+}
+
+function startSyncObserver() {
+  if (typeof window === 'undefined' || intervalId !== null) return;
+  currentSnapshot = {
+    ...initialSnapshot,
+    online: navigator.onLine,
+    lastSyncedAt: readLastSyncedAt(),
+  };
+  previousPending = null;
+  initialTimerId = window.setTimeout(handleSyncSignal, 0);
+  window.addEventListener('online', handleSyncSignal);
+  window.addEventListener('offline', handleSyncSignal);
+  window.addEventListener('pachimanga:history-change', handleSyncSignal);
+  window.addEventListener('pachimanga:settings-change', handleSyncSignal);
+  window.addEventListener('pachimanga:sync-change', handleSyncSignal);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  intervalId = window.setInterval(() => {
+    if (document.visibilityState === 'visible') handleSyncSignal();
+  }, 15_000);
+}
+
+function stopSyncObserver() {
+  if (typeof window === 'undefined') return;
+  if (initialTimerId !== null) window.clearTimeout(initialTimerId);
+  if (intervalId !== null) window.clearInterval(intervalId);
+  initialTimerId = null;
+  intervalId = null;
+  window.removeEventListener('online', handleSyncSignal);
+  window.removeEventListener('offline', handleSyncSignal);
+  window.removeEventListener('pachimanga:history-change', handleSyncSignal);
+  window.removeEventListener('pachimanga:settings-change', handleSyncSignal);
+  window.removeEventListener('pachimanga:sync-change', handleSyncSignal);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  previousPending = null;
+}
+
+function subscribeSyncSnapshot(listener: () => void) {
+  snapshotListeners.add(listener);
+  if (snapshotListeners.size === 1) startSyncObserver();
+  return () => {
+    snapshotListeners.delete(listener);
+    if (snapshotListeners.size === 0) stopSyncObserver();
+  };
+}
+
+function getSyncSnapshot() {
+  return currentSnapshot;
+}
+
+function getServerSyncSnapshot() {
+  return initialSnapshot;
 }
 
 function formatRelative(value: string | null) {
@@ -79,42 +179,7 @@ function formatRelative(value: string | null) {
 }
 
 function useSyncSnapshot() {
-  const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const previousPending = useRef<number | null>(null);
-
-  const refresh = useCallback(async () => {
-    const next = await readSyncSnapshot();
-    const pending = next.pendingProgress + next.pendingSettings;
-    if (next.online && previousPending.current != null && previousPending.current > 0 && pending === 0) {
-      const now = new Date().toISOString();
-      writeLastSyncedAt(now);
-      next.lastSyncedAt = now;
-    }
-    previousPending.current = pending;
-    setSnapshot(next);
-  }, []);
-
-  useEffect(() => {
-    const handle = () => void refresh();
-    const initialTimer = window.setTimeout(handle, 0);
-    window.addEventListener('online', handle);
-    window.addEventListener('offline', handle);
-    window.addEventListener('pachimanga:history-change', handle);
-    window.addEventListener('pachimanga:settings-change', handle);
-    window.addEventListener('pachimanga:sync-change', handle);
-    const interval = window.setInterval(handle, 15_000);
-    return () => {
-      window.clearTimeout(initialTimer);
-      window.removeEventListener('online', handle);
-      window.removeEventListener('offline', handle);
-      window.removeEventListener('pachimanga:history-change', handle);
-      window.removeEventListener('pachimanga:settings-change', handle);
-      window.removeEventListener('pachimanga:sync-change', handle);
-      window.clearInterval(interval);
-    };
-  }, [refresh]);
-
-  return snapshot;
+  return useSyncExternalStore(subscribeSyncSnapshot, getSyncSnapshot, getServerSyncSnapshot);
 }
 
 export function SyncStatusIndicator({ compact = false }: { compact?: boolean }) {

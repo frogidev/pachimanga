@@ -7,6 +7,7 @@ const protectedPaths = [
   '/import',
   '/history',
   '/settings',
+  '/account',
   '/updates',
   '/manga/invalid-id',
   '/reader/invalid-id',

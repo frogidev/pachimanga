@@ -12,8 +12,11 @@ import {
 
 const BASE = 'https://weebcentral.com';
 const ID = /^[0-9A-Z]{20,32}$/;
+const CHAPTER_MEMORY_TTL_MS = 2 * 60 * 1000;
+const CHAPTER_MEMORY_LIMIT = 32;
 
 type NativeOperation = 'search' | 'manga' | 'chapters' | 'chapter' | 'pages';
+type ParsedChapters = ReturnType<typeof parseChaptersHtml>;
 
 type WcFetchOptions = {
   revalidate?: number;
@@ -24,6 +27,9 @@ type WcFetchOptions = {
   query?: string;
   id?: string;
 };
+
+const chapterMemoryCache = new Map<string, { expiresAt: number; chapters: ParsedChapters }>();
+const chapterRequests = new Map<string, Promise<ParsedChapters>>();
 
 function relayBase() {
   return process.env.WEEBCENTRAL_RELAY_URL?.trim().replace(/\/+$/, '') || null;
@@ -61,6 +67,25 @@ function relayRequestUrl(operation: NativeOperation, input: { query?: string; id
   return `${base}/v1/${operation}/${id}`;
 }
 
+function getCachedChapters(id: string) {
+  const cached = chapterMemoryCache.get(id);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    chapterMemoryCache.delete(id);
+    return null;
+  }
+  return cached.chapters;
+}
+
+function cacheChapters(id: string, chapters: ParsedChapters) {
+  if (chapterMemoryCache.size >= CHAPTER_MEMORY_LIMIT && !chapterMemoryCache.has(id)) {
+    const oldest = chapterMemoryCache.keys().next().value;
+    if (oldest) chapterMemoryCache.delete(oldest);
+  }
+  chapterMemoryCache.delete(id);
+  chapterMemoryCache.set(id, { chapters, expiresAt: Date.now() + CHAPTER_MEMORY_TTL_MS });
+}
+
 async function wcFetch(path: string, options: WcFetchOptions) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12_000);
@@ -87,10 +112,13 @@ async function wcFetch(path: string, options: WcFetchOptions) {
   }
 
   try {
+    const cacheOptions = options.operation === 'chapters'
+      ? { cache: 'no-store' as const }
+      : { next: { revalidate } };
     const response = await fetchWithSourceRetry(url, {
       headers,
       signal: controller.signal,
-      next: { revalidate },
+      ...cacheOptions,
     });
 
     if (response.status === 401 || response.status === 403) {
@@ -207,16 +235,29 @@ export class WeebCentralSource implements MangaSource {
 
   async getChapters(mangaId: string) {
     const rid = rawId(mangaId);
+    const cached = getCachedChapters(rid);
+    if (cached) return cached;
+
+    const existing = chapterRequests.get(rid);
+    if (existing) return existing;
+
     const seriesUrl = `${BASE}/series/${rid}`;
-    const html = await wcFetch(`/series/${rid}/full-chapter-list`, {
+    const pending = wcFetch(`/series/${rid}/full-chapter-list`, {
       operation: 'chapters',
       id: rid,
-      revalidate: 120,
       referer: seriesUrl,
       hx: true,
       hxTarget: 'chapter-list',
+    }).then((html) => {
+      const chapters = parseChaptersHtml(html, rid);
+      cacheChapters(rid, chapters);
+      return chapters;
+    }).finally(() => {
+      if (chapterRequests.get(rid) === pending) chapterRequests.delete(rid);
     });
-    return parseChaptersHtml(html, rid);
+
+    chapterRequests.set(rid, pending);
+    return pending;
   }
 
   async getChapterPages(chapterId: string) {

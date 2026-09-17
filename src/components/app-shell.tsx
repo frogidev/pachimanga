@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
 import { SyncStatusIndicator } from "@/components/sync-status";
+import { ThemeQuickToggle } from "@/components/theme-quick-toggle";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
 
@@ -36,7 +37,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Bind all local/offline caches to the authenticated account, then flush queued sync work.
     const flush = () => {
       void Promise.all([
         import("@/lib/storage/reader-storage"),
@@ -95,6 +95,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
+        <div className="mt-1 px-4">
+          <ThemeQuickToggle />
+        </div>
+
         <div className="mt-auto px-4 pb-4">
           <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
             <div className="flex items-center justify-between gap-3">
@@ -104,7 +108,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <span className="rounded-md bg-white/[.045] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">v0.4</span>
             </div>
-            <Link href="/auth" className="mt-1 inline-flex text-pink-300 transition hover:text-pink-200">Account →</Link>
           </div>
         </div>
       </aside>
@@ -114,7 +117,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button type="button" onClick={goBack} className="mr-2 grid size-10 shrink-0 place-items-center rounded-xl text-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label="Go back">←</button>
         ) : null}
         <Link href="/" className="inline-flex"><PachiLogo /></Link>
-        <div className="ml-auto"><SyncStatusIndicator compact /></div>
+        <div className="ml-auto">
+          <SyncStatusIndicator compact />
+        </div>
       </div>
 
       <main className="min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:ml-[252px] md:pb-0">{children}</main>
