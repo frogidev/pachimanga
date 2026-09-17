@@ -67,9 +67,15 @@ export function UpdatesView() {
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
 
   const reload = useCallback(async () => {
-    const next = await getLibraryDashboardEntries();
-    setEntries(next);
-    return next;
+    try {
+      const next = await getLibraryDashboardEntries();
+      setEntries(next);
+      setLoadError(null);
+      return next;
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Could not load the signed-in library.');
+      throw error;
+    }
   }, []);
 
   const refreshEntries = useCallback(async (current: LibraryEntry[], force: boolean) => {
@@ -155,8 +161,8 @@ export function UpdatesView() {
     })();
 
     const onLibraryChange = () => {
-      void reload().catch((error) => {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Could not reload the signed-in library.');
+      void reload().catch(() => {
+        // reload reports the actual account-load error in UI state.
       });
     };
     window.addEventListener('pachimanga:library-change', onLibraryChange);
@@ -173,11 +179,20 @@ export function UpdatesView() {
   const localOnly = entries.length - sourceBacked.length;
   const updateCount = sourceBacked.filter((entry) => Number(entry.newChapterCount || 0) > 0).length;
   const checkedCount = sourceBacked.filter((entry) => Boolean(entry.lastCheckedAt)).length;
+  const accountSnapshotAvailable = ready && !(loadError && entries.length === 0);
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => {
     const updates = Number(b.newChapterCount || 0) - Number(a.newChapterCount || 0);
     if (updates) return updates;
     return (b.lastCheckedAt || '').localeCompare(a.lastCheckedAt || '');
   }), [entries]);
+
+  const metrics = [
+    { label: 'Account titles', value: accountSnapshotAvailable ? entries.length : '—' },
+    { label: 'Provider-backed', value: accountSnapshotAvailable ? sourceBacked.length : '—' },
+    { label: 'Local/imported', value: accountSnapshotAvailable ? localOnly : '—' },
+    { label: 'Checked', value: accountSnapshotAvailable ? checkedCount : '—' },
+    { label: 'With updates', value: accountSnapshotAvailable ? updateCount : '—' },
+  ];
 
   return (
     <div className="app-page max-w-6xl">
@@ -189,7 +204,7 @@ export function UpdatesView() {
           <button
             type="button"
             onClick={() => void refreshEntries(entries, true)}
-            disabled={!ready || refreshing || sourceBacked.length === 0}
+            disabled={!accountSnapshotAvailable || refreshing || sourceBacked.length === 0}
             className="button-primary px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             {refreshing ? 'Checking providers…' : 'Check all now'}
@@ -198,14 +213,8 @@ export function UpdatesView() {
       />
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Update availability summary">
-        {[
-          ['Account titles', entries.length],
-          ['Provider-backed', sourceBacked.length],
-          ['Local/imported', localOnly],
-          ['Checked', checkedCount],
-          ['With updates', updateCount],
-        ].map(([label, value]) => (
-          <div key={String(label)} className="rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3">
+        {metrics.map(({ label, value }) => (
+          <div key={label} className="rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3">
             <p className="text-[10px] uppercase tracking-[.16em] text-zinc-600">{label}</p>
             <p className="mt-1 text-xl font-semibold text-zinc-100">{value}</p>
           </div>
@@ -219,9 +228,9 @@ export function UpdatesView() {
       ) : null}
 
       {loadError ? (
-        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80 sm:flex-row sm:items-center sm:justify-between" role="alert">
           <span>{loadError}</span>
-          <button type="button" onClick={() => void reload()} className="button-secondary shrink-0 px-3 py-2 text-xs">Retry account load</button>
+          <button type="button" onClick={() => void reload().catch(() => {})} className="button-secondary shrink-0 px-3 py-2 text-xs">Retry account load</button>
         </div>
       ) : null}
 
@@ -231,14 +240,14 @@ export function UpdatesView() {
             <p className="pixel-kicker text-[9px] text-pink-400">Production data</p>
             <h2 id="provider-availability-heading" className="mt-1 text-xl font-bold tracking-[-.03em] text-white">Library availability</h2>
           </div>
-          <span className="text-xs text-zinc-500">{ready ? `${entries.length} account title${entries.length === 1 ? '' : 's'}` : 'Loading account data…'}</span>
+          <span className="text-xs text-zinc-500">{accountSnapshotAvailable ? `${entries.length} account title${entries.length === 1 ? '' : 's'}` : ready ? 'Account data unavailable' : 'Loading account data…'}</span>
         </div>
 
         {!ready ? (
           <div className="mt-4 space-y-2" aria-label="Loading library availability">
             {Array.from({ length: 4 }, (_, index) => <div key={index} className="h-20 animate-pulse rounded-xl bg-white/[.045]" />)}
           </div>
-        ) : (
+        ) : !accountSnapshotAvailable ? null : (
           <div className="surface-card mt-4 divide-y divide-white/[.055] overflow-hidden">
             {sortedEntries.length === 0 ? (
               <div className="px-5 py-5 text-sm text-zinc-400">
@@ -250,6 +259,8 @@ export function UpdatesView() {
               const failure = failures[entry.mangaId];
               const newCount = Math.max(0, Number(entry.newChapterCount || 0));
               const title = entry.manga?.title || entry.mangaId;
+              const neverChecked = entry.sourceId !== 'import' && !entry.lastCheckedAt;
+              const checkingThisEntry = refreshing && entry.sourceId !== 'import' && shouldRefreshLibrarySource(entry.lastCheckedAt);
               return (
                 <div key={`${entry.sourceId}-${entry.mangaId}`} className="px-4 py-4 sm:px-5">
                   <div className="grid gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
@@ -270,10 +281,16 @@ export function UpdatesView() {
                       <p className="mt-1 text-xs text-zinc-300">{entry.sourceId === 'import' ? 'Not applicable' : formatCheckedAt(entry.lastCheckedAt)}</p>
                     </div>
                     <div className="sm:text-right">
-                      {newCount > 0 ? (
+                      {failure ? (
+                        <span className="text-[11px] text-amber-200/80">check failed</span>
+                      ) : newCount > 0 ? (
                         <span className="inline-flex rounded-full bg-pink-400/12 px-2.5 py-1 text-[11px] font-semibold text-pink-300">{newCount} new</span>
                       ) : entry.sourceId === 'import' ? (
                         <span className="text-[11px] text-zinc-600">local</span>
+                      ) : checkingThisEntry ? (
+                        <span className="text-[11px] text-sky-300/80">checking…</span>
+                      ) : neverChecked ? (
+                        <span className="text-[11px] text-zinc-500">unchecked</span>
                       ) : (
                         <span className="text-[11px] text-emerald-300/80">current</span>
                       )}
