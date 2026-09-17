@@ -13,28 +13,22 @@ Production URL: `https://pachimanga.frogilab.dev`
 Repository:
 
 ```text
-main: ef67bc255134ec9bf033846bb8d062131195c715
+main: 2858d5f1f09e4800fa7fdb97464cf56558f2f27a
 ```
 
 Latest production runtime deployment:
 
 ```text
-deployment: dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN
+deployment: dpl_CQuCELMmy2dWPbknbGjjy7iJHbQA
 state:      READY
-runtime:    605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6
+runtime:    2858d5f1f09e4800fa7fdb97464cf56558f2f27a
 ```
 
-`main` is newer only because PR #52 contains tests/ops/docs and is intentionally non-runtime.
+PR #60 completed the final planned autonomous pre-human-testing hardening slice. Its required `hygiene` and `quality` checks passed, the exact-head Vercel preview reached READY, production reached READY for the squash merge above, `/auth` returned the expected signed-out experience with `private, no-store`, and the inspected production error/fatal window was empty.
 
-User-operated local validation on current `main`:
+A fresh production smoke was attempted from the current agent container but its outbound DNS/fetch path failed before assertions ran. Do not record that attempt as a pass. Historical user-operated production smoke evidence remains valid only for the earlier runtime on which it was executed.
 
-- `npm ci`: 0 vulnerabilities;
-- `npm run verify`: 94/94 tests passed, lint passed, typecheck passed, production build passed;
-- production smoke: passed, 9 protected routes and 4 PWA icons.
-
-GitHub Actions capacity is unavailable for the remainder of the current month. Use local `npm run verify`, Vercel preview/build signals, `node ops/production-smoke.mjs`, and Vercel runtime-error inspection. Do not weaken auth, RLS, account isolation, branch safety, or secret handling because Actions is unavailable.
-
-See `verification-2026-09-17.md` for exact evidence.
+See `verification-2026-09-17.md`, `verification-pr58-2026-09-17.md`, and `verification-pr60-2026-09-17.md` for exact evidence.
 
 ## Completed autonomous hardening
 
@@ -56,20 +50,23 @@ The following are implemented and should not be reopened without a regression:
 - reader navigation/progress/Wake Lock/long-strip containment hardening;
 - heavy-import lazy-load regression guards;
 - optional browser E2E runner without project Playwright dependency;
-- credential-free production smoke.
+- safe Settings diagnostics with Copy diagnostics;
+- explicit `Sync now` and retry-pending-sync controls;
+- differentiated provider failure UX for offline/network, `403`, `429`, relay unavailable, missing/removed content, and generic upstream errors with safe Retry actions;
+- signed-in account JSON export with explicit field allowlists and no credentials/session/provider secrets;
+- per-title manual chapter refresh with useful last-checked information and no aggressive polling;
+- final PWA accessibility/UI-state hardening: visible focus, keyboard dismissal, reduced-motion guards, accessible status announcements, and the 320/360/390/768/1280 optional browser-check matrix.
 
 ## P0 — Pre-human-testing hardening
 
-Implement these before feature freeze:
+All six planned autonomous items are complete and merged. Freeze unrelated feature expansion until the manual PWA release-candidate matrix is complete.
 
-- [ ] Settings diagnostics panel: app version/current build identifier where available, session/account-safe status, sync/outbox state, service-worker state, offline-storage estimate, provider freshness summary, Copy diagnostics. Never include tokens, passwords, email confirmation links, relay secrets, or raw private content.
-- [ ] Explicit `Sync now` and retry control for owner-bound progress/settings queues, with clear success/pending/failure feedback.
-- [ ] Provider error UX that distinguishes offline/network failure, rate limit `429`, refusal `403`, relay unavailable, removed/missing chapter, and generic upstream failure; expose safe Retry actions without bypass behavior.
-- [ ] Local `Export my data` JSON for the signed-in account: library metadata/status, progress, history, and reader settings only. Exclude session tokens, credentials, relay secrets, service-role data, and provider cookies.
-- [ ] Final accessibility pass: keyboard traversal, visible focus, icon-button accessible names, Escape behavior for dismissible surfaces, reduced-motion behavior, loading/empty/error states, and 320/360/390/768/1280 layout checks.
-- [ ] Per-title manual chapter refresh and useful `last checked` indication without aggressive polling.
-
-Keep these as small focused PWA/web PRs. No native release work.
+- [x] Settings diagnostics panel with Copy diagnostics and privacy-safe app/session/sync/service-worker/storage/provider freshness information.
+- [x] Explicit `Sync now` and retry-pending-sync controls for owner-bound progress/settings queues.
+- [x] Provider error UX distinguishing offline/network failure, `429`, `403`, relay unavailable, missing/removed chapter, and generic upstream failure with safe Retry actions.
+- [x] Signed-in `Export my data` JSON containing allowlisted Library metadata/status, progress, history, and reader settings without credentials/session/provider secrets.
+- [x] Final accessibility/UI-state hardening covering keyboard focus, accessible control naming, Escape/dismiss behavior, reduced motion, loading/empty/error review, and 320/360/390/768/1280 layout checks in the optional browser runner.
+- [x] Per-title manual chapter refresh plus last-checked information without aggressive provider polling.
 
 ## P0 — Manual release evidence
 
@@ -116,14 +113,30 @@ Requires real identities/devices; do not fabricate completion:
 - [ ] `.tmb` happy path;
 - [ ] duplicate/malformed/partial-failure behavior with disposable non-private samples.
 
+### Fresh production boundary evidence
+
+- [ ] rerun `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from a network-capable environment on the current runtime.
+
 ## Provider release evidence
 
 - MangaDex happy chain has live evidence.
-- WeebCentral public relay health has evidence; authenticated upstream health requires authorized operator context.
+- WeebCentral public relay health has prior evidence; the current agent container could not resolve `wc-relay.frogilab.dev`, so no new relay-health pass is claimed for this session. Authenticated upstream health still requires authorized operator context.
 - ComicK metadata search works, but the public chapter-list path has returned `403`; do not advertise ComicK as a validated reader source until a stable readable chain exists.
 - Do not bypass `403`/`429`, CAPTCHAs, auth, or anti-bot controls.
 
-## Quality gate while GitHub Actions is unavailable
+## Current platform/security state
+
+GitHub `main` is protected by the active `Protect main` ruleset: pull request required, strict up-to-date `hygiene` and `quality` checks, review-thread resolution, squash merge only, and no bypass actor.
+
+Supabase production project `gwpgaojsemcfikgynxwv` was re-inspected during PR #60 closeout:
+
+- migration chain present through `20260917030319 restrict_library_progress_summary_rpc`;
+- RLS enabled on all five account-owned tables;
+- inspected policies remain authenticated-owner scoped with `auth.uid()` predicates;
+- performance advisor clean;
+- security advisor still reports only the known leaked-password-protection warning.
+
+## Quality gate while GitHub Actions capacity is constrained
 
 From an updated local clone:
 
@@ -142,25 +155,24 @@ The optional `ops/browser-e2e.mjs` may be used only from an environment where Pl
 
 Pachimanga may be called a PWA release candidate only when:
 
-- [ ] pre-human-testing hardening above is complete;
+- [x] pre-human-testing hardening is complete;
 - [ ] full real auth/account isolation evidence is complete;
 - [ ] two-session/two-device sync evidence is complete;
 - [ ] installed-PWA device matrix is complete;
 - [ ] conventional + long-strip reader matrix is complete;
 - [ ] representative supported import formats are validated;
-- [x] local full quality gate passes on current code;
-- [x] credential-free production smoke passes;
+- [ ] fresh credential-free production smoke passes on the current runtime;
 - [x] production runtime deployment is `READY`;
 - [x] RLS/least-privilege/account-bound cache architecture is in place;
 - [x] service-worker authenticated caching boundary is protected;
 - [x] no production mock fallback is registered.
 
-When this gate is satisfied, record exact final commit/deployment/evidence and freeze unrelated feature expansion before deciding whether to start native distribution.
+When this gate is satisfied, record the exact final commit/deployment/evidence. Native/platform distribution remains blocked until then.
 
 ## Later backlog after human testing begins
 
-Prioritize only from observed user feedback and measured performance. Candidate future work includes Web Push chapter notifications, collections/tags, richer history/statistics, provider-result deduplication, export/import round-trip backup restore, advanced offline download management, logical-device conflict clocks, library mutation offline queueing, improved accessibility automation, Web Vitals telemetry that avoids private content, and eventual native distribution.
+Prioritize only from observed user feedback and measured performance. Candidate future work includes Web Push chapter notifications, collections/tags, richer history/statistics, provider-result deduplication, export/import round-trip backup restore, advanced offline download management, logical-device conflict clocks, library mutation offline queueing, improved accessibility automation, privacy-safe Web Vitals telemetry, and eventual native distribution.
 
 ## Exact next task
 
-Implement the P0 pre-human-testing hardening in focused PRs, update `verification-2026-09-17.md` with exact evidence, then begin the manual auth/device matrix.
+Run the manual PWA release-candidate matrix above with real identities/devices and rerun the credential-free production smoke from a network-capable environment. Do not begin unrelated feature expansion or native/platform release work until the PWA release-candidate gate is complete.
