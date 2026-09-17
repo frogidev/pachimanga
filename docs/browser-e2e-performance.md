@@ -1,104 +1,92 @@
 # Browser E2E and PWA performance guardrails
 
-Pachimanga separates deterministic merge/local quality checks from optional browser evidence that depends on an installed browser runner or dedicated test identities.
+Pachimanga separates deterministic repository quality checks from optional browser evidence that depends on an installed browser runner or dedicated test identities.
 
 ## Current operating mode
 
-GitHub Actions capacity is unavailable for the remainder of the current month. There is no required browser-E2E workflow for this period.
+Repository Hygiene and Web Quality are active required checks. Web Quality runs dependency installation, unit tests, lint, typecheck, and the Next.js production build for runtime-impacting PRs.
 
-`ops/browser-e2e.mjs` remains an optional evidence runner for environments where Playwright and Chromium are already available. Pachimanga does **not** install Playwright as a project dependency and does not download browser binaries during normal install/build/deploy.
+`ops/browser-e2e.mjs` remains optional evidence for environments where Playwright and Chromium are already available. Pachimanga does not install Playwright as a normal project dependency and does not download browser binaries during standard install/build/deploy.
 
-If Playwright is absent, the runner exits with an explicit diagnostic rather than modifying the dependency graph or hanging on browser installation.
+If Playwright is absent, the runner exits with an explicit diagnostic rather than modifying the dependency graph.
 
 ## Anonymous browser matrix
 
-When executed, the optional runner verifies:
-
-- `/auth` renders the real sign-in/register experience;
-- `/offline` renders the public fallback;
-- `/`, `/library`, `/browse`, `/import`, `/history`, and `/settings` resolve to auth without a session;
-- 360px phone and 1280px desktop auth/offline layouts do not horizontally overflow.
-
-The HTTP production smoke remains the always-available credential-free boundary check for redirects, cache headers, manifest/icons, and service-worker invariants.
+The optional runner covers the real auth/offline boundary and protected application routes, including `/account` compatibility behavior. The HTTP Production Smoke remains the credential-free boundary check for redirects, cache headers, manifest/icons, and service-worker invariants.
 
 ## Optional authenticated browser evidence
 
-The runner can use disposable account environment variables:
+Disposable account environment variables may be supplied to exercise signed-in Settings account controls and account-cache ownership. Credentials are never printed and no service-role bypass is used.
 
-- `PACHIMANGA_E2E_EMAIL`
-- `PACHIMANGA_E2E_PASSWORD`
-- optional account B equivalents.
+Real two-device synchronization and Account A -> B -> A isolation remain manual release-gate evidence even when optional browser automation passes.
 
-With account A it can verify two independent contexts bind to the same account cache owner and that sign-out clears the binding. With account B it can exercise A -> B -> A cache-owner changes.
+## Performance boundaries protected by code/tests
 
-The runner never prints credentials and does not use a service-role key or bypass RLS. Absence of test identities is a skip, not a pass for authenticated evidence.
+The deterministic suite now protects these properties:
 
-Real two-device synchronization with meaningful progress/settings mutations remains a manual release-gate test.
+1. heavy OCR/SQLite/protobuf/archive engines remain lazy and isolated to import flows;
+2. service-worker runtime cache has a finite cap and explicit account-bound offline chapter storage remains separate;
+3. long reader pages retain bounded preload/lazy rendering behavior;
+4. large libraries use compact account-bound progress summaries rather than hydrating all chapter progress;
+5. sync-status surfaces share one visibility-aware observer and pending queue counts use IndexedDB `count()` instead of loading outbox payloads;
+6. concurrent same-title provider refreshes are coalesced;
+7. automatic provider checks can reuse a very recent stored refresh rather than immediately repeating network work;
+8. provider refresh has a hard overall timeout so an interactive request cannot remain blocked for multiple minutes;
+9. WeebCentral raw chapter HTML is not inserted into Next.js Data Cache when it can exceed the framework cache item limit; parsed chapter lists use bounded short-lived in-process caching and in-flight coalescing.
 
-## Performance boundaries protected by tests
+These changes were motivated by local development evidence showing repeated `/api/library/refresh` requests around 500–1000 ms, several provider stalls lasting roughly 110–140 seconds, and WeebCentral chapter payloads around 2.96 MB exceeding the Next.js Data Cache item limit.
 
-The deterministic unit suite protects these properties:
+## PR #68 verification — 2026-09-17
 
-1. OCR, SQLite, protobuf, and archive engines stay inside `src/lib/imports/**` rather than leaking into Library/Reader/core routes.
-2. Backup engines and Tesseract remain dynamically imported only when their operation is invoked.
-3. The service-worker runtime cache has an explicit finite entry cap and trims after writes.
-4. Explicit offline chapter pages use a dedicated account-bound cache separate from the runtime shell cache.
-5. Long reader pages retain bounded preload/lazy behavior and rendering containment.
-6. Library first paint uses compact per-title progress summaries rather than hydrating thousands of chapter-progress rows.
-
-## Verified local evidence — 2026-09-17
-
-User-operated Windows validation on current `main`:
-
-```powershell
-npm ci
-npm run verify
-```
-
-Result:
-
-- 94/94 tests passed;
-- lint passed;
-- typecheck passed;
-- Next.js production build passed;
-- `npm ci` reported 0 vulnerabilities.
-
-User-operated production smoke:
-
-```powershell
-$env:BASE_URL="https://pachimanga.frogilab.dev"
-node .\ops\production-smoke.mjs
-```
-
-Result:
+Final PR head:
 
 ```text
-Production smoke passed for https://pachimanga.frogilab.dev
-Protected routes checked: 9
-PWA icons checked: 4
+0e4fdb5eefd2f870c9e47435ac40ccec9735ff92
 ```
 
-## Validation without GitHub Actions
+Observed required checks:
 
-For the current period:
+- Repository Hygiene: success;
+- Web Quality: success;
+- dependency installation: success, 0 vulnerabilities;
+- unit tests: success;
+- lint: success;
+- typecheck: success;
+- Next.js production build: success;
+- Production Smoke PR gate: success.
 
-1. update local `main`;
-2. run `npm ci` + `npm run verify`;
-3. require successful Vercel preview/build for runtime-impacting changes;
-4. after merge, confirm the exact production runtime deployment reaches `READY`;
-5. run production smoke;
-6. inspect Vercel runtime `error`/`fatal` logs;
-7. run optional browser E2E only when an external Playwright/Chromium environment is already available.
+Merged runtime:
 
-## Remaining physical-device performance evidence
+```text
+main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
+production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+state:      READY
+```
+
+Vercel preview creation was intermittently rate-limited by the Hobby plan during the branch, but the exact merged runtime deployed successfully. Post-deploy error/fatal inspection for the exact production deployment returned no matching logs in the inspected window.
+
+## What still needs measurement
+
+Code-level changes reduce redundant work, but they do not replace measurement. During local/manual testing, capture:
+
+- warm navigation latency;
+- number of `POST /api/library/refresh` calls produced by normal navigation;
+- refresh latency for MangaDex and WeebCentral titles;
+- behavior when the relay/upstream is slow or unavailable;
+- memory behavior for very large WeebCentral chapter lists;
+- Library/History/Updates behavior with a realistically large signed-in account.
+
+A healthy warm local session should not show multi-minute interactive refresh requests or repeated cache-size warnings.
+
+## Remaining physical-device evidence
 
 Still manual:
 
 - long-strip memory behavior on low-memory phones/tablets;
-- iOS/iPadOS standalone viewport/safe-area behavior;
+- iOS/iPadOS standalone viewport and safe-area behavior;
 - service-worker update from an older installed build;
 - offline chapter storage/reuse under real network loss;
-- Screen Wake Lock support and lifecycle;
+- Screen Wake Lock support/lifecycle;
 - installed-PWA auth/session continuity.
 
 Do not replace these with synthetic claims.
