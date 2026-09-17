@@ -12,6 +12,13 @@ import type { Manga } from '@/types/models';
 type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
 const REVIEW_PAGE_SIZE = 50;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const normalizedTitle = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ');
+function exactTitleMatch(items: Manga[], title: string) {
+  const expected = normalizedTitle(title);
+  return items.find((item) =>
+    [item.title, ...(item.alternativeTitles || [])].some((candidate) => normalizedTitle(candidate) === expected),
+  );
+}
 
 function weebCentralMatch(item: ImportManga): Manga | null {
   if (!item.sourceUrl) return null;
@@ -176,7 +183,7 @@ export function ImportPanel() {
     try {
       const response = await fetch(`/api/source/weebcentral/search?q=${encodeURIComponent(item.title)}`);
       const body = await response.json();
-      const match = (body.items || [])[0] as Manga | undefined;
+      const match = exactTitleMatch((body.items || []) as Manga[], item.title);
       if (match) {
         setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match, reviewed: true } : candidate));
         return true;
@@ -187,7 +194,7 @@ export function ImportPanel() {
     try {
       const response = await fetch(`/api/source/search?q=${encodeURIComponent(item.title)}`);
       const body = await response.json();
-      const match = (body.items || [])[0] as Manga | undefined;
+      const match = exactTitleMatch((body.items || []) as Manga[], item.title);
       setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
       return Boolean(match);
     } catch {
