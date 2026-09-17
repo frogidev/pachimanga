@@ -95,8 +95,8 @@ export default function SettingsPage() {
           <section className="surface-card p-5 sm:p-6">
             <div className="grid size-10 place-items-center rounded-xl bg-sky-400/10 text-sky-300">↻</div>
             <h2 className="mt-4 font-semibold text-zinc-100">Account</h2>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">Your library, imports, reader preferences and reading progress belong to your signed-in account.</p>
-            <Link href="/auth" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Manage account</Link>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">Edit your profile, change your password, request recovery email and manage this device's session.</p>
+            <Link href="/account" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Manage account</Link>
           </section>
 
           <section className="surface-card p-5 sm:p-6">
