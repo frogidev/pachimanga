@@ -22,13 +22,31 @@ The PWA is the full account-based product, not a guest/demo build. Native distri
 
 `public/sw.js` intentionally uses a narrow cache scope:
 
-- pre-cache the public `/offline` fallback and PWA icons;
-- leave `/api/**` requests uncached by the service worker;
-- use network-first navigation with `/offline` on network failure;
-- cache same-origin images and `/_next/static/` assets where appropriate;
-- do not use cache-first for authenticated application documents.
+- a dedicated shell cache pre-caches only the public `/offline` fallback and PWA icons;
+- `/api/**` requests are always left to the network and are never service-worker cached;
+- navigation remains network-first with the public `/offline` page as the failure fallback;
+- same-origin images and `/_next/static/` assets use a separate runtime cache;
+- runtime cache growth is bounded to 250 entries and oldest entries are evicted first;
+- stale Pachimanga cache versions are removed on service-worker activation while unrelated origin caches are left alone;
+- authenticated application documents are never intentionally cache-first.
 
 Any broader offline strategy requires explicit account-isolation design before implementation.
+
+## Update lifecycle
+
+A newly installed service worker does not automatically replace the active app while the user is reading. Instead:
+
+1. the new worker installs and waits;
+2. `PwaRegister` detects `registration.waiting` or a newly installed waiting worker;
+3. the app shows an `Update & reload` banner;
+4. only that explicit action sends the `SKIP_WAITING` message;
+5. the waiting worker activates, claims clients, and the controlled page reloads once on `controllerchange`.
+
+The `Later` action dismisses the banner for the current page lifetime; the waiting worker remains available and will be detected again on a later app load. First-time service-worker installation activates normally because there is no previous active worker.
+
+The install page also detects standalone mode. An already-installed PWA sees installed/update guidance instead of redundant browser installation steps.
+
+Real iPhone/iPad/Android/desktop installed-update behavior still requires the physical-device matrix in `WORKPLAN.md`; automated checks only prove the intended service-worker and UI contract.
 
 ## WeebCentral browser/PWA architecture
 
@@ -181,6 +199,7 @@ The exact release-candidate matrix lives in `WORKPLAN.md`.
 4. Launch the installed PWA.
 5. Verify the session/auth experience and safe-area/navigation behavior.
 6. Test offline fallback by losing network while navigating to a non-cached route; do not expect unsupported account operations to behave as fully offline-first.
+7. After a later production deploy, confirm an update prompt appears and accepting it reloads into the new version without losing account isolation.
 
 The PWA has no seven-day sideload signing expiry and does not require an Apple Developer membership.
 
@@ -191,7 +210,7 @@ Use the browser's normal Install/Add to Home Screen flow when available. Verify:
 - correct name/icon/theme color;
 - standalone launch;
 - no browser-only navigation assumptions;
-- update behavior after a new production deployment;
+- update banner and explicit reload after a new production deployment;
 - offline fallback remains account-safe.
 
 ## Native applications
