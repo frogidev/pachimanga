@@ -91,6 +91,22 @@ export async function idbGetAll<T>(store: StoreName): Promise<T[]> {
   }
 }
 
+export async function idbCount(store: StoreName): Promise<number> {
+  if (!hasIndexedDb()) return readFallback(store).length;
+  try {
+    const db = await openDb();
+    return await new Promise<number>((resolve, reject) => {
+      const tx = db.transaction(store, "readonly");
+      const request = tx.objectStore(store).count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = () => db.close();
+    });
+  } catch {
+    return readFallback(store).length;
+  }
+}
+
 export async function idbGet<T>(store: StoreName, key: IDBValidKey): Promise<T | undefined> {
   const keyField = storeKeyField(store);
   if (!hasIndexedDb()) {
