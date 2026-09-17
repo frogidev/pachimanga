@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { AccountDataExport } from '@/components/account-data-export';
 import { PageHeading } from '@/components/page-heading';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
@@ -36,6 +37,7 @@ export default function SettingsPage() {
       <div className="mt-6 grid gap-4">
         <SyncStatusPanel />
         <SettingsDiagnostics />
+        <AccountDataExport />
 
         <section className="surface-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
