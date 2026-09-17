@@ -81,7 +81,7 @@ Current shell/Settings states are driven by real owner-bound queues:
 - `Offline`;
 - `Offline · N pending`.
 
-The queues/RLS/server timestamp guards remain authoritative; the label is only UI. An explicit `Sync now`/retry control is planned but not yet implemented.
+Settings exposes explicit `Sync now` and `Retry pending sync` controls. They flush the same account-bound progress/settings queues used by reconnect handling; they do not bypass ownership checks or create a separate sync model.
 
 ## Provider chapter-update tracking
 
@@ -107,13 +107,14 @@ Library supports:
 - Unread Updates filter;
 - Continue Reading;
 - grid/compact density;
-- incremental rendering for larger collections.
+- incremental rendering for larger collections;
+- per-title manual chapter refresh with last-checked state.
 
-A per-title manual Refresh and more visible `last checked` age are planned in `WORKPLAN.md`.
+`/updates` also exposes live account/provider availability and bounded deliberate `Check all now` refresh behavior; it does not use aggressive background polling.
 
 ## Provider failure behavior
 
-Refresh/provider failures do not fabricate chapters, erase the previous baseline, or fall back to mock data. `403`/`429` and other upstream failures stay explicit. More specific error categorization/Retry UX is still planned before human testing.
+Refresh/provider failures do not fabricate chapters, erase the previous baseline, or fall back to mock data. Provider/offline/network failures, `403`, `429`, relay-unavailable, missing-content, and generic upstream errors remain explicit with safe retry behavior where appropriate. A successful zero-result state is not used as a substitute for a failed provider check.
 
 ## Relevant production migrations
 
@@ -125,4 +126,6 @@ Post-migration verification confirmed owner RLS/upsert constraints/grants remain
 
 ## 2026-09-17 verification
 
-User-operated local `npm run verify` on current `main` passed 94/94 tests, lint, typecheck, and production build. Production smoke also passed 9 protected routes and 4 PWA icons. Real two-device synchronization/account-switch behavior remains manual release evidence.
+The latest merged runtime hardening passed required Repository Hygiene and Web Quality, including unit tests, lint, typecheck, and production build. PR Production Smoke passed against protected anonymous routes and PWA assets. The exact deployed runtime is `dcc14856863ee3ab7a9877e5c7cd9bf953582c95` on Vercel deployment `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`.
+
+Real Account A -> B -> A isolation, two-device synchronization/clock-skew behavior, live signed-in production data, installed-PWA behavior, reader-device checks, representative imports, and a fresh direct production smoke from a network-capable environment remain manual release-candidate evidence.
