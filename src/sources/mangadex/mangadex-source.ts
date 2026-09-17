@@ -77,7 +77,7 @@ function relationName(resource: MangaDexManga, type: string) {
 function coverUrl(resource: MangaDexManga) {
   const rel = relation(resource, 'cover_art');
   const fileName = rel?.attributes?.fileName;
-  if (typeof fileName !== 'string' || !fileName) return '/icons/icon-512.png';
+  if (typeof fileName !== 'string' || !fileName) return '';
   return `${COVERS}/${resource.id}/${encodeURIComponent(fileName)}.512.jpg`;
 }
 
@@ -177,7 +177,7 @@ export class MangaDexSource implements MangaSource {
         );
         return { items: payload.data || [], total: payload.total };
       },
-      { pageSize: 100, maxPages: 5 },
+      { pageSize: 100, maxPages: 20 },
     );
 
     const seen = new Set<string>();
