@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AccountDataExport } from '@/components/account-data-export';
 import { AccountSettings } from '@/components/account-settings';
@@ -95,13 +94,6 @@ export default function SettingsPage() {
         </section>
 
         <PwaDeviceStatus />
-
-        <section className="surface-card p-5 sm:p-6">
-          <div className="grid size-10 place-items-center rounded-xl bg-amber-400/10 text-amber-300">⇩</div>
-          <h2 className="mt-4 font-semibold text-zinc-100">Import library</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Bring over screenshots or backups from Tachiyomi, Mihon, and Tachimanga into your private library.</p>
-          <Link href="/import" className="button-secondary mt-5 inline-flex px-4 py-2.5 text-sm">Open importer</Link>
-        </section>
       </div>
     </div>
   );
