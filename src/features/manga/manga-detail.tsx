@@ -4,9 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MockCoverArt } from "@/components/mock-cover-art";
-import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
+import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import { idbGetAll } from "@/lib/storage/idb";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
+import { firstReadableChapter, latestReadableChapter } from "./read-target";
 
 type ExternalReadLink = { label: string; url: string };
 
@@ -51,6 +52,17 @@ function summarizeReadState(chapters: Chapter[], map: Record<string, number>) {
   };
 }
 
+function newestProgress(rows: ReadingProgress[]) {
+  return rows.reduce<ReadingProgress | null>((latest, row) => {
+    if (!latest) return row;
+    const latestTime = Date.parse(latest.updatedAt);
+    const rowTime = Date.parse(row.updatedAt);
+    if (!Number.isFinite(latestTime)) return row;
+    if (!Number.isFinite(rowTime)) return latest;
+    return rowTime > latestTime ? row : latest;
+  }, null);
+}
+
 export function MangaDetail({
   manga,
   chapters,
@@ -70,11 +82,14 @@ export function MangaDetail({
   const [bulk, setBulk] = useState<{ done: number; total: number; label: string } | null>(null);
   const bulkCancel = useRef(false);
   const [continueTo, setContinueTo] = useState<{ id: string; title: string } | null>(null);
+  const [readStateLoaded, setReadStateLoaded] = useState(false);
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(chapters.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const visibleChapters = chapters.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const firstChapter = useMemo(() => firstReadableChapter(chapters), [chapters]);
+  const latestChapter = useMemo(() => latestReadableChapter(chapters), [chapters]);
   const readCount = useMemo(
     () => chapters.filter((chapter) => (chapterProgress[chapter.id] ?? 0) >= 99).length,
     [chapters, chapterProgress],
@@ -94,6 +109,7 @@ export function MangaDetail({
 
   useEffect(() => {
     let cancelled = false;
+    setReadStateLoaded(false);
     void (async () => {
       try {
         const [allProgress, history] = await Promise.all([
@@ -101,20 +117,33 @@ export function MangaDetail({
           getHistory().catch(() => []),
         ]);
         if (cancelled) return;
+        const mangaProgress = allProgress.filter((row) => row.mangaId === manga.id);
         const map: Record<string, number> = {};
-        for (const row of allProgress) {
-          if (row.mangaId === manga.id) map[row.chapterId] = Number(row.percentage || 0);
+        for (const row of mangaProgress) {
+          map[row.chapterId] = Number(row.percentage || 0);
         }
         setChapterProgress(map);
-        const latest = history.find((entry) => entry.mangaId === manga.id);
-        if (latest) {
-          const chapter = chapters.find((item) => item.id === latest.chapterId);
-          setContinueTo({ id: latest.chapterId, title: chapter?.title || 'latest position' });
-        } else {
-          setContinueTo(null);
+
+        const latestHistory = history.find((entry) => entry.mangaId === manga.id);
+        let resumeProgress = latestHistory
+          ? mangaProgress.find((row) => row.chapterId === latestHistory.chapterId) || null
+          : null;
+        if (!resumeProgress && latestHistory) {
+          const remoteProgress = await getProgress(latestHistory.chapterId).catch(() => undefined);
+          if (remoteProgress?.mangaId === manga.id) resumeProgress = remoteProgress;
         }
+        resumeProgress ||= newestProgress(mangaProgress);
+        if (cancelled) return;
+
+        const chapter = resumeProgress
+          ? chapters.find((item) => item.id === resumeProgress.chapterId)
+          : null;
+        setContinueTo(chapter ? { id: chapter.id, title: chapter.title } : null);
       } catch {
+        if (!cancelled) setContinueTo(null);
         // Read state is best-effort; chapters remain readable without it.
+      } finally {
+        if (!cancelled) setReadStateLoaded(true);
       }
     })();
     return () => { cancelled = true; };
@@ -281,8 +310,10 @@ export function MangaDetail({
             <p className="mt-2 text-sm text-zinc-500">{manga.author || "Unknown author"} · <span className="capitalize">{manga.status}</span> · {provider}</p>
             {description ? <p className="mt-5 max-w-3xl whitespace-pre-line text-sm leading-7 text-zinc-400 sm:text-[15px]">{description}</p> : null}
             <div className="mt-6 flex flex-wrap gap-3">
-              {continueTo ? <Link href={chapterHref(continueTo.id)} className="button-primary px-5 py-3 text-sm">Continue · {continueTo.title}</Link> : null}
-              {chapters[0] ? <Link href={chapterHref(chapters[0].id)} className={`${continueTo ? "button-secondary" : "button-primary"} px-5 py-3 text-sm`}>Read latest</Link> : null}
+              {!readStateLoaded && chapters.length ? <span role="status" className="button-primary px-5 py-3 text-sm opacity-60">Loading reading position…</span> : null}
+              {readStateLoaded && continueTo ? <Link href={chapterHref(continueTo.id)} className="button-primary px-5 py-3 text-sm">Continue · {continueTo.title}</Link> : null}
+              {readStateLoaded && !continueTo && firstChapter ? <Link href={chapterHref(firstChapter.id)} className="button-primary px-5 py-3 text-sm">Start reading · {firstChapter.title}</Link> : null}
+              {readStateLoaded && continueTo && latestChapter && latestChapter.id !== continueTo.id ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">Read latest</Link> : null}
               {!chapters.length && external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-5 py-3 text-sm">Read on {external.label} ↗</a> : null}
               <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? "Remove from library" : "Add to library"}</button>
             </div>
