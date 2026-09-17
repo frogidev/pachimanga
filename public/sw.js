@@ -1,7 +1,8 @@
 const CACHE_VERSION = "pachimanga-pwa-v5-auth";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
-const ACTIVE_CACHES = new Set([SHELL_CACHE, RUNTIME_CACHE]);
+const CHAPTER_CACHE = "pachimanga-chapters-v1";
+const ACTIVE_CACHES = new Set([SHELL_CACHE, RUNTIME_CACHE, CHAPTER_CACHE]);
 const RUNTIME_CACHE_LIMIT = 250;
 const PUBLIC_SHELL = [
   "/offline",
@@ -43,8 +44,19 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
+  const sameOrigin = url.origin === self.location.origin;
 
-  if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (request.destination === "image" && !sameOrigin) {
+    event.respondWith(
+      caches.open(CHAPTER_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        return cached || fetch(request);
+      }),
+    );
+    return;
+  }
+
+  if (!sameOrigin || url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PageHeading } from '@/components/page-heading';
+import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SyncStatusPanel } from '@/components/sync-status';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
@@ -64,6 +65,14 @@ export default function SettingsPage() {
               <button className={`rounded-[9px] px-4 py-2 text-sm transition ${s.fitMode === 'screen' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ fitMode: 'screen' })}>Fit screen</button>
             </div>
           </div>
+
+          <label className="mt-6 flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3.5 py-3">
+            <input type="checkbox" checked={Boolean(s.keepScreenAwake)} onChange={(event) => patch({ keepScreenAwake: event.target.checked })} className="mt-0.5 size-4 accent-pink-400" />
+            <span>
+              <span className="block text-sm font-medium text-zinc-200">Keep screen awake while reading</span>
+              <span className="mt-1 block text-xs leading-5 text-zinc-500">Uses the browser Screen Wake Lock API when supported and releases it when the reader closes or the app is backgrounded.</span>
+            </span>
+          </label>
         </section>
 
         <section className="surface-card p-5 sm:p-6">
@@ -76,12 +85,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-pink-300/15 bg-pink-300/[.045] p-5 sm:p-6">
-          <div className="grid size-10 place-items-center rounded-xl bg-pink-400/10 text-pink-300">PWA</div>
-          <h2 className="mt-4 font-semibold text-zinc-100">Free install for iPhone & iPad</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Install Pachimanga from Safari using Add to Home Screen. Your account is still required when the installed PWA opens.</p>
-          <Link href="/install" className="button-primary mt-5 inline-flex px-4 py-2.5 text-sm">Installation guide</Link>
-        </section>
+        <PwaDeviceStatus />
 
         <div className="grid gap-4 md:grid-cols-2">
           <section className="surface-card p-5 sm:p-6">

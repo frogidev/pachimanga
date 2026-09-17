@@ -76,4 +76,5 @@ export interface ReaderSettings {
   baseSpeedPxPerSecond: number;
   fitMode: "width" | "screen";
   theme: "dark" | "light";
+  keepScreenAwake?: boolean;
 }

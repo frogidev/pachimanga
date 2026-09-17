@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
 import { SyncStatusIndicator } from "@/components/sync-status";
@@ -33,22 +33,35 @@ function isActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
   useEffect(() => {
-    // Sync owner-bound progress and settings queued while offline, on boot and reconnect.
+    // Bind all local/offline caches to the authenticated account, then flush queued sync work.
     const flush = () => {
-      void import("@/lib/storage/reader-storage").then(async ({ flushProgressOutbox, flushSettingsOutbox }) => {
+      void Promise.all([
+        import("@/lib/storage/reader-storage"),
+        import("@/lib/offline/chapter-cache"),
+      ]).then(async ([{ bindCurrentUserCache, flushProgressOutbox, flushSettingsOutbox }, { bindChapterCacheOwner }]) => {
+        const user = await bindCurrentUserCache();
+        await bindChapterCacheOwner(user.id);
         await Promise.all([
           flushProgressOutbox().catch(() => null),
           flushSettingsOutbox().catch(() => null),
         ]);
         window.dispatchEvent(new CustomEvent("pachimanga:sync-change"));
-      });
+      }).catch(() => null);
     };
     flush();
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
   }, []);
+
   if (pathname.startsWith("/reader/") || pathname.startsWith("/auth") || pathname === "/offline") return <>{children}</>;
+
+  const goBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/");
+  };
 
   return (
     <div className="min-h-dvh bg-[#09080d] text-zinc-100">
@@ -96,7 +109,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="sticky top-0 z-40 flex h-16 items-center border-b border-white/[.07] bg-[#0b0910]/95 px-4 backdrop-blur-xl md:hidden">
+      <div className="sticky top-0 z-40 flex h-[calc(4rem+env(safe-area-inset-top))] items-end border-b border-white/[.07] bg-[#0b0910]/95 px-3 pb-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:hidden">
+        {pathname !== "/" ? (
+          <button type="button" onClick={goBack} className="mr-2 grid size-10 shrink-0 place-items-center rounded-xl text-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label="Go back">←</button>
+        ) : null}
         <Link href="/" className="inline-flex"><PachiLogo /></Link>
         <div className="ml-auto"><SyncStatusIndicator compact /></div>
       </div>
@@ -107,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {navItems.slice(0, 5).map((item) => {
           const active = isActive(pathname, item.href);
           return (
-            <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium ${active ? "text-pink-300" : "text-zinc-500"}`}>
+            <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${active ? "text-pink-300" : "text-zinc-500"}`}>
               <span aria-hidden="true"><NavIcon name={item.icon} /></span>
               {item.label}
             </Link>

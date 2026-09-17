@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState, useSyncExternalStore } from 'react';
 import { buildPasswordRecoveryRedirect, isPasswordRecoveryRequest, safeLocalPath } from '@/lib/auth/redirects';
+import { clearChapterCache } from '@/lib/offline/chapter-cache';
 import { createClient } from '@/lib/supabase/client';
 import { bindCurrentUserCache, clearLocalUserCache } from '@/lib/storage/reader-storage';
 
@@ -52,11 +53,13 @@ export function AuthForm() {
         if (cancelled) return;
         setSignedIn(data.user?.email || null);
         if (data.user) await bindCurrentUserCache();
+        else await clearChapterCache();
       });
       const listener = sb.auth.onAuthStateChange((event, session) => {
         if (cancelled) return;
         setSignedIn(session?.user.email || null);
         if (event === 'PASSWORD_RECOVERY') setRecoveryEvent(true);
+        if (event === 'SIGNED_OUT') void clearChapterCache();
       });
       subscription = listener.data.subscription;
     } catch {
@@ -139,7 +142,7 @@ export function AuthForm() {
       router.replace('/');
       router.refresh();
     } catch (error) {
-      setOverride(error instanceof Error ? error.message : 'Password update failed.');
+      setOverride(error instanceof Error ? error.message : 'Password update failed');
     } finally {
       setBusy(false);
     }
@@ -149,7 +152,7 @@ export function AuthForm() {
     setBusy(true);
     const sb = createClient();
     await sb.auth.signOut();
-    await clearLocalUserCache();
+    await Promise.all([clearLocalUserCache(), clearChapterCache()]);
     setSignedIn(null);
     setOverride('Signed out on this device.');
     router.replace('/auth');

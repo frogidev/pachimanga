@@ -8,6 +8,7 @@ import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
 import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
+import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
 import type { Chapter, Manga, Page, ReaderSettings, ReadingProgress } from "@/types/models";
@@ -19,13 +20,16 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
   const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
   const reducedMotion = useReducedMotion();
+  const wakeLock = useScreenWakeLock(Boolean(settings.keepScreenAwake));
   const [loadedChapterId, setLoadedChapterId] = useState<string | null>(null);
   const [resumeState, setResumeState] = useState<{ chapterId: string; progress: ReadingProgress | null } | null>(null);
   const [offlineState, setOfflineState] = useState<{ saved: number; total: number } | null>(null);
   const [offlineBusy, setOfflineBusy] = useState(false);
+  const [offlineError, setOfflineError] = useState<string | null>(null);
   const saveTimer = useRef<number | undefined>(undefined);
   const scrollFrame = useRef<number | undefined>(undefined);
   const touchStartY = useRef<number | null>(null);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
 
   const hydrated = loadedChapterId === chapter.id;
   const resumeProgress = resumeState?.chapterId === chapter.id ? resumeState.progress : null;
@@ -36,12 +40,35 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const pause = useCallback(() => dispatch({ type: "pause" }), []);
   useAutoScroll({ playing: state.autoScrollPlaying && !reducedMotion, speedPxPerSecond: speed, onEnd: pause });
 
+  const currentScrollPercentage = useCallback(() => {
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    return Math.max(0, Math.min(100, (window.scrollY / maxScroll) * 100));
+  }, []);
+
+  const updateProgressIndicator = useCallback(() => {
+    const percentage = currentScrollPercentage();
+    const element = progressBarRef.current;
+    if (element) {
+      element.style.transform = `scaleX(${percentage / 100})`;
+      element.setAttribute("aria-valuenow", String(Math.round(percentage)));
+    }
+    return percentage;
+  }, [currentScrollPercentage]);
+
   const persistCurrentProgress = useCallback(() => {
     if (!hydrated) return;
-    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    const percentage = Math.max(0, Math.min(100, (window.scrollY / maxScroll) * 100));
+    const percentage = currentScrollPercentage();
     void saveProgress({ mangaId: manga.id, chapterId: chapter.id, pageIndex: state.currentPageIndex, scrollPosition: window.scrollY, percentage, updatedAt: new Date().toISOString() });
-  }, [chapter.id, hydrated, manga.id, state.currentPageIndex]);
+  }, [chapter.id, currentScrollPercentage, hydrated, manga.id, state.currentPageIndex]);
+
+  const scrollToPage = useCallback((index: number) => {
+    const bounded = Math.max(0, Math.min(pages.length - 1, index));
+    const target = document.querySelector<HTMLElement>(`[data-page-index="${bounded}"]`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+    dispatch({ type: "page", index: bounded });
+    dispatch({ type: "show-controls" });
+  }, [pages.length, reducedMotion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,13 +99,14 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           window.innerHeight,
         );
         window.scrollTo({ top, behavior: "instant" });
+        updateProgressIndicator();
       });
     });
     return () => {
       cancelAnimationFrame(firstFrame);
       if (secondFrame) cancelAnimationFrame(secondFrame);
     };
-  }, [chapter.id, hydrated, resumeProgress]);
+  }, [chapter.id, hydrated, resumeProgress, updateProgressIndicator]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -86,6 +114,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (scrollFrame.current) return;
       scrollFrame.current = requestAnimationFrame(() => {
         scrollFrame.current = undefined;
+        updateProgressIndicator();
         const element = document.elementFromPoint(window.innerWidth / 2, Math.min(window.innerHeight * 0.55, window.innerHeight - 1));
         const pageElement = element?.closest<HTMLElement>("[data-page-index]");
         const index = Number(pageElement?.dataset.pageIndex ?? state.currentPageIndex);
@@ -94,6 +123,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         saveTimer.current = window.setTimeout(persistCurrentProgress, 500);
       });
     };
+    updateProgressIndicator();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
@@ -101,7 +131,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       persistCurrentProgress();
     };
-  }, [hydrated, persistCurrentProgress, state.currentPageIndex]);
+  }, [hydrated, persistCurrentProgress, state.currentPageIndex, updateProgressIndicator]);
 
   useEffect(() => {
     const upcoming = getPreloadWindow(pages, state.currentPageIndex, 2);
@@ -122,8 +152,14 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       const start = touchStartY.current; const y = event.touches[0]?.clientY;
       if (state.autoScrollPlaying && start !== null && y !== undefined && Math.abs(y - start) > 6) pause();
     };
-    window.addEventListener("wheel", onWheel, { passive: true }); window.addEventListener("touchstart", onTouchStart, { passive: true }); window.addEventListener("touchmove", onTouchMove, { passive: true });
-    return () => { window.removeEventListener("wheel", onWheel); window.removeEventListener("touchstart", onTouchStart); window.removeEventListener("touchmove", onTouchMove); };
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
   }, [pause, state.autoScrollPlaying]);
 
   const updateSettings = useCallback((patch: Partial<ReaderSettings>) => {
@@ -137,14 +173,20 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (event.code === "Space") { event.preventDefault(); dispatch({ type: "toggle-play" }); }
       else if (event.key === "+" || event.key === "=") updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, 1) });
       else if (event.key === "-" || event.key === "_") updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) });
+      else if (event.key === "PageUp") { event.preventDefault(); scrollToPage(state.currentPageIndex - 1); }
+      else if (event.key === "PageDown") { event.preventDefault(); scrollToPage(state.currentPageIndex + 1); }
       else if (event.key === "ArrowLeft" && previousChapter) router.push(`${routeBasePath}/${previousChapter.id}`);
       else if (event.key === "ArrowRight" && nextChapter) router.push(`${routeBasePath}/${nextChapter.id}`);
       else if (event.key === "Escape" && document.fullscreenElement) void document.exitFullscreen();
     };
-    window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown);
-  }, [nextChapter, previousChapter, routeBasePath, router, settings.autoScrollMultiplier, updateSettings]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [nextChapter, previousChapter, routeBasePath, router, scrollToPage, settings.autoScrollMultiplier, state.currentPageIndex, updateSettings]);
 
-  async function toggleFullscreen() { if (document.fullscreenElement) await document.exitFullscreen(); else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }
+  async function toggleFullscreen() {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+  }
   const toggleControls = () => dispatch({ type: state.controlsVisible ? "hide-controls" : "show-controls" });
 
   useEffect(() => {
@@ -157,21 +199,37 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     return () => { cancelled = true; };
   }, [chapter.id, pages]);
 
-  async function saveChapterOffline() {
+  async function toggleChapterOffline() {
     if (offlineBusy) return;
     setOfflineBusy(true);
+    setOfflineError(null);
     try {
-      const { cacheChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
+      const { cacheChapterPages, removeChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
       const urls = uniquePageUrls(pages);
-      const result = await cacheChapterPages(urls, (saved, total) => setOfflineState({ saved, total }));
-      setOfflineState({ saved: result.saved, total: result.total });
+      const fullySaved = Boolean(offlineState && offlineState.total > 0 && offlineState.saved >= offlineState.total);
+      if (fullySaved) {
+        await removeChapterPages(urls);
+        setOfflineState({ saved: 0, total: urls.length });
+      } else {
+        const result = await cacheChapterPages(urls, (saved, total) => setOfflineState({ saved, total }));
+        setOfflineState({ saved: result.saved, total: result.total });
+        if (result.failed) setOfflineError(`${result.failed} page${result.failed === 1 ? "" : "s"} could not be cached.`);
+      }
+      window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
     } finally {
       setOfflineBusy(false);
     }
   }
 
+  const offlineComplete = Boolean(offlineState && offlineState.total > 0 && offlineState.saved >= offlineState.total);
+
   return (
     <div className="min-h-dvh bg-black text-white" onClick={toggleControls} onMouseMove={() => dispatch({ type: "show-controls" })}>
+      <div ref={progressBarRef} role="progressbar" aria-label="Chapter reading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={0} className="fixed inset-x-0 top-0 z-[70] h-1 origin-left scale-x-0 bg-sky-400 transition-transform duration-75 motion-reduce:transition-none" />
+
+      <button type="button" onClick={(event) => { event.stopPropagation(); scrollToPage(state.currentPageIndex - 1); }} disabled={state.currentPageIndex <= 0} className="fixed bottom-[24%] left-0 top-[24%] z-20 w-[18vw] opacity-0 focus-visible:opacity-100 focus-visible:bg-white/[.04] disabled:pointer-events-none sm:hidden" aria-label="Previous page" />
+      <button type="button" onClick={(event) => { event.stopPropagation(); scrollToPage(state.currentPageIndex + 1); }} disabled={state.currentPageIndex >= pages.length - 1} className="fixed bottom-[24%] right-0 top-[24%] z-20 w-[18vw] opacity-0 focus-visible:opacity-100 focus-visible:bg-white/[.04] disabled:pointer-events-none sm:hidden" aria-label="Next page" />
+
       <div className="mx-auto flex min-h-dvh w-full max-w-[1200px] flex-col items-center bg-zinc-950">
         {!hydrated ? (
           <div role="status" aria-label="Loading chapter" className="flex w-full flex-col items-center gap-3 py-10">
@@ -183,7 +241,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         ) : pages.map((page, index) => {
           const hasDimensions = Boolean(page.width && page.height);
           return (
-            <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 ${index > 0 ? "border-t border-black" : ""}`}>
+            <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 [content-visibility:auto] [contain-intrinsic-size:1200px] ${index > 0 ? "border-t border-black" : ""}`}>
               <Image
                 src={page.imageUrl}
                 alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
@@ -191,6 +249,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
                 height={page.height ?? 1800}
                 sizes="(max-width: 1200px) 100vw, 1200px"
                 loading={index < 2 ? "eager" : "lazy"}
+                decoding="async"
                 unoptimized
                 style={!hasDimensions && settings.fitMode === "width" ? { width: "100%", height: "auto" } : undefined}
                 className={settings.fitMode === "screen" ? "block h-auto max-h-[100svh] w-auto max-w-full object-contain" : "block h-auto w-full max-w-[1200px] object-contain"}
@@ -198,21 +257,35 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
             </div>
           );
         })}
-
       </div>
 
-      <div className={`fixed inset-x-0 top-0 z-50 transition duration-200 ${state.controlsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center gap-3 border-b border-white/10 bg-black/80 px-3 pt-[calc(.6rem+env(safe-area-inset-top))] pb-2.5 backdrop-blur-xl sm:px-5">
-          <Link href={`${mangaBasePath}/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Close reader">×</Link>
-          <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{manga.title}</p><p className="truncate text-xs text-zinc-500">{chapter.title} · page {state.currentPageIndex + 1}/{pages.length}</p></div>
-          <button type="button" onClick={() => void saveChapterOffline()} disabled={offlineBusy} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 disabled:opacity-50 sm:block" aria-label={offlineState && offlineState.saved >= offlineState.total && offlineState.total > 0 ? "Chapter saved for offline reading" : "Save chapter for offline reading"}>
-            {offlineBusy ? `Saving ${offlineState?.saved ?? 0}/${offlineState?.total ?? pages.length}…` : offlineState && offlineState.saved >= offlineState.total && offlineState.total > 0 ? "✓ Saved" : "↓ Offline"}
+      <div className={`fixed inset-x-0 top-0 z-50 transition duration-200 motion-reduce:transition-none ${state.controlsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center gap-2 border-b border-white/10 bg-black/80 px-3 pb-2.5 pt-[calc(.6rem+env(safe-area-inset-top))] backdrop-blur-xl sm:gap-3 sm:px-5">
+          <Link href={`${mangaBasePath}/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300" aria-label="Close reader">×</Link>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{manga.title}</p>
+            <p className="truncate text-xs text-zinc-500">{chapter.title} · page {state.currentPageIndex + 1}/{pages.length}</p>
+          </div>
+          <label className="hidden max-w-56 sm:block">
+            <span className="sr-only">Jump to chapter</span>
+            <select value={chapter.id} onChange={(event) => router.push(`${routeBasePath}/${event.target.value}`)} className="h-10 max-w-56 rounded-xl border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-300 outline-none focus:border-sky-300/60">
+              {chapters.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+          <button type="button" onClick={() => void toggleChapterOffline()} disabled={offlineBusy} className="rounded-xl bg-white/8 px-2.5 py-2 text-xs text-zinc-300 hover:bg-white/12 disabled:opacity-50" aria-label={offlineComplete ? "Remove downloaded chapter pages" : "Save chapter pages for offline reading"}>
+            {offlineBusy ? `${offlineState?.saved ?? 0}/${offlineState?.total ?? pages.length}` : offlineComplete ? "✓ Offline" : "↓ Offline"}
           </button>
+          {wakeLock.supported ? (
+            <button type="button" onClick={() => updateSettings({ keepScreenAwake: !settings.keepScreenAwake })} className={`hidden rounded-xl px-3 py-2 text-xs sm:block ${settings.keepScreenAwake ? "bg-amber-300/15 text-amber-200" : "bg-white/8 text-zinc-400 hover:bg-white/12"}`} aria-pressed={Boolean(settings.keepScreenAwake)} title={wakeLock.active ? "Screen wake lock active" : "Keep screen awake while reading"}>
+              {wakeLock.active ? "Awake" : "Wake"}
+            </button>
+          ) : null}
           <button type="button" onClick={() => void toggleFullscreen()} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 sm:block">Fullscreen</button>
         </div>
+        {offlineError ? <div className="mx-auto mt-2 w-fit max-w-[calc(100vw-2rem)] rounded-xl bg-red-950/90 px-3 py-2 text-xs text-red-200">{offlineError}</div> : null}
       </div>
 
-      <div className={`fixed inset-x-0 bottom-0 z-50 transition duration-200 ${state.controlsVisible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
+      <div className={`fixed inset-x-0 bottom-0 z-50 transition duration-200 motion-reduce:transition-none ${state.controlsVisible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
         <div className="mx-auto max-w-xl px-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-4">
           <div className="rounded-3xl border border-white/10 bg-black/85 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-4">
             <div className="flex items-center gap-3">
@@ -220,10 +293,15 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               <div className="min-w-0 flex-1"><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-medium text-zinc-200">Auto-scroll</span><span className="tabular-nums text-zinc-500">{settings.autoScrollMultiplier.toFixed(settings.autoScrollMultiplier % 1 ? 2 : 0)}× · {Math.round(speed)} px/s</span></div><input type="range" min="0.1" max="5" step="0.05" value={settings.autoScrollMultiplier} onChange={(event) => updateSettings({ autoScrollMultiplier: Number(event.target.value) })} className="w-full accent-emerald-400" aria-label="Auto-scroll speed" /></div>
               <div className="flex shrink-0 gap-1"><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Decrease auto-scroll speed">−</button><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, 1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Increase auto-scroll speed">+</button></div>
             </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/8 pt-3 text-xs sm:hidden">
+              <button type="button" disabled={state.currentPageIndex <= 0} onClick={() => scrollToPage(state.currentPageIndex - 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↑</button>
+              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
+              <button type="button" disabled={state.currentPageIndex >= pages.length - 1} onClick={() => scrollToPage(state.currentPageIndex + 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↓</button>
+            </div>
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/8 pt-3 text-xs">
-              <button type="button" disabled={!previousChapter} onClick={() => previousChapter && router.push(`${routeBasePath}/${previousChapter.id}`)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous</button>
-              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
-              <button type="button" disabled={!nextChapter} onClick={() => nextChapter && router.push(`${routeBasePath}/${nextChapter.id}`)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next →</button>
+              <button type="button" disabled={!previousChapter} onClick={() => previousChapter && router.push(`${routeBasePath}/${previousChapter.id}`)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous chapter</button>
+              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="hidden rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12 sm:block">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
+              <button type="button" disabled={!nextChapter} onClick={() => nextChapter && router.push(`${routeBasePath}/${nextChapter.id}`)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next chapter →</button>
             </div>
           </div>
         </div>
