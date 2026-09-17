@@ -9,7 +9,8 @@ import type { ImportManga } from '@/lib/imports/types';
 import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, setEntryProgress } from '@/lib/storage/reader-storage';
 import type { Manga } from '@/types/models';
 
-type Candidate = ImportManga & { match?: Manga; selected?: boolean };
+type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
+const REVIEW_PAGE_SIZE = 50;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function weebCentralMatch(item: ImportManga): Manga | null {
@@ -105,6 +106,7 @@ export function ImportPanel() {
   const [wiping, setWiping] = useState(false);
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
   const [taskProgress, setTaskProgress] = useState<{ done: number; total: number } | null>(null);
+  const [reviewPage, setReviewPage] = useState(0);
 
   function refreshLibraryCount() {
     void Promise.resolve()
@@ -118,7 +120,7 @@ export function ImportPanel() {
   }, []);
 
   async function wipe() {
-    if (!window.confirm('Remove EVERYTHING in your library, including progress and history? This cannot be undone.')) return;
+    if (!window.confirm('Remove your ENTIRE library, including all reading progress and history for this account? This affects matched, manually added, and imported titles and cannot be undone.')) return;
     setWiping(true);
     try {
       await clearAccountLibrary();
@@ -139,7 +141,7 @@ export function ImportPanel() {
       const out = await parseBackup(file);
       const deduped = dedupeCandidates(out.manga);
       const library = await readExistingLibrary();
-      const linked = deduped.items.map((item) => ({ ...item, selected: item.favorite !== false, match: linkCandidate(item, library) ?? undefined }));
+      const linked = deduped.items.map((item) => ({ ...item, selected: item.favorite !== false, reviewed: false, match: linkCandidate(item, library) ?? undefined }));
       setItems(linked);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
@@ -157,7 +159,7 @@ export function ImportPanel() {
     setProgress(0);
     try {
       const titles = await extractTitlesFromImage(file, setProgress);
-      setItems(titles.map((title) => ({ title, favorite: true, selected: false })));
+      setItems(titles.map((title) => ({ title, favorite: true, selected: false, reviewed: false })));
       setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed');
@@ -168,7 +170,7 @@ export function ImportPanel() {
     const item = items[index];
     const direct = weebCentralMatch(item);
     if (direct) {
-      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match: direct } : candidate));
+      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match: direct, reviewed: true } : candidate));
       return true;
     }
     try {
@@ -176,7 +178,7 @@ export function ImportPanel() {
       const body = await response.json();
       const match = (body.items || [])[0] as Manga | undefined;
       if (match) {
-        setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
+        setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match, reviewed: true } : candidate));
         return true;
       }
     } catch {
@@ -213,6 +215,11 @@ export function ImportPanel() {
 
   async function save() {
     const chosen = items.filter((item) => item.selected !== false);
+    const unreviewed = chosen.filter((item) => !item.reviewed);
+    if (unreviewed.length) {
+      setStatus(`Review all selected titles before importing. ${unreviewed.length} selected title${unreviewed.length === 1 ? '' : 's'} still need review.`);
+      return;
+    }
     if (!chosen.length) {
       setStatus('Select at least one title first.');
       return;
@@ -285,8 +292,12 @@ export function ImportPanel() {
   }
 
   function patch(index: number, value: Partial<Candidate>) {
-    setItems((current) => current.map((item, i) => i === index ? { ...item, ...value } : item));
+    setItems((current) => current.map((item, i) => i === index ? { ...item, ...value, reviewed: value.reviewed ?? true } : item));
   }
+
+  const reviewPageCount = Math.max(1, Math.ceil(items.length / REVIEW_PAGE_SIZE));
+  const safeReviewPage = Math.min(reviewPage, reviewPageCount - 1);
+  const visibleItems = items.slice(safeReviewPage * REVIEW_PAGE_SIZE, safeReviewPage * REVIEW_PAGE_SIZE + REVIEW_PAGE_SIZE);
 
   return (
     <div className="mt-6 grid gap-5">
@@ -323,14 +334,16 @@ export function ImportPanel() {
               <strong className="mt-1 block text-zinc-100">{items.length} candidates</strong>
             </div>
             <span className="flex-1" />
-            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true })))}>Select all</button>
-            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false })))}>Select none</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true, reviewed: true })))}>Select all</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false, reviewed: true })))}>Select none</button>
             <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match all'}</button>
             <button disabled={importing} className="button-primary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void save()}>{importing ? 'Importing…' : 'Import selected'}</button>
           </div>
 
           <div className="grid gap-2 p-3 sm:p-4">
-            {items.slice(0, 150).map((manga, index) => (
+            {visibleItems.map((manga, pageIndex) => {
+              const index = safeReviewPage * REVIEW_PAGE_SIZE + pageIndex;
+              return (
               <div className="grid gap-3 rounded-xl border border-white/[.065] bg-[#0e0d14] p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center" key={`${manga.title}-${index}`}>
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
@@ -340,8 +353,16 @@ export function ImportPanel() {
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
                 <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
               </div>
-            ))}
+              );
+            })}
           </div>
+          {reviewPageCount > 1 ? (
+            <div className="flex items-center justify-center gap-2 border-t border-white/[.06] px-4 py-3">
+              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>← Previous</button>
+              <span className="font-mono text-[11px] text-zinc-500">Review page {safeReviewPage + 1}/{reviewPageCount}</span>
+              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage >= reviewPageCount - 1} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>Next →</button>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
