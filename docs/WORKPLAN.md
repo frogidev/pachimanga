@@ -138,7 +138,7 @@ Using a real signed-in disposable/test account, verify that production reflects 
 
 ### Fresh production boundary evidence
 
-- [ ] rerun `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from a network-capable environment on runtime `c9060fd177b7d3cdf607cbde1945af875e283fa7` (or a proven runtime-equivalent descendant).
+- [x] reran `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from GitHub-hosted Ubuntu on 2026-09-17; result: pass, 12 protected routes and 4 PWA icons checked against runtime `c9060fd177b7d3cdf607cbde1945af875e283fa7`.
 
 ## Provider release evidence
 
@@ -180,7 +180,7 @@ Pachimanga may be called a PWA release candidate only when:
 - [ ] installed-PWA device matrix is complete;
 - [ ] conventional + long-strip reader matrix is complete;
 - [ ] representative supported import formats are validated;
-- [ ] fresh credential-free production smoke passes on the current runtime;
+- [x] fresh credential-free production smoke passes on the current runtime;
 - [x] current production runtime deployment `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` is `READY` for `c9060fd177b7d3cdf607cbde1945af875e283fa7`;
 - [x] RLS/least-privilege/account-bound cache architecture is in place;
 - [x] service-worker authenticated caching boundary is protected;
@@ -194,4 +194,4 @@ Prioritize only from observed user feedback and measured performance. Candidate 
 
 ## Exact next task
 
-Run the manual live production-data/auth/device/import release-candidate matrix with real identities/devices and rerun Production Smoke from a network-capable environment against the current runtime. Treat concrete failures found during this testing as the only priority for new feature/bug work. Freeze unrelated expansion and do not begin native/platform release work until the PWA release-candidate gate is complete.
+Run the remaining manual live production-data/auth/device/import release-candidate matrix with real identities/devices. Fresh credential-free Production Smoke has now passed against the current runtime; treat concrete failures found during the remaining manual testing as the only priority for new feature/bug work. Freeze unrelated expansion and do not begin native/platform release work until the PWA release-candidate gate is complete.
