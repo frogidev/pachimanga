@@ -89,8 +89,9 @@ test("Supabase active migrations mirror the canonical timestamped production cha
 
 test("service worker evicts only stale Pachimanga caches", () => {
   const serviceWorker = readFileSync(join(ROOT, "public/sw.js"), "utf8");
-  assert.match(serviceWorker, /key\.startsWith\("pachimanga-"\) && key !== CACHE_VERSION/);
-  assert.doesNotMatch(serviceWorker, /key !== CACHE_VERSION && !key\.startsWith\("pachimanga-"\)/);
+  assert.match(serviceWorker, /const ACTIVE_CACHES = new Set\(\[SHELL_CACHE, RUNTIME_CACHE\]\)/);
+  assert.match(serviceWorker, /key\.startsWith\("pachimanga-"\) && !ACTIVE_CACHES\.has\(key\)/);
+  assert.doesNotMatch(serviceWorker, /!ACTIVE_CACHES\.has\(key\) && !key\.startsWith\("pachimanga-"\)/);
 });
 
 test("production source registry excludes the mock provider", () => {
