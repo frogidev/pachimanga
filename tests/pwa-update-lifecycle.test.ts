@@ -19,8 +19,18 @@ test('service worker keeps authenticated navigation network-first and APIs uncac
 
   assert.match(source, /url\.pathname\.startsWith\("\/api\/"\)/);
   assert.match(source, /request\.mode === "navigate"/);
-  assert.match(source, /fetch\(request\)\.catch\(\(\) => caches\.match\("\/offline"\)\)/);
+  assert.match(source, /fetch\(request\)\.catch\(\(\) => caches\.open\(SHELL_CACHE\)/);
   assert.doesNotMatch(source, /PUBLIC_SHELL[\s\S]*?"\/"/);
+});
+
+test('service worker separates the public shell and bounds runtime cache growth', async () => {
+  const source = await readFile(SW, 'utf8');
+
+  assert.match(source, /const SHELL_CACHE/);
+  assert.match(source, /const RUNTIME_CACHE/);
+  assert.match(source, /const RUNTIME_CACHE_LIMIT = 250/);
+  assert.match(source, /trimRuntimeCache\(cache\)/);
+  assert.match(source, /!ACTIVE_CACHES\.has\(key\)/);
 });
 
 test('PWA registration exposes an explicit update-and-reload action', async () => {
