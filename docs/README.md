@@ -22,22 +22,29 @@ For a new development session:
 14. `hermes-local.md`
 15. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
 
-Historical verification files remain valid historical evidence. Always prefer the latest dated snapshot, then verify live state again.
+Historical verification files remain historical evidence. Always prefer the latest dated/current-state document and verify live infrastructure before making time-sensitive claims.
 
-## Current snapshot
+## Current snapshot — 2026-09-17
 
-As of 2026-09-17:
+```text
+main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
+production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+state:      READY
+runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+```
 
-- observed `main`: `ef67bc255134ec9bf033846bb8d062131195c715`;
-- latest production runtime: `605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6`;
-- production deployment: `dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN`, `READY`;
-- current `main` is newer only by tests/ops/docs from PR #52;
-- local user-operated `npm run verify` passed 94/94 tests, lint, typecheck, and production build;
-- user-operated production smoke passed all 9 protected routes and 4 PWA icons;
-- GitHub Actions capacity is unavailable for the remainder of this month, so current validation uses local quality checks + Vercel + production smoke/log inspection;
-- PWA/library/reader hardening through PR #52 is merged;
-- pre-human-testing diagnostics/sync-retry/export/error-UX/accessibility/manual-refresh work remains planned and is not yet shipped;
-- real-account/two-device/installed-PWA/representative-import evidence remains manual.
+PR #68 consolidated the remaining PWA test branch into `main`. The final PR head passed Repository Hygiene, Web Quality (install, tests, lint, typecheck, production build), and Production Smoke. Exact-head preview creation was affected by the Vercel Hobby build-rate limit, but the merged production commit deployed successfully and reached `READY`. Vercel error/fatal inspection for the exact production deployment was empty in the inspected post-deploy window.
+
+Current implemented state also includes:
+
+- Settings-integrated account/profile/security controls with protected `/account` compatibility redirect;
+- confirmation resend, password recovery, signed-in password change, and sign-out that only clears local account state after successful Supabase sign-out;
+- theme quick toggle in the app shell and sign-out as the final Settings action;
+- account export, diagnostics, sync controls, and PWA/device state organized within Settings;
+- first-read behavior that opens the earliest available chapter rather than the latest;
+- shared visibility-aware sync-status observer using IndexedDB counts instead of hydrating queued payloads;
+- bounded/coalesced library provider refreshes and a hard refresh timeout;
+- WeebCentral parsed chapter caching that avoids Next.js raw-response cache failures for multi-megabyte chapter HTML.
 
 ## Source-of-truth ownership
 
@@ -45,7 +52,7 @@ As of 2026-09-17:
 | --- | --- | --- |
 | Engineering/security contract | `../AGENTS.md` | current code/live infrastructure |
 | Current priorities | `WORKPLAN.md` | live GitHub/Vercel/Supabase state |
-| Current evidence | `verification-2026-09-17.md` | live state + recorded local evidence |
+| Current evidence | `verification-2026-09-17.md` | live state + recorded evidence |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | latest workplan/evidence |
 | Runtime architecture | `architecture.md` | `src/**`, `public/sw.js`, `relay/**`, `supabase/**` |
 | Library/progress semantics | `library-state.md` | storage/library code + Supabase schema |
@@ -59,10 +66,8 @@ As of 2026-09-17:
 | Native runtime | `../NATIVE.md` | `src-tauri/**` |
 | Native release process | `native-release-pipeline.md` | manual release workflows |
 
-## Documentation reviewed in this synchronization
+## Documentation synchronization rule
 
-Current-state documents were synchronized to the 2026-09-17 handoff. Historical verification snapshots (`verification-2026-09-15.md`, `verification-2026-09-16.md`) remain intentionally unchanged. `art-direction.md`, `hermes-local.md`, `NATIVE.md`, and `native-release-pipeline.md` describe stable contracts/setup and do not require status rewriting merely because the PWA handoff advanced.
+Current-state documents must be synchronized whenever authentication, RLS/sync, account-bound cache ownership, source/relay behavior, service-worker/offline behavior, reader behavior, import behavior, deployment/validation strategy, release readiness, or active priorities materially change.
 
-## Documentation update rule
-
-Any material change to authentication, RLS/sync, account-bound cache ownership, source/relay boundaries, service-worker/offline behavior, reader behavior, import behavior, deployment/validation strategy, release readiness, or active priorities must update the corresponding document in the same workstream.
+Historical dated verification records are not rewritten to pretend old evidence was collected later. Stable native/setup documents are reviewed for contradictions but remain unchanged when the PWA work does not alter their contract.
