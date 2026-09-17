@@ -135,13 +135,15 @@ test('pagination respects provider totals and a hard page cap', async () => {
   assert.equal(totalCalls, 1);
 
   let cappedCalls = 0;
-  const capped = await collectSourcePages<number>(
-    async () => {
-      cappedCalls += 1;
-      return { items: [cappedCalls] };
-    },
-    { pageSize: 1, maxPages: 3 },
+  await assert.rejects(
+    collectSourcePages<number>(
+      async () => {
+        cappedCalls += 1;
+        return { items: [cappedCalls] };
+      },
+      { pageSize: 1, maxPages: 3 },
+    ),
+    /refusing a partial chapter snapshot/,
   );
-  assert.deepEqual(capped, [1, 2, 3]);
   assert.equal(cappedCalls, 3);
 });
