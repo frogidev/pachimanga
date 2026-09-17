@@ -87,8 +87,8 @@ function useSyncSnapshot() {
   }, []);
 
   useEffect(() => {
-    void refresh();
     const handle = () => void refresh();
+    const initialTimer = window.setTimeout(handle, 0);
     window.addEventListener('online', handle);
     window.addEventListener('offline', handle);
     window.addEventListener('pachimanga:history-change', handle);
@@ -96,6 +96,7 @@ function useSyncSnapshot() {
     window.addEventListener('pachimanga:sync-change', handle);
     const interval = window.setInterval(handle, 15_000);
     return () => {
+      window.clearTimeout(initialTimer);
       window.removeEventListener('online', handle);
       window.removeEventListener('offline', handle);
       window.removeEventListener('pachimanga:history-change', handle);
