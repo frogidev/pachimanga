@@ -1,71 +1,104 @@
 # Browser E2E and PWA performance guardrails
 
-Pachimanga keeps browser-level evidence separate from merge-critical unit/build checks when the evidence depends on the live production deployment. CI must not require an unstable manga provider or a private production user's credentials in order to merge normal application code.
+Pachimanga separates deterministic merge/local quality checks from optional browser evidence that depends on an installed browser runner or dedicated test identities.
 
-## Browser E2E operating mode
+## Current operating mode
 
-GitHub Actions capacity is intentionally not assumed for the current operating period. There is no scheduled browser-E2E workflow in the repository.
+GitHub Actions capacity is unavailable for the remainder of the current month. There is no required browser-E2E workflow for this period.
 
-`ops/browser-e2e.mjs` is an optional evidence runner for an environment where Playwright and Chromium are already available. Pachimanga does not install Playwright as a project dependency and does not download browser binaries during normal `npm install`, build, or deployment. If Playwright is absent, the runner exits with an explicit diagnostic instead of modifying the project dependency graph.
+`ops/browser-e2e.mjs` remains an optional evidence runner for environments where Playwright and Chromium are already available. Pachimanga does **not** install Playwright as a project dependency and does not download browser binaries during normal install/build/deploy.
 
-The anonymous matrix verifies:
+If Playwright is absent, the runner exits with an explicit diagnostic rather than modifying the dependency graph or hanging on browser installation.
+
+## Anonymous browser matrix
+
+When executed, the optional runner verifies:
 
 - `/auth` renders the real sign-in/register experience;
-- `/offline` renders its public fallback surface;
-- `/`, `/library`, `/browse`, `/import`, `/history`, and `/settings` resolve back to the auth experience without a session;
-- 360px phone and 1280px desktop layouts do not horizontally overflow on the auth/offline boundary.
+- `/offline` renders the public fallback;
+- `/`, `/library`, `/browse`, `/import`, `/history`, and `/settings` resolve to auth without a session;
+- 360px phone and 1280px desktop auth/offline layouts do not horizontally overflow.
 
-This complements the HTTP production smoke: the HTTP smoke validates redirects, cache headers, manifest/icons, and service-worker source invariants; the optional browser runner validates rendered browser behavior.
+The HTTP production smoke remains the always-available credential-free boundary check for redirects, cache headers, manifest/icons, and service-worker invariants.
 
 ## Optional authenticated browser evidence
 
-The runner recognizes dedicated environment variables when a disposable test account is available:
+The runner can use disposable account environment variables:
 
 - `PACHIMANGA_E2E_EMAIL`
 - `PACHIMANGA_E2E_PASSWORD`
-- optionally `PACHIMANGA_E2E_EMAIL_B`
-- optionally `PACHIMANGA_E2E_PASSWORD_B`
+- optional account B equivalents.
 
-When account A is available, the runner signs into two independent browser contexts, confirms both establish the same owner-bound cache identity, opens Settings, verifies responsive layout, and signs out while confirming the local cache-owner binding is cleared.
+With account A it can verify two independent contexts bind to the same account cache owner and that sign-out clears the binding. With account B it can exercise A -> B -> A cache-owner changes.
 
-When account B is also available, the runner performs an A -> B -> A sequence in fresh browser contexts and verifies the account-bound cache owner changes for B and returns to A's identity after signing back into A.
+The runner never prints credentials and does not use a service-role key or bypass RLS. Absence of test identities is a skip, not a pass for authenticated evidence.
 
-The runner never prints credential values. It does not create guest access, use a service-role key, or weaken RLS. Absence of optional test credentials is reported as a skip rather than a fabricated pass for authenticated coverage.
+Real two-device synchronization with meaningful progress/settings mutations remains a manual release-gate test.
 
-Real two-device synchronization with deliberate data mutations remains a manual/release-candidate test until dedicated disposable test identities and mutation expectations are configured.
+## Performance boundaries protected by tests
 
-## Performance boundaries
+The deterministic unit suite protects these properties:
 
-The automated unit suite protects three PWA performance properties:
+1. OCR, SQLite, protobuf, and archive engines stay inside `src/lib/imports/**` rather than leaking into Library/Reader/core routes.
+2. Backup engines and Tesseract remain dynamically imported only when their operation is invoked.
+3. The service-worker runtime cache has an explicit finite entry cap and trims after writes.
+4. Explicit offline chapter pages use a dedicated account-bound cache separate from the runtime shell cache.
+5. Long reader pages retain bounded preload/lazy behavior and rendering containment.
+6. Library first paint uses compact per-title progress summaries rather than hydrating thousands of chapter-progress rows.
 
-1. OCR, SQLite, protobuf, and archive engines remain inside `src/lib/imports/**` rather than leaking into Library/Reader/core route modules.
-2. Backup engines and Tesseract remain dynamically imported only when their corresponding import/OCR operation is invoked.
-3. The service-worker runtime cache keeps an explicit finite entry cap and trims after writes.
+## Verified local evidence — 2026-09-17
 
-The Reader additionally uses bounded page preload plus `content-visibility: auto`/intrinsic-size containment for distant page wrappers. Library cards use compact server-side progress summaries and incremental rendering instead of hydrating thousands of chapter-progress rows before first paint.
+User-operated Windows validation on current `main`:
 
-These are regression guardrails rather than synthetic performance scores. Physical-device profiling is still required for final long-strip memory behavior, iOS standalone viewport behavior, and low-memory device limits.
+```powershell
+npm ci
+npm run verify
+```
+
+Result:
+
+- 94/94 tests passed;
+- lint passed;
+- typecheck passed;
+- Next.js production build passed;
+- `npm ci` reported 0 vulnerabilities.
+
+User-operated production smoke:
+
+```powershell
+$env:BASE_URL="https://pachimanga.frogilab.dev"
+node .\ops\production-smoke.mjs
+```
+
+Result:
+
+```text
+Production smoke passed for https://pachimanga.frogilab.dev
+Protected routes checked: 9
+PWA icons checked: 4
+```
 
 ## Validation without GitHub Actions
 
-For the current period, the practical gate is:
+For the current period:
 
-1. run the repository quality gate (`npm verify`) in an environment with project dependencies installed;
-2. require a successful Vercel preview/build for hosted-runtime changes;
-3. run `node ops/production-smoke.mjs` against the deployed target after production deployment;
-4. inspect Vercel runtime errors/fatals after deployment;
-5. run `ops/browser-e2e.mjs` only when an external Playwright/Chromium environment is available.
+1. update local `main`;
+2. run `npm ci` + `npm run verify`;
+3. require successful Vercel preview/build for runtime-impacting changes;
+4. after merge, confirm the exact production runtime deployment reaches `READY`;
+5. run production smoke;
+6. inspect Vercel runtime `error`/`fatal` logs;
+7. run optional browser E2E only when an external Playwright/Chromium environment is already available.
 
-Required GitHub branch rules are not weakened merely because Actions quota is unavailable. If repository protection requires an unavailable check, treat merge as blocked rather than bypassing the control.
+## Remaining physical-device performance evidence
 
-## Production smoke maintenance
+Still manual:
 
-`ops/production-smoke.mjs` tests behavior/invariants instead of depending on one exact service-worker implementation expression. In particular, it accepts the current shell-cache form of the `/offline` fallback while still requiring:
+- long-strip memory behavior on low-memory phones/tablets;
+- iOS/iPadOS standalone viewport/safe-area behavior;
+- service-worker update from an older installed build;
+- offline chapter storage/reuse under real network loss;
+- Screen Wake Lock support and lifecycle;
+- installed-PWA auth/session continuity.
 
-- navigation handling;
-- `/api/**` exclusion;
-- offline fallback;
-- bounded runtime cache;
-- explicit chapter-cache boundary.
-
-When service-worker architecture changes, update both the smoke and the architecture documentation in the same workstream instead of suppressing a failing production signal.
+Do not replace these with synthetic claims.

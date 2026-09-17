@@ -1,110 +1,119 @@
 # Pachimanga production operations
 
-This runbook covers the active PWA/web production path. Native artifact distribution remains deferred and manual-only.
+This runbook covers the active PWA/web production path. Native distribution remains deferred and manual-only.
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Standard post-deploy verification
+## Current operating mode — 2026-09-17
+
+- observed `main`: `ef67bc255134ec9bf033846bb8d062131195c715`;
+- latest production runtime deployment: `dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN`, `READY`;
+- production runtime commit: `605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6`;
+- PR #52 is tests/ops/docs only and does not require a new hosted-runtime deployment;
+- user-operated local `npm run verify` passed 94/94 tests, lint, typecheck, and production build;
+- user-operated production smoke passed 9 protected routes and 4 PWA icons;
+- GitHub Actions capacity is unavailable for the remainder of the current month.
+
+Do not weaken auth/RLS/account isolation/cache/secret boundaries as a substitute for unavailable Actions.
+
+## Standard runtime-change verification
 
 For every `main` change that affects hosted runtime:
 
-1. Confirm the intended `main` commit is represented by the latest Vercel production deployment, or by a runtime-equivalent descendant.
-2. Wait for that deployment to reach `READY`. GitHub CI success is not proof that production deployment completed.
-3. Run the `Production Smoke` workflow or `node ops/production-smoke.mjs` against production.
-4. Confirm anonymous protected routes still resolve to the auth experience with `Cache-Control: private, no-store`.
-5. Inspect recent Vercel production runtime errors after smoke.
-6. If source/API behavior changed, exercise the affected provider path and inspect only the implicated infrastructure layer.
-7. Record a blocker rather than claiming production readiness when a deployment is skipped, rate-limited, canceled, stale, or otherwise not `READY`.
+1. run `npm ci` and `npm run verify` from an updated local clone or equivalent trusted environment;
+2. require a successful Vercel preview/build signal when available;
+3. merge only after the branch/diff is reviewed and the repository's active merge rules permit it;
+4. confirm the exact intended runtime commit (or runtime-equivalent descendant) reaches a Vercel production deployment in `READY`;
+5. run `node ops/production-smoke.mjs` against production;
+6. confirm anonymous protected routes still resolve to auth with `Cache-Control: private, no-store`;
+7. inspect recent Vercel production `error`/`fatal` logs;
+8. if provider/API behavior changed, exercise the implicated source path without using unstable live providers as a general build gate;
+9. record exact evidence in the latest dated verification document.
 
-`Production Smoke` is credential-free. It verifies the anonymous auth boundary, public auth/offline surfaces, manifest/icons, and service-worker safety markers. Full authenticated account flows still require dedicated test credentials or a real user session.
+PowerShell smoke:
 
-## Vercel triage
-
-Separate ignored-build logic, platform/quota failures, compilation failures, and runtime failures.
-
-### Ignored-build failure
-
-The repository uses `vercel.json` runtime-path detection to avoid unnecessary Hobby-plan builds.
-
-Known failure mode as of 2026-09-16:
-
-```text
-fatal: bad revision ''
+```powershell
+$env:BASE_URL="https://pachimanga.frogilab.dev"
+node .\ops\production-smoke.mjs
 ```
 
-If a Vercel deployment fails with that message before application compilation:
+## GitHub Actions monthly limitation
 
-1. inspect whether `VERCEL_GIT_PREVIOUS_SHA` is empty/unresolvable;
-2. inspect `vercel.json` / the ignored-build helper before touching application code;
-3. treat missing comparison history as a reason to continue the build, not a reason to error or skip;
-4. preserve normal runtime-path filtering when both SHAs are valid;
-5. verify the next production deployment reaches `READY` and then run smoke/log checks.
+Actions workflows remain in the repository, but capacity is currently unavailable. During this period:
+
+- do not wait indefinitely for Actions jobs that cannot run;
+- do not add workflows solely to compensate;
+- do not remove security/quality requirements from code or tests;
+- preserve `npm run verify` as the local full gate;
+- use Vercel as the hosted build/deployment signal;
+- use direct production smoke and Vercel runtime logs for post-deploy evidence;
+- treat optional browser E2E separately from the merge-critical local gate.
+
+When Actions capacity returns, re-evaluate ruleset/check behavior before assuming previous required-check configuration is still active.
+
+## Vercel ignored-build policy
+
+`vercel.json` calls `node scripts/vercel-ignore-build.mjs`.
+
+The helper deliberately fails open to continue a build when either comparison SHA is missing/unresolvable or Git comparison fails. It skips only when both SHAs are valid and no hosted-runtime path changed.
+
+This repaired the former `fatal: bad revision ''` failure and preserves Hobby-plan build capacity for real runtime changes.
 
 See `vercel-build-policy.md`.
 
-### Build/deploy failure
+## Vercel failure triage
 
-1. Identify deployment ID and Git commit.
-2. Read build logs before modifying code.
-3. Distinguish ignored-build/configuration failure from application compilation failure and platform/quota failure.
-4. Verify `Web Quality` on the same commit.
-5. Fix only the implicated code/configuration.
-6. Re-verify the next production deployment reaches `READY`.
+Keep these failure classes separate:
 
-### Runtime failure
+1. ignored-build comparison/config failure;
+2. Vercel quota/platform failure;
+3. application compilation/type/build failure;
+4. production runtime failure.
 
-1. Scope runtime logs/errors to production and the affected deployment/time window.
-2. Filter to `error`/`fatal` first; add route/text filters only after the failing surface is known.
-3. Do not add logging that prints bearer tokens, Supabase secrets, passwords, or user content.
-4. Reproduce against the same route/provider before changing unrelated code.
+For a build/runtime incident:
+
+- identify deployment ID + Git commit;
+- inspect build/runtime logs before changing code;
+- reproduce against current `main` or one focused preview;
+- fix only the implicated layer;
+- re-run local quality checks;
+- verify production deployment + smoke + errors after merge.
 
 ## WeebCentral relay operations
 
-The web/PWA relay is operation-limited and is not an arbitrary proxy.
+The relay is operation-limited and must never become an arbitrary proxy.
 
-Public service health:
+Public health:
 
 ```bash
 curl https://wc-relay.frogilab.dev/health
 ```
 
-Authenticated upstream health:
+Authenticated upstream health requires the private operator token:
 
 ```bash
-curl -H "Authorization: Bearer $RELAY_TOKEN" \
-  https://wc-relay.frogilab.dev/health/upstream
+curl -H "Authorization: Bearer $RELAY_TOKEN" https://wc-relay.frogilab.dev/health/upstream
 ```
 
-Never paste the relay token into issues, logs, chat transcripts, client variables, or shareable command output.
+Never print/paste the token into source, issues, docs, logs, or chat.
 
-### Portainer deployment
+Portainer stack: `pachimanga-relay`.
 
-The homelab relay is managed in Portainer as stack `pachimanga-relay` with container `pachimanga-weebcentral-relay`.
+After relay changes:
 
-For a relay image update:
+1. redeploy/re-pull intentionally in Portainer;
+2. wait for the relay container to become healthy;
+3. inspect logs for restart/auth/bind failures without exposing secrets;
+4. test public `/health`;
+5. test `/health/upstream` only from authorized operator context.
 
-1. open Portainer -> Stacks -> `pachimanga-relay`;
-2. confirm the existing `RELAY_TOKEN` remains configured without exposing its value;
-3. redeploy/update the stack with image re-pull enabled;
-4. wait for `pachimanga-weebcentral-relay` to become `healthy`;
-5. inspect recent container logs for restart loops, token errors, bind errors, or repeated auth failures;
-6. test public `/health`;
-7. test authenticated `/health/upstream` from an authorized operator shell.
-
-Publishing a GHCR image does not mean the homelab already runs it. Portainer rollout remains an explicit operational step.
-
-If the relay is unavailable, Pachimanga must surface an explicit WeebCentral error. Do not add mock content, arbitrary proxying, CAPTCHA bypass, credential bypass, or another unsafe fallback.
+If relay/upstream fails, surface an explicit error. Do not add CAPTCHA bypass, credential bypass, arbitrary proxying, or mock content.
 
 ## Supabase operational checks
 
-Run security/performance advisor reviews:
+Production project: `gwpgaojsemcfikgynxwv`.
 
-- after schema/RLS/auth changes;
-- after applying a production migration;
-- before the PWA release-candidate gate;
-- whenever an auth/data-isolation regression is suspected.
-
-Account-owned tables:
+Account-owned synchronized tables:
 
 - `profiles`
 - `library_entries`
@@ -112,41 +121,38 @@ Account-owned tables:
 - `reading_history`
 - `user_settings`
 
-Current production migration provenance is canonical and mirrored under `supabase/migrations/`; historical `001`/`002`/`003` artifacts live under `supabase/legacy-migrations/` and must not return to the active chain.
+Current safeguards include owner RLS, least-privilege grants, canonical timestamped migrations, newer-only stale-write guards, and an account-bound `SECURITY INVOKER` compact progress summary RPC with no `anon`/`PUBLIC` execute access.
 
-Current production conflict semantics reject older/equal updates for progress/history/settings based on their ordering timestamps. Do not remove those guards without a replacement conflict model and tests.
+Run security/performance advisor review after schema/RLS/auth changes and before a release-candidate claim. The currently accepted plan-limited warning is leaked-password protection; performance was clean at the latest recorded review.
 
-The current Supabase plan does not provide leaked-password protection. The corresponding advisor warning is accepted/documented and is not a release blocker by itself.
+Do not mutate production merely to investigate. Inspect first, author forward-only migrations, validate, and apply only when production mutation is intentionally authorized.
 
-Do not mutate production merely to investigate. Inspect first, reproduce, author a forward-only migration if required, validate, then apply only when production mutation is intentionally authorized.
+## Service worker/offline operations
 
-## Incident ownership flow
+Current production service worker uses:
 
-Use this order to avoid guessing across infrastructure layers:
+- network-first navigation;
+- `/offline` public fallback;
+- no service-worker caching for `/api/**`;
+- bounded same-origin runtime cache;
+- explicit dedicated chapter-page cache for user-requested offline downloads;
+- account ownership rebinding/clearing for offline chapter downloads;
+- explicit user activation for new service-worker versions.
 
-1. identify the failing user surface and exact route/action;
-2. correlate it with current Git commit and Vercel production deployment;
-3. check GitHub quality/smoke status and Vercel ignored-build/build/runtime state;
-4. if account/data-related, inspect Supabase Auth/RLS/schema/grants/advisors;
-5. if provider-specific, inspect that source adapter; inspect the relay only for WeebCentral browser/PWA traffic;
-6. reproduce against current `main` or one focused preview;
-7. fix on one branch without unrelated cleanup;
-8. run the relevant quality gate;
-9. merge only when required checks pass;
-10. verify production deployment, production smoke, and recent runtime errors after recovery.
+Never broaden this into reusable cached authenticated HTML or a public offline copy of private account content.
 
-## Manual-only boundaries
+## Manual-only release boundaries
 
-The following require account-level access, real identities/devices, or explicit operator action and cannot be proven by CI alone:
+These require real identities/devices/operator access:
 
-- Supabase Auth dashboard settings that are plan/account specific;
-- full register/confirm/password-reset account E2E;
-- same-browser two-account isolation E2E;
-- two-session/two-device synchronization E2E;
-- installed-PWA testing on iOS/iPadOS/Android/desktop;
-- homelab Portainer relay rollout after a new image is published;
+- registration/confirmation/password recovery;
+- same-browser Account A -> B -> A isolation;
+- same-account two-session/two-device sync and clock-skew observations;
+- installed PWA on iPhone/iPad/Android/desktop;
+- service-worker upgrade on an already-installed PWA;
+- real-device reader matrix;
+- representative private-format import validation using safe disposable samples;
+- authenticated relay upstream health;
 - native signing/release/distribution.
 
-GitHub main protection is no longer a manual blocker; the active ruleset is already verified and requires `hygiene` plus `quality`.
-
-When blocked on a manual-only item, keep the blocker explicit and continue only with work that does not weaken the required boundary.
+Do not fabricate completion. Continue only with autonomous work that preserves the required boundaries.

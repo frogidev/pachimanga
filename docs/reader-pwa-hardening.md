@@ -1,50 +1,96 @@
 # Reader and installed-PWA hardening
 
-This document records the PWA/reader behavior introduced after the library sync-scaling and explicit service-worker update work.
+This document records the current reader/PWA behavior after library sync scaling, explicit service-worker update handling, and account-bound offline chapter downloads.
+
+## Current implementation state — 2026-09-17
+
+The reader/offline hardening is merged in production runtime commit `605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6` and deployed as Vercel production `dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN` (`READY`).
+
+User-operated local validation on current `main` passed 94/94 tests, lint, typecheck, and production build. User-operated production smoke passed 9 protected routes and 4 PWA icons.
+
+Physical installed-device validation remains outstanding and must not be inferred from these automated/local checks.
 
 ## Explicit offline chapter pages
 
 Pachimanga does not turn the authenticated application into a general offline shell. Navigation remains network-first and `/api/**` remains outside service-worker caching.
 
-The Reader instead offers an explicit per-chapter page download:
+The Reader offers explicit per-chapter page download:
 
-- page image URLs are deduplicated and fetched only after the signed-in user chooses the offline action;
-- downloaded image responses live in the dedicated `pachimanga-chapters-v1` Cache Storage cache;
-- the service worker checks that cache only for cross-origin image requests and otherwise falls back to the network;
-- the chapter cache is separate from the bounded same-origin runtime cache, so a normal PWA update does not evict an explicitly downloaded chapter;
-- removing an offline chapter deletes those page URLs from the dedicated cache;
-- Settings can clear all downloaded chapter pages and reports the browser storage estimate when supported.
+- page image URLs are deduplicated;
+- downloaded image responses live in `pachimanga-chapters-v1`;
+- cross-origin manga image requests can be satisfied from that explicit cache;
+- normal PWA shell/runtime updates do not evict saved chapter pages;
+- removing a chapter deletes its saved page URLs;
+- Settings can clear all saved chapter pages;
+- browser storage estimate is shown where supported.
 
-This is deliberately narrower than full offline application navigation. A cold offline launch may still reach the public `/offline` fallback if the authenticated reader route and metadata cannot be fetched. The feature guarantees reuse of explicitly downloaded page bytes when the reader route is available; it does not cache authenticated HTML or provider APIs as a public shell.
+A cold offline launch may still reach `/offline` if authenticated route/metadata cannot be fetched. Pachimanga does not cache authenticated HTML or provider APIs as a public shell.
 
 ## Account isolation
 
-Downloaded chapter images are treated as account-bound local state even though the image URLs themselves are provider resources.
+Downloaded chapter pages are account-bound local state. `bindChapterCacheOwner(userId)` records the active owner. Account changes/sign-out delete the previous owner's chapter cache before rebinding/clearing ownership.
 
-`bindChapterCacheOwner(userId)` stores the active cache owner. When the authenticated account changes, the previous chapter cache is deleted before the new owner is recorded. Sign-out also clears the chapter cache. This mirrors the existing IndexedDB/localStorage account-rebinding boundary and prevents a shared browser profile from exposing the previous account's deliberately downloaded reading material.
+This mirrors the IndexedDB/localStorage ownership boundary and prevents a shared browser profile from exposing another account's deliberately downloaded pages.
 
 ## Reader controls and performance
 
-The continuous-scroll reader remains the core model for both conventional manga and long-strip/manhwa chapters. The hardening adds controls without changing that layout contract:
+The continuous-scroll reader remains the common layout model for conventional manga and long-strip/manhwa.
 
-- an imperative top-edge progress bar updates from scroll position without per-frame React state churn;
-- mobile previous/next-page tap zones and explicit page controls scroll to existing page elements;
-- Page Up/Page Down provide keyboard page navigation while Left/Right continue to navigate chapters;
-- a chapter selector is available on larger viewports;
-- image decode remains asynchronous and distant pages retain bounded preload/lazy behavior;
-- page wrappers use `content-visibility: auto` with intrinsic-size reservation to reduce rendering work for long chapters while preserving full content width;
-- auto-scroll remains elapsed-time based, pauses for manual interaction, and stays disabled when reduced motion is requested.
+Current controls/performance behavior:
 
-## Screen wake lock
+- imperative top-edge progress bar;
+- previous/next page controls and mobile tap zones;
+- Page Up/Page Down page navigation;
+- Left/Right chapter navigation;
+- chapter selector on larger layouts;
+- asynchronous image decode and bounded preload/lazy behavior;
+- `content-visibility: auto` plus intrinsic-size reservation for distant pages;
+- elapsed-time auto-scroll with background-stall cap;
+- pause on manual wheel/touch interaction where applicable;
+- reduced-motion protection;
+- exact local pixel resume with synchronized percentage fallback.
 
-Reader settings include an optional `keepScreenAwake` preference. When enabled and the browser supports the Screen Wake Lock API, the reader requests a screen wake lock only while visible, releases it when the reader unmounts/backgrounds, and reacquires it after returning to the foreground. Unsupported browsers simply omit the active wake-lock behavior.
+## Screen Wake Lock
 
-## Installed-PWA navigation
+Optional `keepScreenAwake` requests Screen Wake Lock only when supported and the reader is visible. It releases on background/unmount and may reacquire after returning to the foreground.
 
-The mobile shell respects safe-area insets and presents a back affordance on non-root application routes. It uses browser history when available and falls back to the Library root when an installed standalone window has no usable prior history.
+Unsupported browsers degrade normally.
 
-The existing explicit service-worker lifecycle remains authoritative: a new worker waits, the app announces an available update, and the user chooses when to reload. Explicit chapter downloads are preserved across that shell/runtime cache rotation.
+## Installed-PWA navigation and updates
 
-## Validation expectations
+- shell respects safe-area insets;
+- non-root application routes expose back navigation;
+- standalone windows fall back to Library if no usable prior history exists;
+- new service workers wait instead of replacing an active reading session;
+- app presents `Update & reload`;
+- only explicit user action activates the waiting worker;
+- explicit chapter downloads survive shell/runtime cache rotation.
 
-Automated checks protect cache ownership, service-worker routing, bounded preload, auto-scroll, reduced motion, and migration provenance. Physical-device release validation is still required for iPhone/iPad/Android/desktop standalone safe areas, update activation, wake lock support, and offline chapter behavior under real browser storage/network conditions.
+## Validation still required on physical devices
+
+- iPhone Safari Add to Home Screen;
+- iPad standalone;
+- Android Chrome installed PWA;
+- desktop Chromium installed PWA;
+- safe areas and standalone back navigation;
+- virtual keyboard/viewport behavior;
+- update from an older installed service worker;
+- offline chapter reuse after real network loss;
+- account switch/sign-out while offline downloads exist;
+- Screen Wake Lock lifecycle;
+- long-strip memory behavior on low-memory devices;
+- conventional reader first/middle/last pages;
+- auto-scroll interruption and reduced-motion behavior.
+
+## Planned pre-human-testing improvements
+
+The current reader/PWA implementation is considered stable enough for hardening, but these adjacent product improvements remain planned before broader human testing:
+
+- richer safe diagnostics in Settings;
+- explicit Sync now / retry pending sync;
+- clearer provider/network/403/429/relay failure presentation with Retry;
+- user data JSON export without secrets;
+- final accessibility/focus/keyboard/loading-empty-error responsive pass;
+- manual per-title chapter refresh + last-checked indication.
+
+See `WORKPLAN.md`.

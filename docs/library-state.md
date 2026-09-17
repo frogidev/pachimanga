@@ -1,10 +1,10 @@
 # Library state, progress, and chapter updates
 
-Pachimanga keeps two different status concepts for a library title. They must not be conflated.
+Pachimanga keeps provider publication state, personal reading state, chapter progress, and provider update baselines as separate concepts.
 
 ## Publication status
 
-`Manga.status` and `library_entries.publication_status` describe the source series itself:
+`Manga.status` / `library_entries.publication_status` describe the source series:
 
 - `ongoing`
 - `complete`
@@ -12,7 +12,7 @@ Pachimanga keeps two different status concepts for a library title. They must no
 - `cancelled`
 - `unknown`
 
-This comes from the active provider metadata. For example, a finished series can have `publication_status = complete` regardless of whether the signed-in user has read it.
+This comes from provider metadata and is independent from whether the signed-in user has finished reading the title.
 
 ## Personal reading status
 
@@ -24,66 +24,105 @@ This comes from the active provider metadata. For example, a finished series can
 - `on_hold`
 - `dropped`
 
-The status is account-owned and synchronized through the existing owner-RLS-protected `library_entries` row.
-
-`reading_status_manual = false` means the status is automatic:
+When `reading_status_manual = false`, automatic state derives from progress:
 
 - 0% -> Plan to Read;
-- greater than 0% but not fully read -> Reading;
-- every known chapter complete -> Completed.
+- partial progress -> Reading;
+- all known chapters complete -> Completed.
 
-A user can explicitly choose any status from the library card. That sets `reading_status_manual = true`, so progress does not overwrite deliberate choices such as On Hold or Dropped. Choosing Automatic returns control to progress-derived status.
+A deliberate user choice sets `reading_status_manual = true` and is not overwritten by automatic progress. Returning to Automatic restores progress-derived behavior.
 
-Publication status and personal status are independent. A title may therefore correctly display both `Completed` and `Publication complete`.
+A title may therefore correctly be both provider `complete` and user `Completed`.
 
-## Manga progress
+## Dynamic manga progress
 
-The library percentage is derived from account-owned `reading_progress` rows against the current known chapter count. Partial progress inside a chapter contributes proportionally to the manga percentage; chapters at 99% or above count as complete for completion state.
+Library percentage is derived from account-owned `reading_progress` against the current known chapter count. Partial chapter progress contributes proportionally. Mark read/unread and natural Reader progress write the same model.
 
-Reader scroll progress remains dynamic and is saved through the existing owner-bound progress outbox. Mark read/unread writes the same `reading_progress` model, so natural reading and manual read controls converge on the same library percentage.
+Legacy/imported 100% summaries are preserved while no detailed synchronized chapter rows exist so older completed titles are not incorrectly reset.
 
-The normal Library dashboard path no longer downloads every chapter-progress row. Authenticated clients call the `SECURITY INVOKER` function `get_library_progress_summaries()`, which returns one compact row per library title with aggregate percentage/completion counts plus the synchronized history timestamp. The function accepts no user identifier and filters on `auth.uid()`. `anon` has no execute privilege; `authenticated` does.
+## Compact dashboard summaries
 
-The older deterministic paged `reading_progress` loader remains as a compatibility/failure fallback. Only a complete aggregate or detailed snapshot may drive automatic `reading_status` writes. If aggregate and paged fallback both fail, Pachimanga preserves the stored/account-bound local status rather than treating missing progress as unread chapters.
+The normal Library path calls `get_library_progress_summaries()` rather than hydrating every chapter-progress row.
 
-If the owner-bound progress outbox has a pending write for a title, the dashboard does not persist a new automatic status from the potentially stale server aggregate until that queue is flushed. Existing local summary state remains visible while the pending write resolves.
+Security/ownership properties:
 
-For compatibility with libraries imported or summarized before detailed per-chapter progress existed, an existing legacy summary percentage in the account-bound local cache is retained while there are no detailed chapter-progress rows. Once detailed synchronized progress exists, the derived per-chapter calculation wins.
+- no user ID parameter;
+- `SECURITY INVOKER`;
+- filters on `auth.uid()`;
+- no `anon`/`PUBLIC` execute privilege;
+- `authenticated` execute only;
+- underlying owner RLS remains authoritative.
+
+The deterministic paginated progress loader remains a fallback. Only a complete snapshot may drive automatic status reconciliation.
+
+## Logout/login rehydration regression
+
+A previous Library reconstruction path fetched all `reading_progress` in a single Supabase Data API response. Large accounts could exceed the response page size, causing missing rows to be interpreted as unread state after logout cleared local cache.
+
+The synchronized data itself was not deleted. The fix now:
+
+- collects detailed fallback progress deterministically across API pages;
+- enforces a bounded safety limit;
+- fails instead of accepting a partial snapshot;
+- preserves stored/account-bound status if progress reconstruction is incomplete.
+
+Regression coverage includes multi-page collection, partial-fetch failure, and safety-limit behavior.
+
+## Pending local progress protection
+
+If a title has an owner-bound pending progress outbox entry, the dashboard avoids persisting a new automatic status from a potentially stale server aggregate until the queue resolves. Local summary state remains visible meanwhile.
 
 ## Synchronization visibility
 
-The shell and Settings surface the actual account-bound progress/settings queue state instead of displaying a hardcoded synced label. The states are:
+Current shell/Settings states are driven by real owner-bound queues:
 
-- `Synced` when the device is online and both owner-bound outboxes are empty;
-- `Syncing · N pending` while owner-bound progress/settings changes remain queued;
-- `Offline` / `Offline · N pending` when the browser reports no network connectivity.
+- `Synced`;
+- `Syncing · N pending`;
+- `Offline`;
+- `Offline · N pending`.
 
-This indicator is informational only. The existing outboxes, Supabase owner RLS, and newer-only conflict guards remain the synchronization authority.
+The queues/RLS/server timestamp guards remain authoritative; the label is only UI. An explicit `Sync now`/retry control is planned but not yet implemented.
 
 ## Provider chapter-update tracking
 
-The library periodically refreshes live-provider titles through the authenticated `/api/library/refresh` route. The route resolves only the stored source ID through the production source registry; callers cannot supply arbitrary upstream URLs.
+Authenticated `/api/library/refresh` resolves the stored source ID through the production registry and records:
 
-A refresh records:
-
-- current provider publication status;
-- current chapter count;
-- latest chapter ID and number;
+- publication status;
+- chapter count;
+- latest chapter ID/number;
 - provider publication timestamp when available;
-- last provider check time;
+- last checked time;
 - last observed chapter-change time;
-- count of newly observed chapters since acknowledgement.
+- new chapter count.
 
-The first provider refresh establishes a baseline and does not label the entire existing catalog as new. Later chapter growth increments `new_chapter_count`. Opening the title acknowledges the badge by resetting that count for the signed-in account.
+First refresh establishes a baseline and does not mark the entire existing catalog as new. Later growth increments `new_chapter_count`. Opening the title acknowledges new chapters.
 
-`Recently Updated` sorts by actual chapter activity when known, falling back to the library-added timestamp for titles that do not yet have an update baseline. The Library also supports last-read, progress, recently-added, and title sorting, an unread-updates filter, a Continue Reading strip driven by synchronized history, and incremental rendering for larger collections.
+Library supports:
 
-Provider refusal remains explicit. A 403/429/other source failure does not fabricate chapters, clear the previous snapshot, or fall back to mock data.
+- Recently Updated by actual chapter activity;
+- Last Read;
+- Progress;
+- Recently Added;
+- Title A-Z;
+- Unread Updates filter;
+- Continue Reading;
+- grid/compact density;
+- incremental rendering for larger collections.
 
-## Database migrations
+A per-title manual Refresh and more visible `last checked` age are planned in `WORKPLAN.md`.
 
-Production migration `20260916165443_add_library_state_tracking.sql` extends `public.library_entries` with personal reading state and provider-update fields/check constraints. It does not replace existing owner RLS policies, unique conflict targets, or least-privilege grants.
+## Provider failure behavior
 
-Production migrations `20260917024919_add_library_progress_summary_rpc.sql` and `20260917024951_restrict_library_progress_summary_rpc.sql` add the compact account-bound progress summary RPC and explicitly remove `anon`/`PUBLIC` execute access while retaining `authenticated` execute access. The function remains `SECURITY INVOKER` and therefore does not bypass table RLS.
+Refresh/provider failures do not fabricate chapters, erase the previous baseline, or fall back to mock data. `403`/`429` and other upstream failures stay explicit. More specific error categorization/Retry UX is still planned before human testing.
 
-Post-migration verification confirmed the RPC privilege boundary, preserved owner-scoped RLS policies and existing upsert constraints/grants, a clean performance advisor, and only the already-accepted leaked-password-protection security warning.
+## Relevant production migrations
+
+- `20260916165443_add_library_state_tracking.sql`
+- `20260917024919_add_library_progress_summary_rpc.sql`
+- `20260917024951_restrict_library_progress_summary_rpc.sql`
+
+Post-migration verification confirmed owner RLS/upsert constraints/grants remained intact, summary RPC `anon` execute was removed, performance advisor was clean, and leaked-password protection remained the accepted plan-limited warning.
+
+## 2026-09-17 verification
+
+User-operated local `npm run verify` on current `main` passed 94/94 tests, lint, typecheck, and production build. Production smoke also passed 9 protected routes and 4 PWA icons. Real two-device synchronization/account-switch behavior remains manual release evidence.
