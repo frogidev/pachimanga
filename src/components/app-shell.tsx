@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <span className="rounded-md bg-white/[.045] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">v0.4</span>
             </div>
-            <Link href="/account" className="mt-1 inline-flex text-pink-300 transition hover:text-pink-200">Account →</Link>
+            <Link href="/account" className="mt-1 inline-flex rounded-md text-pink-300 transition hover:text-pink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70">Account →</Link>
           </div>
         </div>
       </aside>
@@ -115,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/" className="inline-flex"><PachiLogo /></Link>
         <div className="ml-auto flex items-center gap-2">
           <SyncStatusIndicator compact />
-          <Link href="/account" aria-label="Manage account" className={`grid size-9 place-items-center rounded-xl border text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${pathname.startsWith('/account') ? 'border-pink-300/30 bg-pink-400/10 text-pink-300' : 'border-white/[.08] bg-white/[.03] text-zinc-400'}`}>A</Link>
+          <Link href="/account" aria-label="Manage account" className={`grid size-10 place-items-center rounded-xl border text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${pathname.startsWith('/account') ? 'border-pink-300/30 bg-pink-400/10 text-pink-300' : 'border-white/[.08] bg-white/[.03] text-zinc-400'}`}>A</Link>
         </div>
       </div>
 
