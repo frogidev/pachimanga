@@ -1,0 +1,27 @@
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid #fdba74;
+  outline-offset: 3px;
+}
+
+:where(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 359px) {
+  .app-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body,
+  * {
+    scroll-behavior: auto !important;
+  }
+
+  .group:hover .manga-card {
+    transform: none;
+  }
+}
