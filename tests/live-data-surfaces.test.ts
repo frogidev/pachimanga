@@ -31,9 +31,11 @@ test('updates renders live account/provider availability instead of a static emp
   assert.doesNotMatch(updatesView, /empty-shelves\.avif/);
 });
 
-test('live availability endpoint remains signed-in, owner-scoped and private', () => {
+test('live availability endpoint remains signed-in, owner-scoped, paginated and private', () => {
   assert.match(availabilityRoute, /sb\.auth\.getUser\(\)/);
-  assert.match(availabilityRoute, /\.eq\('user_id', user\.id\)/);
+  assert.match(availabilityRoute, /\.eq\('user_id', userId\)/);
+  assert.match(availabilityRoute, /\.range\(from, from \+ PAGE_SIZE - 1\)/);
+  assert.match(availabilityRoute, /MAX_ROWS/);
   assert.match(availabilityRoute, /Cache-Control': 'private, no-store'/);
   assert.match(availabilityRoute, /library_entries/);
   assert.doesNotMatch(availabilityRoute, /service_role|SERVICE_ROLE/);
