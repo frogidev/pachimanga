@@ -1,5 +1,6 @@
 import type { LibraryEntry, Manga, MangaStatus, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
+import { collectPagedRows } from '@/lib/storage/paged-query';
 import {
   ACCOUNT_BOUND_IDB_STORES,
   LIBRARY_CONTENT_IDB_STORES,
@@ -123,16 +124,23 @@ export async function getLibraryEntries() {
 
   const local = await idbGetAll<LibraryEntry>('library');
   const localById = new Map(local.map((entry) => [entry.mangaId, entry]));
-  const { data, error } = await auth.sb
-    .from('library_entries')
-    .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
-    .eq('user_id', auth.user.id)
-    .order('added_at', { ascending: false });
-  if (error) {
+  let data;
+  try {
+    data = await collectPagedRows(async (from, to) => {
+      const result = await auth.sb
+        .from('library_entries')
+        .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
+        .eq('user_id', auth.user.id)
+        .order('added_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to);
+      return { data: result.data, error: result.error };
+    });
+  } catch {
     return [...local].sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
   }
 
-  const remote = (data || []).map((row) => {
+  const remote = data.map((row) => {
     const cached = localById.get(row.manga_id);
     const rowStatus = normalizeMangaStatus(row.publication_status);
     const publicationStatus = rowStatus === 'unknown' ? cached?.manga?.status || 'unknown' : rowStatus;
@@ -361,16 +369,23 @@ export async function getHistory() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
   const local = await idbGetAll<ReadingHistoryEntry>('history');
-  const { data, error } = await auth.sb
-    .from('reading_history')
-    .select('manga_id,chapter_id,percentage,read_at')
-    .eq('user_id', auth.user.id)
-    .order('read_at', { ascending: false });
-  if (error) {
+  let data;
+  try {
+    data = await collectPagedRows(async (from, to) => {
+      const result = await auth.sb
+        .from('reading_history')
+        .select('manga_id,chapter_id,percentage,read_at')
+        .eq('user_id', auth.user.id)
+        .order('read_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to);
+      return { data: result.data, error: result.error };
+    });
+  } catch {
     return [...local].sort((a, b) => Date.parse(b.readAt) - Date.parse(a.readAt));
   }
 
-  const history: ReadingHistoryEntry[] = (data || []).map((row) => ({
+  const history: ReadingHistoryEntry[] = data.map((row) => ({
     mangaId: row.manga_id,
     chapterId: row.chapter_id,
     percentage: Number(row.percentage),
