@@ -5,14 +5,14 @@ This is the current dated handoff snapshot for the Pachimanga PWA. Verify live s
 ## Repository
 
 - Repository: `frogidev/pachimanga`
-- Observed `main`: `ef67bc255134ec9bf033846bb8d062131195c715`
-- `main` includes PRs #44 through #52, including Vercel fail-open build detection, provider hardening, library-state/progress fixes, compact progress summaries, PWA update lifecycle, reader/offline hardening, and browser/performance guardrails.
-- PR #52 is documentation/tests/ops only; it does not change hosted runtime output.
-- GitHub Actions capacity is unavailable for the remainder of the current month. Do not depend on Actions for validation and do not weaken security/auth/RLS boundaries to compensate.
+- Observed `main`: `f1fc114aaa63ca508e13ab4914635f3528091ebd`
+- `main` includes PRs #44 through #54, including Vercel fail-open build detection, provider hardening, library-state/progress fixes, compact progress summaries, PWA update lifecycle, reader/offline hardening, browser/performance guardrails, and the first pre-human-testing Settings hardening slice.
+- PR #54 added privacy-safe Settings diagnostics/Copy diagnostics and explicit owner-bound `Sync now` / pending-sync retry controls.
+- GitHub Actions capacity remains constrained for the current month. Do not make planned work depend on Actions and do not weaken security/auth/RLS boundaries to compensate. Fresh required checks did run successfully for PR #54.
 
 ## User-operated local quality gate
 
-On Windows PowerShell from `F:\LF\pachimanga`, after updating local `main`, the user ran:
+On Windows PowerShell from `F:\LF\pachimanga`, after updating local `main` before PR #54, the user ran:
 
 ```powershell
 npm ci
@@ -45,24 +45,43 @@ Protected routes checked: 9
 PWA icons checked: 4
 ```
 
-This is the current replacement evidence for unavailable GitHub Actions quality/smoke execution.
+That smoke result predates PR #54 and remains historical evidence, not a substitute for a fresh smoke after a runtime change.
 
-## Vercel production
+## PR #54 validation and production
 
-Latest observed production runtime deployment:
+PR #54 (`feat: add safe diagnostics and manual sync controls`) was merged as:
 
 ```text
-deployment: dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN
-state:      READY
-commit:     605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6
-alias:      https://pachimanga.frogilab.dev
+main commit: f1fc114aaa63ca508e13ab4914635f3528091ebd
+preview:     dpl_6p7EJeqRbFpTLpQEcH7xCQ64iurC — READY
+production:  dpl_8azCQ4n2hBuEzvNBPmXkiHs5a6Wx — READY
+alias:       https://pachimanga.frogilab.dev
 ```
 
-That commit is PR #51, `feat: harden reader and account-bound offline chapters`.
+Fresh PR-head validation completed successfully:
 
-`main` is newer because PR #52 changed only tests, operations tooling, and documentation. Vercel correctly did not require a new production runtime build for those non-runtime-only changes. The live service worker still exposes the expected bounded PWA behavior: network-first navigation, `/offline` fallback, API exclusion, runtime cache cap, and dedicated account-bound chapter cache.
+- Repository Hygiene run `35239488774`: success;
+- Web Quality run `35239488730`: success after one lint-only fix;
+- `npm ci`: 0 vulnerabilities;
+- unit suite: 94/94 passed;
+- ESLint: passed;
+- TypeScript typecheck: passed;
+- Next.js production build: passed;
+- final Vercel preview: READY.
 
-Recent Vercel runtime `error`/`fatal` inspection for the production deployment was empty in the inspected window.
+Post-deploy verification:
+
+- exact production deployment `dpl_8azCQ4n2hBuEzvNBPmXkiHs5a6Wx` reached READY for `f1fc114aaa63ca508e13ab4914635f3528091ebd`;
+- Vercel-side fetch of `/auth` returned 200 with `cache-control: private, no-store` and the expected `Sign in to Pachimanga` content;
+- error/fatal runtime-log inspection scoped to the new production deployment was empty in the inspected post-deploy window.
+
+A fresh execution of `node ops/production-smoke.mjs` was attempted from the current agent container, but the container's outbound fetch/DNS path failed before any route assertions could run. This is **not** recorded as a passing smoke. Do not replace it with fabricated evidence; rerun the script from a network-capable environment when available.
+
+## Production runtime observations
+
+Before PR #54 was deployed, a 24-hour Vercel production inspection found two `/reader/[chapterId].rsc` `fetch failed` events on the prior runtime deployment, latest `2026-09-17T14:22:42Z`, with `write ETIMEDOUT` as the cause. Treat this as provider/network reliability evidence; do not describe the whole day as error-clean.
+
+The PR #54 deployment itself had no error/fatal entries in its inspected post-deploy window.
 
 ## Library/progress state
 
@@ -76,7 +95,7 @@ Implemented and merged:
 - deterministic paginated fallback for large progress datasets;
 - fail-closed reconstruction: incomplete progress snapshots do not overwrite status;
 - owner-bound progress/settings outboxes;
-- visible sync state;
+- visible sync state plus explicit `Sync now` and pending-sync retry controls;
 - Continue Reading, unread-update filter, real Recently Updated ordering, and incremental Library rendering;
 - chapter-update baseline/new-count tracking.
 
@@ -92,21 +111,30 @@ Merged hardening includes:
 - explicit account-bound offline chapter page cache;
 - clearing/rebinding chapter downloads on account change/sign-out;
 - Settings storage estimate and offline-download clearing controls;
+- privacy-safe Settings diagnostics with Copy diagnostics;
 - reader progress bar, page navigation controls, chapter selector, keyboard/touch navigation;
 - optional Screen Wake Lock;
 - bounded preload/lazy behavior and `content-visibility` containment for long chapters;
 - optional browser E2E runner that does not install Playwright as a project dependency.
 
+Copied diagnostics expose app version, online/display mode, account-cache binding as a boolean, owner-bound sync queue counts, service-worker state, site storage estimate, and aggregate provider freshness. They intentionally exclude account IDs, email addresses, tokens, passwords, relay secrets, service-role data, provider cookies, URLs containing private data, and manga titles.
+
 ## Providers
 
 - MangaDex live chain was verified through search/detail/chapters/pages/image/no-result during provider hardening.
-- WeebCentral relay public health was observed healthy; authenticated upstream health remains dependent on the private relay token/operator context.
+- WeebCentral relay public health has prior healthy evidence; a fresh direct relay-health fetch was not available from the current execution environment. External status sources were inconsistent on the upstream site, so provider/relay work must re-check the relay through an authoritative path before editing that subsystem.
 - ComicK metadata search uses `api.comick.dev`. Its public chapter-list path was observed returning `403`, so ComicK is intentionally excluded as a new reader-discovery fallback while compatibility code remains for existing/imported identifiers.
 - Production source failures remain explicit; no mock fallback is registered.
 
 ## Supabase
 
 Production project: `gwpgaojsemcfikgynxwv`.
+
+Live migration inspection on 2026-09-17 showed the current production chain through:
+
+```text
+20260917030319 restrict_library_progress_summary_rpc
+```
 
 Current architecture includes:
 
@@ -117,7 +145,7 @@ Current architecture includes:
 - library-state tracking migration;
 - account-bound compact progress-summary RPC with `SECURITY INVOKER` and no `anon`/`PUBLIC` execute access.
 
-Latest known advisor state: performance clean; leaked-password protection remains the accepted plan-limited security warning.
+Latest live advisor state: performance clean; leaked-password protection remains the accepted plan-limited security warning.
 
 ## Remaining release-candidate evidence
 
@@ -134,19 +162,20 @@ Do not mark these complete without real evidence:
 9. conventional manga and long-strip/manhwa reader validation on real devices;
 10. representative OCR, `.tachibk`, `.proto.gz`, and `.tmb` imports using non-private disposable samples.
 
-## Pre-human-testing product hardening still proposed
+## Pre-human-testing product hardening
 
-These improvements were discussed but are **not yet implemented** as of this snapshot:
+Implemented and merged in PR #54:
 
-- richer Settings diagnostics panel with copyable diagnostics;
-- explicit `Sync now` / retry control;
-- more specific provider/network/403/429/relay error UX with Retry;
-- user data JSON export/backup without secrets;
-- final accessibility/focus/keyboard/error-state pass;
-- manual per-title chapter refresh + visible last-checked age where useful.
+- safe Settings diagnostics panel with copyable diagnostics;
+- explicit `Sync now` / retry-pending-sync controls.
 
-Do not claim these as shipped until code and validation evidence exist.
+Still to implement and validate:
+
+- more specific provider/offline/network/403/429/relay/missing-chapter error UX with safe Retry;
+- signed-in account JSON export without credentials/session tokens/secrets/provider cookies;
+- final accessibility/focus/keyboard/Escape/reduced-motion/loading/empty/error-state/layout pass;
+- manual per-title chapter refresh plus visible last-checked information.
 
 ## Exact next autonomous task
 
-Implement the pre-human-testing hardening above in small PWA-first PRs, validate with the local `npm run verify` workflow and Vercel previews/runtime checks, update this documentation, then freeze feature expansion and move to real-account/device testing.
+Continue the remaining pre-human-testing hardening in small PWA-first PRs. Re-check provider/relay state before provider changes. Validate each runtime PR with required checks when available, Vercel preview, exact production deployment, production smoke where the execution environment can reach production, and runtime error/fatal logs. After all six improvements are implemented and verified, freeze unrelated feature expansion and prepare the manual PWA release-candidate matrix.
