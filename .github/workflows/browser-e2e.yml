@@ -1,0 +1,42 @@
+name: Browser E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 8 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-e2e-production
+  cancel-in-progress: false
+
+jobs:
+  production-browser:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run production browser E2E
+        env:
+          BASE_URL: https://pachimanga.frogilab.dev
+          PACHIMANGA_E2E_EMAIL: ${{ secrets.PACHIMANGA_E2E_EMAIL }}
+          PACHIMANGA_E2E_PASSWORD: ${{ secrets.PACHIMANGA_E2E_PASSWORD }}
+          PACHIMANGA_E2E_EMAIL_B: ${{ secrets.PACHIMANGA_E2E_EMAIL_B }}
+          PACHIMANGA_E2E_PASSWORD_B: ${{ secrets.PACHIMANGA_E2E_PASSWORD_B }}
+        run: node ops/browser-e2e.mjs
