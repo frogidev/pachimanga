@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
 import { SyncStatusIndicator } from "@/components/sync-status";
+import { ThemeQuickToggle } from "@/components/theme-quick-toggle";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
 
@@ -93,6 +94,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        <div className="mt-1 px-4">
+          <ThemeQuickToggle />
+        </div>
 
         <div className="mt-auto px-4 pb-4">
           <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
