@@ -89,7 +89,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <NavIcon name={item.icon} />
                 </span>
                 <span>{item.label}</span>
-                {item.href === "/updates" ? <span className="ml-auto size-2 rounded-full bg-pink-400 shadow-[0_0_12px_rgba(255,111,174,.55)]" /> : null}
               </Link>
             );
           })}
@@ -117,8 +116,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button type="button" onClick={goBack} className="mr-2 grid size-10 shrink-0 place-items-center rounded-xl text-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label="Go back">←</button>
         ) : null}
         <Link href="/" className="inline-flex"><PachiLogo /></Link>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
           <SyncStatusIndicator compact />
+          <Link href="/settings" className="grid size-10 place-items-center rounded-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label="Open Settings">
+            <NavIcon name="settings" />
+          </Link>
         </div>
       </div>
 
