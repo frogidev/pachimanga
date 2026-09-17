@@ -51,13 +51,22 @@ export function PwaRegister() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!waitingWorker || dismissed) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDismissed(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dismissed, waitingWorker]);
+
   if (!waitingWorker || dismissed) return null;
 
   return (
-    <div className="fixed inset-x-3 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-w-lg rounded-2xl border border-sky-300/20 bg-[#12111a] p-4 shadow-[0_20px_70px_rgba(0,0,0,.5)] md:bottom-5 md:left-auto md:right-5 md:mx-0 md:w-[360px]" role="status" aria-live="polite">
+    <div className="fixed inset-x-3 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-w-lg rounded-2xl border border-sky-300/20 bg-[#12111a] p-4 shadow-[0_20px_70px_rgba(0,0,0,.5)] md:bottom-5 md:left-auto md:right-5 md:mx-0 md:w-[360px]" role="status" aria-live="polite" aria-label="PWA update available">
       <p className="pixel-kicker text-[9px] text-sky-300">PWA update</p>
       <div className="mt-1 font-semibold text-zinc-100">A new Pachimanga version is ready</div>
-      <p className="mt-1 text-xs leading-5 text-zinc-500">Reload when convenient. The current version stays active until you choose to update.</p>
+      <p className="mt-1 text-xs leading-5 text-zinc-500">Reload when convenient. The current version stays active until you choose to update. Press Escape to dismiss this notice.</p>
       <div className="mt-3 flex gap-2">
         <button
           type="button"
