@@ -179,14 +179,21 @@ export function AuthForm() {
 
   async function logout() {
     setBusy(true);
-    const sb = createClient();
-    await sb.auth.signOut();
-    await Promise.all([clearLocalUserCache(), clearChapterCache()]);
-    setSignedIn(null);
-    setOverride('Signed out on this device.');
-    router.replace('/auth');
-    router.refresh();
-    setBusy(false);
+    setOverride('');
+    try {
+      const sb = createClient();
+      const { error } = await sb.auth.signOut();
+      if (error) throw error;
+      await Promise.all([clearLocalUserCache(), clearChapterCache()]);
+      setSignedIn(null);
+      setOverride('Signed out on this device.');
+      router.replace('/auth');
+      router.refresh();
+    } catch (error) {
+      setOverride(error instanceof Error ? error.message : 'Could not sign out.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (recoveryMode) {
