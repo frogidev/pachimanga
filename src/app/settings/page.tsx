@@ -6,6 +6,7 @@ import { AccountSettings } from '@/components/account-settings';
 import { PageHeading } from '@/components/page-heading';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
+import { SignOutSettings } from '@/components/sign-out-settings';
 import { SyncStatusPanel } from '@/components/sync-status';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
@@ -25,15 +26,13 @@ export default function SettingsPage() {
     setS((value) => {
       const next = { ...value, ...p };
       saveReaderSettings(next);
-      document.documentElement.dataset.theme = next.theme;
-      try { localStorage.setItem('pachimanga-theme', next.theme); } catch { /* private mode */ }
       return next;
     });
   }
 
   return (
     <div className="app-page max-w-4xl">
-      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Tune your account, reading experience, appearance and device behavior in one place." />
+      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Manage your account, reading experience, sync and device behavior in one place." />
       <div className="mt-6 grid gap-4">
         <section id="account" className="scroll-mt-24">
           <AccountSettings />
@@ -79,20 +78,11 @@ export default function SettingsPage() {
           </label>
         </section>
 
-        <section className="surface-card p-5 sm:p-6">
-          <p className="pixel-kicker text-[9px] text-pink-400">Appearance</p>
-          <h2 className="mt-1 text-lg font-semibold text-zinc-100">Theme</h2>
-          <p className="mt-1 text-sm text-zinc-500">Calico dark (black & orange) or day white (white & orange). Syncs to your account.</p>
-          <div className="mt-4 inline-flex rounded-xl border border-white/[.08] bg-[#0d0c12] p-1" role="radiogroup" aria-label="Color theme">
-            <button role="radio" aria-checked={s.theme === 'dark'} className={`rounded-[9px] px-4 py-2 text-sm transition ${s.theme === 'dark' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ theme: 'dark' })}>Calico dark</button>
-            <button role="radio" aria-checked={s.theme === 'light'} className={`rounded-[9px] px-4 py-2 text-sm transition ${s.theme === 'light' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => patch({ theme: 'light' })}>Day white</button>
-          </div>
-        </section>
-
         <SyncStatusPanel />
         <PwaDeviceStatus />
         <AccountDataExport />
         <SettingsDiagnostics />
+        <SignOutSettings />
       </div>
     </div>
   );
