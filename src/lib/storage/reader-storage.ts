@@ -281,7 +281,7 @@ export async function getProgress(chapterId: string) {
 }
 
 /** Pure: order queued progress oldest-first so last-write-wins on flush (see '@/lib/offline/sync'). */
-export async function saveProgress(progress: ReadingProgress) {
+export async function saveProgress(progress: ReadingProgress, options: { historyReadAt?: string } = {}) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
   const sourceId = sourceIdFromMangaId(progress.mangaId);
@@ -289,7 +289,7 @@ export async function saveProgress(progress: ReadingProgress) {
     mangaId: progress.mangaId,
     chapterId: progress.chapterId,
     percentage: progress.percentage,
-    readAt: progress.updatedAt,
+    readAt: options.historyReadAt || progress.updatedAt,
   };
 
   // Local-first: IDB + owner-bound outbox always land, even with no network.
