@@ -15,8 +15,8 @@ Native distribution remains deferred until the PWA release-candidate gate in `WO
 Latest observed production runtime:
 
 ```text
-deployment: dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN
-runtime:    605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6
+deployment: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
 state:      READY
 ```
 
@@ -157,17 +157,17 @@ Do not mark release-candidate PWA evidence complete until tested on real devices
 - account/session behavior after update;
 - sign-out/account switch clears previous owner's offline chapter pages.
 
-## Validation while GitHub Actions is unavailable
+## Validation path
 
-Use:
+Repository Hygiene and Web Quality are active. For runtime changes use:
 
 ```powershell
 npm ci
 npm run verify
 $env:BASE_URL="https://pachimanga.frogilab.dev"
-node .\ops\production-smoke.mjs
+node .\\ops\\production-smoke.mjs
 ```
 
-For runtime changes also require a successful Vercel build/preview, exact production `READY` deployment, and Vercel error/fatal inspection.
+Also require exact production `READY` evidence and Vercel error/fatal inspection. Vercel preview/build evidence should be used when platform capacity permits; a Hobby build-rate-limit response is a capacity blocker, not a successful preview.
 
 The optional browser E2E runner is supplemental only and should run only where Playwright + Chromium already exist.

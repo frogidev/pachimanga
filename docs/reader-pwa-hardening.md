@@ -4,9 +4,9 @@ This document records the current reader/PWA behavior after library sync scaling
 
 ## Current implementation state — 2026-09-17
 
-The reader/offline hardening is merged in production runtime commit `605c72316115d7cb2e1f1ab6f66d7f2b9aaa02a6` and deployed as Vercel production `dpl_4RvYB1PgobgHL2ccMuEohKn5JiVN` (`READY`).
+The reader/offline hardening is present in production runtime commit `c9060fd177b7d3cdf607cbde1945af875e283fa7` and deployed as Vercel production `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` (`READY`).
 
-User-operated local validation on current `main` passed 94/94 tests, lint, typecheck, and production build. User-operated production smoke passed 9 protected routes and 4 PWA icons.
+PR #68 final Web Quality passed dependency installation, unit tests, lint, typecheck, and production build. Its Production Smoke gate also passed. A fresh direct post-merge smoke against the exact production runtime remains manual evidence if it has not yet been rerun from a network-capable environment.
 
 Physical installed-device validation remains outstanding and must not be inferred from these automated/local checks.
 
@@ -82,15 +82,8 @@ Unsupported browsers degrade normally.
 - conventional reader first/middle/last pages;
 - auto-scroll interruption and reduced-motion behavior.
 
-## Planned pre-human-testing improvements
+## Adjacent PWA hardening now implemented
 
-The current reader/PWA implementation is considered stable enough for hardening, but these adjacent product improvements remain planned before broader human testing:
+The previously planned Settings diagnostics, manual sync/retry controls, provider error UX, account-data export, accessibility/state pass, and per-title provider refresh are implemented. PR #68 additionally consolidated account/security controls into Settings, moved theme selection to a shell quick toggle, placed Sign out last, and reduced redundant sync/provider refresh work.
 
-- richer safe diagnostics in Settings;
-- explicit Sync now / retry pending sync;
-- clearer provider/network/403/429/relay failure presentation with Retry;
-- user data JSON export without secrets;
-- final accessibility/focus/keyboard/loading-empty-error responsive pass;
-- manual per-title chapter refresh + last-checked indication.
-
-See `WORKPLAN.md`.
+Remaining work is the real-account/device/import release-candidate matrix in `WORKPLAN.md`, not a new autonomous feature-expansion phase.

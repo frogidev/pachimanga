@@ -73,7 +73,9 @@ Rules:
 - Left navigation around the existing ~252px visual density.
 - Clear active state with pink emphasis.
 - Brand/mascot moment is allowed below primary navigation.
-- Account/settings/version information should remain visually secondary.
+- Account settings live in the Settings page; version/sync information stays visually secondary in the sidebar footer.
+- A compact theme quick-toggle may sit immediately below Settings in desktop navigation because it is a frequent global preference, not a full settings workflow.
+- Do not duplicate Account or Import navigation in the sidebar footer or Settings cards when a primary navigation destination already exists.
 
 ### Mobile/PWA navigation
 
@@ -108,6 +110,12 @@ Rules:
 - Chrome is quiet and can auto-hide.
 - Long-strip/manhwa content keeps useful width.
 - No hero art, promotional banners, or unrelated animation around the reading canvas.
+
+### Settings/account
+
+- Settings should be ordered by user importance: account/security first, reading behavior, sync/device/data/diagnostics later, and Sign out last.
+- Sign out is a terminal/destructive session action and should not compete visually with profile/password controls.
+- Avoid duplicate theme/import/account entry cards when the same action is available more directly in the shell or primary navigation.
 
 ### Auth/install/offline
 

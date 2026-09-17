@@ -271,3 +271,19 @@ Equivalent: `npm run verify`.
 Runtime changes additionally require Vercel preview/build evidence, production `READY`, production smoke, and runtime-error review.
 
 Schema/auth changes additionally require migration/RLS/grant/advisor review.
+
+## Current PWA consolidation — 2026-09-17
+
+PR #68 established the current PWA-facing architecture:
+
+- account profile/security controls live inside `/settings`; protected `/account` redirects to `/settings#account` for compatibility;
+- public auth remains in `/auth`, including signup confirmation resend and password recovery;
+- signed-in password change uses Supabase Auth and sign-out clears account-bound browser state only after Supabase sign-out succeeds;
+- shell theme control is a lightweight quick toggle below Settings navigation; the full theme selector is no longer duplicated inside Settings;
+- Settings ends with the sign-out action and otherwise groups reader behavior, sync, PWA/device state, export, and diagnostics;
+- sync-status UI instances share a visibility-aware observer and inspect outbox counts without hydrating payloads;
+- `/api/library/refresh` coalesces concurrent same-title refreshes, reuses very recent automatic checks, and enforces an overall timeout;
+- WeebCentral chapter HTML is fetched without Next.js raw-response caching when too large; parsed chapter lists use a bounded short-lived in-process cache with in-flight coalescing;
+- the reader-detail start target is derived from the earliest available chapter when no real progress exists, while existing progress retains Continue behavior.
+
+These changes do not alter the mandatory Supabase Auth/RLS ownership model, anonymous-route boundary, relay allowlist, or PWA-first delivery policy.

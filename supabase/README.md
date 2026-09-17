@@ -57,6 +57,7 @@ The current client complements the database guards with owner-bound local retry 
 - legacy, unowned, and cross-account outbox entries are discarded rather than replayed under another account;
 - settings upserts request the stored server row back so local cache can reconcile when the stale-write trigger preserves a newer remote value;
 - the shell and Settings expose queue/network state as Synced, Syncing/pending, or Offline rather than claiming synchronization unconditionally.
+- sync-status surfaces share a visibility-aware observer and use IndexedDB count-only queries for pending outboxes; this is a client efficiency change and does not alter server ownership, timestamp, or RLS semantics.
 
 Library add/remove remains remote-first and does not currently use an offline mutation queue. Library reading status and provider-update metadata are stored in the same owner-RLS-protected `library_entries` row. Pending progress outbox writes suppress automatic status persistence from a potentially stale aggregate until the queue has flushed.
 
@@ -127,3 +128,8 @@ As of the post-migration 2026-09-17 check:
 - security advisor: one warning, leaked-password protection disabled.
 
 The current Supabase plan does not include leaked-password protection, so that warning is accepted/documented rather than treated as a release blocker. Mandatory authentication, owner-scoped RLS, account-bound local storage/outboxes, restricted redirects, and publishable-key-only browser access remain the compensating controls.
+
+
+## 2026-09-17 PR #68 note
+
+PR #68 introduced no Supabase schema, migration, RLS, grant, or service-role changes. Its account/profile/security UI continues to use authenticated Supabase APIs under the existing ownership model, and its sync/provider performance changes are client/runtime optimizations only.

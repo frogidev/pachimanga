@@ -179,3 +179,28 @@ Still to implement and validate:
 ## Exact next autonomous task
 
 Continue the remaining pre-human-testing hardening in small PWA-first PRs. Re-check provider/relay state before provider changes. Validate each runtime PR with required checks when available, Vercel preview, exact production deployment, production smoke where the execution environment can reach production, and runtime error/fatal logs. After all six improvements are implemented and verified, freeze unrelated feature expansion and prepare the manual PWA release-candidate matrix.
+
+## Final PR #68 consolidation checkpoint
+
+Current exact state:
+
+- main: `c9060fd177b7d3cdf607cbde1945af875e283fa7`
+- production deployment: `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA`
+- production state: `READY`
+- runtime commit: `c9060fd177b7d3cdf607cbde1945af875e283fa7`
+
+Final PR #68 head `0e4fdb5eefd2f870c9e47435ac40ccec9735ff92` passed Repository Hygiene run `35283970854`, Web Quality run `35283970876` (install, unit tests, lint, typecheck, production build), and Production Smoke run `35283970838`. Final review-thread inspection was empty.
+
+Vercel branch-preview creation was intermittently blocked by the Hobby build-rate limit and is not counted as a passing exact-head preview. The exact squash merge nevertheless deployed successfully to production. Error/fatal inspection scoped to `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` returned no matching entries in the inspected post-deploy window.
+
+PR #68 also establishes the current behavior:
+
+- account/profile/security controls are consolidated into Settings; `/account` remains a protected redirect to `/settings#account`;
+- confirmation resend, password recovery, signed-in password change, and safe sign-out are implemented;
+- sign-out is the final Settings action; theme selection is a shell quick toggle rather than a duplicated Settings card;
+- a never-read title starts at the earliest available chapter; stale history alone does not manufacture Continue behavior;
+- sync-status surfaces share a visibility-aware observer and count pending queue rows without hydrating outbox payloads;
+- same-title library provider refresh requests are coalesced, very recent automatic checks can be reused, and refresh execution has a hard timeout;
+- WeebCentral raw chapter HTML is not inserted into Next.js Data Cache when it can exceed the cache item limit; parsed chapter lists use bounded short-lived in-process caching and in-flight coalescing.
+
+Manual release evidence remains unchanged in principle: real registration/confirmation/recovery, Account A -> B -> A isolation, two-session/two-device sync, installed-PWA/device testing, reader-device validation, representative imports, and a fresh direct post-merge Production Smoke from a network-capable environment are still required before release-candidate status.

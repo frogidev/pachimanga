@@ -157,3 +157,24 @@ These require real identities/devices/operator access:
 - native signing/release/distribution.
 
 Do not fabricate completion. Continue only with autonomous work that preserves the required boundaries.
+
+## Current production checkpoint — 2026-09-17 after PR #68
+
+```text
+main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
+production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+state:      READY
+runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+```
+
+PR #68 final head passed Repository Hygiene, Web Quality (dependency install, tests, lint, typecheck, production build), and Production Smoke. Vercel preview creation for some branch commits was blocked by the Hobby build-rate limit, but the exact squash merge deployed to production successfully. Error/fatal log inspection scoped to `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` returned no matching entries in the inspected post-deploy window.
+
+Operational implications of the merged performance hardening:
+
+- repeated same-title library refresh requests are coalesced server-side;
+- automatic refreshes may reuse a very recent successful check instead of immediately contacting the provider again;
+- the refresh route has a hard upper bound so provider stalls do not hold an interactive request for minutes;
+- oversized WeebCentral chapter HTML is not written into Next.js Data Cache; parsed results use bounded short-lived process memory and the relay retains its own constrained cache;
+- manual per-title refresh remains forceable and does not bypass provider refusal/rate-limit behavior.
+
+Release operations remain PWA-only. Native signing/distribution remains blocked by the release-candidate gate.

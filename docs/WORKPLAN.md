@@ -12,27 +12,28 @@ Production URL: `https://pachimanga.frogilab.dev`
 
 Repository/runtime:
 
-```text
-main:       dcc14856863ee3ab7a9877e5c7cd9bf953582c95
-production: dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q
+\`\`\`text
+main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
+production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
 state:      READY
-runtime:    dcc14856863ee3ab7a9877e5c7cd9bf953582c95
-```
+runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+\`\`\`
 
-PR #62 corrected a release-gate truthfulness issue discovered during manual review: `/updates` had been a static decorative empty screen. Production now exposes live signed-in account/provider availability instead of that placeholder, and Browse/History/Library distinguish loading, confirmed-zero, and failure states rather than using decorative empty-state cards. Missing provider covers remain visibly missing instead of receiving synthesized mock cover art.
+PR #62 corrected the production-data truthfulness issue in Updates/Browse/History/Library. PR #68 subsequently merged the consolidated PWA test branch with account/security UX, sync-status efficiency, reader start-target correction, Settings/navigation cleanup, and provider-refresh performance hardening.
 
-Validation observed for PR #62:
+Validation observed for PR #68 final head `0e4fdb5eefd2f870c9e47435ac40ccec9735ff92`:
 
-- required Repository Hygiene: success;
-- required Web Quality: success, including install, unit tests, lint, typecheck, and production build;
-- PR Production Smoke: success against the anonymous production boundary;
-- production build for the exact squash merge: successful and deployed READY;
-- Vercel-side `/auth`: expected sign-in content with `private, no-store`;
-- post-deploy production `error`/`fatal` inspection: no matching logs in the inspected window.
+- Repository Hygiene: success;
+- Web Quality: success, including `npm ci`, unit tests, lint, typecheck, and production build;
+- Production Smoke: success on the PR gate;
+- no open review threads at merge time;
+- exact-head Vercel preview attempts were affected by the Hobby build-rate limit, but the merged runtime commit deployed successfully;
+- exact production deployment `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` reached `READY` for `c9060fd177b7d3cdf607cbde1945af875e283fa7`;
+- production error/fatal log inspection for that deployment returned no matching entries in the inspected post-deploy window.
 
-A fresh direct post-deploy `node ops/production-smoke.mjs` run was attempted from the current agent container, but DNS resolution for the production host failed with `EAI_AGAIN` before assertions ran. Do not count that attempt as a pass. Rerun from a network-capable environment before release-candidate status.
+A fresh direct post-merge `node ops/production-smoke.mjs` from a network-capable operator environment remains part of the manual release evidence if it has not yet been rerun against this exact runtime.
 
-See `verification-2026-09-17.md`, `verification-pr58-2026-09-17.md`, `verification-pr60-2026-09-17.md`, and `verification-pr62-2026-09-17.md` for exact evidence.
+See `verification-2026-09-17.md` and the PR-specific verification records for exact evidence.
 
 ## Completed autonomous hardening
 
@@ -55,6 +56,12 @@ Implemented and merged:
 - per-title manual chapter refresh with last-checked information;
 - final accessibility/UI-state hardening for focus, accessible labels/status, Escape behavior, reduced motion, and 320/360/390/768/1280 layout checks;
 - live-data truthfulness hardening: `/updates` now shows real account/provider availability, Browse/History/Library use explicit real loading/zero/error states, and production cards no longer synthesize missing cover art.
+- Settings-integrated account management with profile personalization, confirmation resend, password recovery, signed-in password change, and safe sign-out;
+- `/account` retained only as a protected compatibility redirect to `/settings#account`;
+- sign-out placed as the final Settings action and theme moved to a quick shell toggle;
+- first-read behavior starts at the earliest available chapter while real progress retains Continue behavior;
+- shared visibility-aware sync-status observer with IndexedDB count-only pending queue checks;
+- provider refresh coalescing, short freshness reuse, hard refresh timeout, and bounded parsed WeebCentral chapter caching that avoids Next.js >2 MB raw-response cache failures.
 
 ## Production-data truthfulness contract
 
@@ -131,7 +138,7 @@ Using a real signed-in disposable/test account, verify that production reflects 
 
 ### Fresh production boundary evidence
 
-- [ ] rerun `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from a network-capable environment on runtime `dcc14856863ee3ab7a9877e5c7cd9bf953582c95` or its proven runtime-equivalent descendant.
+- [ ] rerun `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from a network-capable environment on runtime `c9060fd177b7d3cdf607cbde1945af875e283fa7` (or a proven runtime-equivalent descendant).
 
 ## Provider release evidence
 
@@ -174,7 +181,7 @@ Pachimanga may be called a PWA release candidate only when:
 - [ ] conventional + long-strip reader matrix is complete;
 - [ ] representative supported import formats are validated;
 - [ ] fresh credential-free production smoke passes on the current runtime;
-- [x] current production runtime deployment is `READY`;
+- [x] current production runtime deployment `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` is `READY` for `c9060fd177b7d3cdf607cbde1945af875e283fa7`;
 - [x] RLS/least-privilege/account-bound cache architecture is in place;
 - [x] service-worker authenticated caching boundary is protected;
 - [x] no production mock fallback is registered.
@@ -187,4 +194,4 @@ Prioritize only from observed user feedback and measured performance. Candidate 
 
 ## Exact next task
 
-Run the manual live production-data/auth/device/import release-candidate matrix with real identities/devices and rerun Production Smoke from a network-capable environment. Freeze unrelated feature expansion and do not begin native/platform release work until the PWA release-candidate gate is complete.
+Run the manual live production-data/auth/device/import release-candidate matrix with real identities/devices and rerun Production Smoke from a network-capable environment against the current runtime. Treat concrete failures found during this testing as the only priority for new feature/bug work. Freeze unrelated expansion and do not begin native/platform release work until the PWA release-candidate gate is complete.
