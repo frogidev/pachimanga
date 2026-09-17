@@ -14,6 +14,7 @@ const accountSettings = source('src/components/account-settings.tsx');
 const authForm = source('src/components/AuthForm.tsx');
 const appShell = source('src/components/app-shell.tsx');
 const settingsPage = source('src/app/settings/page.tsx');
+const signOutSettings = source('src/components/sign-out-settings.tsx');
 const productionSmoke = source('ops/production-smoke.mjs');
 const browserE2E = source('ops/browser-e2e.mjs');
 
