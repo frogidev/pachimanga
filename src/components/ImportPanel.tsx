@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import { parseSeriesIdFromUrl } from '@/sources/weebcentral/endpoints';
-import type { ImportManga } from '@/lib/imports/types';
-import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, setEntryProgress } from '@/lib/storage/reader-storage';
+import type { ImportManga, ImportProgress, ImportReaderSettings } from '@/lib/imports/types';
+import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, saveReaderSettings, setEntryProgress } from '@/lib/storage/reader-storage';
+import { setLibraryReadingStatus } from '@/lib/storage/library-dashboard';
 import type { Manga } from '@/types/models';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
@@ -18,6 +19,26 @@ function exactTitleMatch(items: Manga[], title: string) {
   return items.find((item) =>
     [item.title, ...(item.alternativeTitles || [])].some((candidate) => normalizedTitle(candidate) === expected),
   );
+}
+
+function explicitPachimangaManga(item: ImportManga): Manga | null {
+  if (!item.sourceId || !item.mangaId) return null;
+  const status = item.publicationStatus === 'ongoing' || item.publicationStatus === 'complete' || item.publicationStatus === 'hiatus' || item.publicationStatus === 'cancelled'
+    ? item.publicationStatus
+    : 'unknown';
+  return {
+    id: item.mangaId,
+    sourceId: item.sourceId,
+    title: item.title,
+    alternativeTitles: [],
+    description: '',
+    coverUrl: item.coverUrl || '',
+    author: '',
+    artist: '',
+    status,
+    genres: [],
+    sourceUrl: item.sourceUrl || '',
+  };
 }
 
 function weebCentralMatch(item: ImportManga): Manga | null {
@@ -78,6 +99,8 @@ function dedupeCandidates(items: ImportManga[]): { items: ImportManga[]; merged:
 }
 
 function linkCandidate(item: ImportManga, library: Manga[]): Manga | null {
+  const explicit = explicitPachimangaManga(item);
+  if (explicit) return explicit;
   const direct = weebCentralMatch(item);
   if (direct) return direct;
   const key = item.title.trim().toLowerCase();
@@ -85,6 +108,8 @@ function linkCandidate(item: ImportManga, library: Manga[]): Manga | null {
 }
 
 function importedManga(item: Candidate, index: number): Manga {
+  const explicit = explicitPachimangaManga(item);
+  if (explicit) return explicit;
   if (item.match) return item.match;
   const id = `import-${index}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'title'}`;
   return {
@@ -114,6 +139,8 @@ export function ImportPanel() {
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
   const [taskProgress, setTaskProgress] = useState<{ done: number; total: number } | null>(null);
   const [reviewPage, setReviewPage] = useState(0);
+  const [exactProgress, setExactProgress] = useState<ImportProgress[]>([]);
+  const [restoredReaderSettings, setRestoredReaderSettings] = useState<ImportReaderSettings | null>(null);
 
   function refreshLibraryCount() {
     void Promise.resolve()
@@ -132,6 +159,8 @@ export function ImportPanel() {
     try {
       await clearAccountLibrary();
       setItems([]);
+      setExactProgress([]);
+      setRestoredReaderSettings(null);
       setImportedCount(null);
       await refreshLibraryCount();
       setStatus('Library cleared. Re-import any time from a backup file.');
@@ -150,6 +179,8 @@ export function ImportPanel() {
       const library = await readExistingLibrary();
       const linked = deduped.items.map((item) => ({ ...item, selected: item.favorite !== false, reviewed: false, match: linkCandidate(item, library) ?? undefined }));
       setItems(linked);
+      setExactProgress(out.progress || []);
+      setRestoredReaderSettings(out.readerSettings || null);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
@@ -167,6 +198,8 @@ export function ImportPanel() {
     try {
       const titles = await extractTitlesFromImage(file, setProgress);
       setItems(titles.map((title) => ({ title, favorite: true, selected: false, reviewed: false })));
+      setExactProgress([]);
+      setRestoredReaderSettings(null);
       setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed');
@@ -234,6 +267,7 @@ export function ImportPanel() {
     setImporting(true);
     setImportedCount(null);
     const failed: string[] = [];
+    const savedMangaIds = new Set<string>();
     let withProgress = 0;
     try {
       for (let index = 0; index < chosen.length; index += 1) {
@@ -242,6 +276,13 @@ export function ImportPanel() {
         try {
           const manga = importedManga(chosen[index], index);
           await addLibraryEntry(manga.id, manga.sourceId, manga);
+          savedMangaIds.add(manga.id);
+          if (chosen[index].readingStatusManual && chosen[index].readingStatus) {
+            const value = chosen[index].readingStatus;
+            if (value === 'reading' || value === 'completed' || value === 'on_hold' || value === 'dropped' || value === 'plan_to_read') {
+              await setLibraryReadingStatus(manga.id, manga.sourceId, value);
+            }
+          }
           const lastChapterRead = Number(chosen[index].lastChapterRead || 0);
           const lastPageRead = Number(chosen[index].lastPageRead || 0);
           const totalChapters = Number(chosen[index].totalChapters || 0);
@@ -284,12 +325,35 @@ export function ImportPanel() {
           failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
         }
       }
+      if (exactProgress.length) {
+        for (const item of exactProgress) {
+          if (!savedMangaIds.has(item.mangaId)) continue;
+          await saveProgress({
+            mangaId: item.mangaId,
+            chapterId: item.chapterId,
+            pageIndex: item.pageIndex,
+            scrollPosition: 0,
+            percentage: item.percentage,
+            updatedAt: item.updatedAt,
+          }, { historyReadAt: item.historyReadAt });
+        }
+      }
+      if (restoredReaderSettings) {
+        saveReaderSettings({
+          autoScrollMultiplier: restoredReaderSettings.autoScrollMultiplier ?? 1,
+          baseSpeedPxPerSecond: restoredReaderSettings.baseSpeedPxPerSecond ?? 120,
+          fitMode: restoredReaderSettings.fitMode ?? 'width',
+          theme: restoredReaderSettings.theme ?? 'dark',
+          keepScreenAwake: restoredReaderSettings.keepScreenAwake,
+        });
+      }
+
       const done = chosen.length - failed.length;
       setImportedCount(done);
       setStatus(
         failed.length
           ? `Imported ${done} of ${chosen.length} titles (${withProgress} with progress). Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
-          : `Imported ${done} titles (${withProgress} with progress) into your private library. Unmatched titles remain marked as imported until you match them to a source.`
+          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''} Unmatched titles remain marked as imported until you match them to a source.`
       );
     } finally {
       setImporting(false);
