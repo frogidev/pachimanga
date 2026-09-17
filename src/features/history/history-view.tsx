@@ -28,10 +28,13 @@ export function HistoryView() {
   }, []);
 
   useEffect(() => {
-    void load();
+    const initialTimer = window.setTimeout(() => void load(), 0);
     const onHistoryChange = () => void load();
     window.addEventListener("pachimanga:history-change", onHistoryChange);
-    return () => window.removeEventListener("pachimanga:history-change", onHistoryChange);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.removeEventListener("pachimanga:history-change", onHistoryChange);
+    };
   }, [load]);
 
   return (
