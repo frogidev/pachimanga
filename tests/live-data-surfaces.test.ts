@@ -15,6 +15,8 @@ const availabilityRoute = source('src/app/api/library/availability/route.ts');
 const historyView = source('src/features/history/history-view.tsx');
 const browseView = source('src/features/browse/browse-view.tsx');
 const libraryView = source('src/features/library/library-view.tsx');
+const mangaCard = source('src/components/manga-card.tsx');
+const productionSmoke = source('ops/production-smoke.mjs');
 
 test('updates renders live account/provider availability instead of a static empty screen', () => {
   assert.match(updatesPage, /<UpdatesView\s*\/>/);
@@ -62,4 +64,14 @@ test('library shows confirmed account/filter counts without decorative empty art
   assert.match(libraryView, /0 titles match the current library filters/);
   assert.doesNotMatch(libraryView, /Your library is empty/);
   assert.doesNotMatch(libraryView, /empty-shelves\.avif/);
+});
+
+test('missing provider covers remain visibly missing instead of using mock artwork', () => {
+  assert.match(mangaCard, /No cover available/);
+  assert.doesNotMatch(mangaCard, /MockCoverArt/);
+});
+
+test('production smoke protects updates and live availability routes', () => {
+  assert.match(productionSmoke, /'\/updates'/);
+  assert.match(productionSmoke, /'\/api\/library\/availability'/);
 });
