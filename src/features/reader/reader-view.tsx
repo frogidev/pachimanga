@@ -26,6 +26,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const [offlineState, setOfflineState] = useState<{ saved: number; total: number } | null>(null);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const [offlineError, setOfflineError] = useState<string | null>(null);
+  const [failedPages, setFailedPages] = useState<Record<number, boolean>>({});
+  const [pageRetryVersion, setPageRetryVersion] = useState<Record<number, number>>({});
   const saveTimer = useRef<number | undefined>(undefined);
   const scrollFrame = useRef<number | undefined>(undefined);
   const touchStartY = useRef<number | null>(null);
@@ -69,6 +71,11 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     dispatch({ type: "page", index: bounded });
     dispatch({ type: "show-controls" });
   }, [pages.length, reducedMotion]);
+
+  useEffect(() => {
+    setFailedPages({});
+    setPageRetryVersion({});
+  }, [chapter.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,6 +223,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         if (result.failed) setOfflineError(`${result.failed} page${result.failed === 1 ? "" : "s"} could not be cached.`);
       }
       window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
+    } catch (error) {
+      setOfflineError(error instanceof Error ? error.message : "Offline chapter storage is unavailable.");
     } finally {
       setOfflineBusy(false);
     }
@@ -242,18 +251,40 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           const hasDimensions = Boolean(page.width && page.height);
           return (
             <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 [content-visibility:auto] [contain-intrinsic-size:1200px] ${index > 0 ? "border-t border-black" : ""}`}>
-              <Image
-                src={page.imageUrl}
-                alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
-                width={page.width ?? 1200}
-                height={page.height ?? 1800}
-                sizes="(max-width: 1200px) 100vw, 1200px"
-                loading={index < 2 ? "eager" : "lazy"}
-                decoding="async"
-                unoptimized
-                style={!hasDimensions && settings.fitMode === "width" ? { width: "100%", height: "auto" } : undefined}
-                className={settings.fitMode === "screen" ? "block h-auto max-h-[100svh] w-auto max-w-full object-contain" : "block h-auto w-full max-w-[1200px] object-contain"}
-              />
+              {failedPages[index] ? (
+                <div className="grid min-h-80 w-full max-w-[800px] place-items-center px-6 py-12 text-center">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-300">Page {index + 1} could not be loaded.</p>
+                    <p className="mt-2 text-xs leading-5 text-zinc-600">The provider image may be temporarily unavailable. Retrying does not change reading progress.</p>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setFailedPages((current) => ({ ...current, [index]: false }));
+                        setPageRetryVersion((current) => ({ ...current, [index]: (current[index] || 0) + 1 }));
+                      }}
+                      className="button-secondary mt-4 px-4 py-2 text-xs"
+                    >
+                      Retry page
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <Image
+                  key={`${page.imageUrl}:${pageRetryVersion[index] || 0}`}
+                  src={page.imageUrl}
+                  alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
+                  width={page.width ?? 1200}
+                  height={page.height ?? 1800}
+                  sizes="(max-width: 1200px) 100vw, 1200px"
+                  loading={index < 2 ? "eager" : "lazy"}
+                  decoding="async"
+                  unoptimized
+                  onError={() => setFailedPages((current) => ({ ...current, [index]: true }))}
+                  style={!hasDimensions && settings.fitMode === "width" ? { width: "100%", height: "auto" } : undefined}
+                  className={settings.fitMode === "screen" ? "block h-auto max-h-[100svh] w-auto max-w-full object-contain" : "block h-auto w-full max-w-[1200px] object-contain"}
+                />
+              )}
             </div>
           );
         })}
