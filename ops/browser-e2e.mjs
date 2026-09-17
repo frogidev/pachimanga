@@ -107,8 +107,9 @@ async function login(context, account, label) {
 }
 
 async function signOut(page, label) {
-  await page.goto(`${BASE_URL}/account`, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('heading', { name: 'Your Pachimanga account' }).waitFor({ timeout: 20_000 });
+  await page.goto(`${BASE_URL}/settings#account`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'Settings' }).waitFor({ timeout: 20_000 });
+  await page.getByRole('heading', { name: 'Personalize your account' }).waitFor({ timeout: 20_000 });
   const button = page.getByRole('button', { name: 'Sign out' });
   await button.waitFor({ timeout: 20_000 });
   await button.click();
@@ -153,18 +154,17 @@ async function runAuthenticatedMatrix(browser) {
   const second = await login(secondContext, ACCOUNT_A, 'account A / second session');
   assert.equal(second.owner, first.owner, 'same account produced different cache-owner bindings across sessions');
 
-  await first.page.goto(`${BASE_URL}/settings`, { waitUntil: 'domcontentloaded' });
+  await first.page.goto(`${BASE_URL}/settings#account`, { waitUntil: 'domcontentloaded' });
   await first.page.getByRole('heading', { name: 'Settings' }).waitFor();
+  await first.page.getByRole('heading', { name: 'Personalize your account' }).waitFor({ timeout: 20_000 });
   await assertNoHorizontalOverflow(first.page, 'authenticated /settings');
   await assertInteractiveLabels(first.page, 'authenticated /settings');
   await assertKeyboardFocusVisible(first.page, 'authenticated /settings');
 
   await first.page.goto(`${BASE_URL}/account`, { waitUntil: 'domcontentloaded' });
-  await first.page.getByRole('heading', { name: 'Your Pachimanga account' }).waitFor({ timeout: 20_000 });
+  await first.page.waitForURL((url) => url.pathname === '/settings', { timeout: 20_000 });
+  await first.page.getByRole('heading', { name: 'Settings' }).waitFor({ timeout: 20_000 });
   await first.page.getByRole('heading', { name: 'Personalize your account' }).waitFor({ timeout: 20_000 });
-  await assertNoHorizontalOverflow(first.page, 'authenticated /account');
-  await assertInteractiveLabels(first.page, 'authenticated /account');
-  await assertKeyboardFocusVisible(first.page, 'authenticated /account');
 
   await signOut(first.page, 'account A / first session');
   await firstContext.close();
