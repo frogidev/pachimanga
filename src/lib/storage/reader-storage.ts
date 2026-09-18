@@ -27,6 +27,38 @@ type SettingsOutboxEntry = {
   updatedAt: string;
 };
 
+type LibraryOutboxEntry = {
+  key: string;
+  userId: string;
+  operation: 'upsert' | 'delete';
+  mangaId: string;
+  sourceId: string;
+  entry?: LibraryEntry;
+  updatedAt: string;
+};
+
+function libraryMutationKey(sourceId: string, mangaId: string) {
+  return `${sourceId}:${mangaId}`;
+}
+
+function applyPendingLibraryMutations(
+  remote: LibraryEntry[],
+  local: LibraryEntry[],
+  mutations: LibraryOutboxEntry[],
+) {
+  const byId = new Map(remote.map((entry) => [entry.mangaId, entry]));
+  const localById = new Map(local.map((entry) => [entry.mangaId, entry]));
+  for (const mutation of sortOutboxByTime(mutations)) {
+    if (mutation.operation === 'delete') {
+      byId.delete(mutation.mangaId);
+      continue;
+    }
+    const pending = mutation.entry || localById.get(mutation.mangaId);
+    if (pending) byId.set(mutation.mangaId, pending);
+  }
+  return [...byId.values()].sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
+}
+
 async function clearAccountBoundIdb() {
   await Promise.all(ACCOUNT_BOUND_IDB_STORES.map((store) => idbClear(store)));
 }
@@ -122,7 +154,12 @@ export async function getLibraryEntries() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
 
-  const local = await idbGetAll<LibraryEntry>('library');
+  const [local, allLibraryMutations] = await Promise.all([
+    idbGetAll<LibraryEntry>('library'),
+    idbGetAll<LibraryOutboxEntry>('libraryOutbox'),
+  ]);
+  const { owned: libraryMutations, stale: staleLibraryMutations } = splitOutboxByUser(allLibraryMutations, auth.user.id);
+  await Promise.all(staleLibraryMutations.map((entry) => idbDelete('libraryOutbox', entry.key)));
   const localById = new Map(local.map((entry) => [entry.mangaId, entry]));
   let data;
   try {
@@ -137,7 +174,7 @@ export async function getLibraryEntries() {
       return { data: result.data, error: result.error };
     });
   } catch {
-    return [...local].sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
+    return applyPendingLibraryMutations(local, local, libraryMutations);
   }
 
   const remote = data.map((row) => {
@@ -174,52 +211,118 @@ export async function getLibraryEntries() {
     return entry;
   });
 
+  const pendingUpserts = new Set(
+    libraryMutations.filter((entry) => entry.operation === 'upsert').map((entry) => entry.mangaId),
+  );
   const remoteIds = new Set(remote.map((entry) => entry.mangaId));
   await Promise.all([
     ...remote.map((entry) => idbPut('library', entry as unknown as Record<string, unknown>)),
-    ...local.filter((entry) => !remoteIds.has(entry.mangaId)).map((entry) => idbDelete('library', entry.mangaId)),
+    ...local
+      .filter((entry) => !remoteIds.has(entry.mangaId) && !pendingUpserts.has(entry.mangaId))
+      .map((entry) => idbDelete('library', entry.mangaId)),
   ]);
 
-  return remote;
+  return applyPendingLibraryMutations(remote, local, libraryMutations);
+}
+
+export async function flushLibraryOutbox(): Promise<{ synced: number; pending: number }> {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const allQueued = await idbGetAll<LibraryOutboxEntry>('libraryOutbox');
+  const { owned: queued, stale } = splitOutboxByUser(allQueued, auth.user.id);
+  await Promise.all(stale.map((entry) => idbDelete('libraryOutbox', entry.key)));
+
+  let synced = 0;
+  for (const mutation of sortOutboxByTime(queued)) {
+    let error: unknown = null;
+    if (mutation.operation === 'delete') {
+      const result = await auth.sb
+        .from('library_entries')
+        .delete()
+        .eq('user_id', auth.user.id)
+        .eq('source_id', mutation.sourceId)
+        .eq('manga_id', mutation.mangaId);
+      error = result.error;
+    } else {
+      const entry = mutation.entry;
+      if (!entry) {
+        await idbDelete('libraryOutbox', mutation.key);
+        continue;
+      }
+      const result = await auth.sb.from('library_entries').upsert({
+        user_id: auth.user.id,
+        manga_id: entry.mangaId,
+        source_id: entry.sourceId,
+        title: entry.manga?.title || entry.mangaId,
+        cover_url: entry.manga?.coverUrl || null,
+        publication_status: entry.manga?.status || entry.publicationStatus || 'unknown',
+        added_at: entry.addedAt,
+        updated_at: mutation.updatedAt,
+      }, { onConflict: 'user_id,source_id,manga_id' });
+      error = result.error;
+    }
+    if (error) break;
+    await idbDelete('libraryOutbox', mutation.key);
+    synced += 1;
+  }
+
+  const pending = (await idbGetAll<LibraryOutboxEntry>('libraryOutbox')).length;
+  if (synced > 0) window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+  return { synced, pending };
 }
 
 export async function addLibraryEntry(mangaId: string, sourceId = 'import', manga?: Manga) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
+  const now = new Date().toISOString();
   const entry: LibraryEntry = {
     mangaId,
     sourceId,
-    addedAt: new Date().toISOString(),
+    addedAt: now,
     manga,
     readingStatus: 'plan_to_read',
     readingStatusManual: false,
     publicationStatus: manga?.status || 'unknown',
   };
+  const mutation: LibraryOutboxEntry = {
+    key: libraryMutationKey(sourceId, mangaId),
+    userId: auth.user.id,
+    operation: 'upsert',
+    mangaId,
+    sourceId,
+    entry,
+    updatedAt: now,
+  };
 
-  const { error } = await auth.sb.from('library_entries').upsert({
-    user_id: auth.user.id,
-    manga_id: mangaId,
-    source_id: sourceId,
-    title: manga?.title || mangaId,
-    cover_url: manga?.coverUrl || null,
-    publication_status: manga?.status || 'unknown',
-    added_at: entry.addedAt,
-    updated_at: entry.addedAt,
-  }, { onConflict: 'user_id,source_id,manga_id' });
-  if (error) throw error;
-
-  await idbPut('library', entry as unknown as Record<string, unknown>);
+  await Promise.all([
+    idbPut('library', entry as unknown as Record<string, unknown>),
+    idbPut('libraryOutbox', mutation as unknown as Record<string, unknown>),
+  ]);
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+  await flushLibraryOutbox().catch(() => {});
   return entry;
 }
 
 export async function removeLibraryEntry(mangaId: string) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
-  const { error } = await auth.sb.from('library_entries').delete().eq('user_id', auth.user.id).eq('manga_id', mangaId);
-  if (error) throw error;
-  await idbDelete('library', mangaId);
+  const local = await idbGet<LibraryEntry>('library', mangaId);
+  const sourceId = local?.sourceId || sourceIdFromMangaId(mangaId);
+  const mutation: LibraryOutboxEntry = {
+    key: libraryMutationKey(sourceId, mangaId),
+    userId: auth.user.id,
+    operation: 'delete',
+    mangaId,
+    sourceId,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await Promise.all([
+    idbDelete('library', mangaId),
+    idbPut('libraryOutbox', mutation as unknown as Record<string, unknown>),
+  ]);
   window.dispatchEvent(new CustomEvent('pachimanga:library-change'));
+  await flushLibraryOutbox().catch(() => {});
 }
 
 export async function setEntryProgress(
