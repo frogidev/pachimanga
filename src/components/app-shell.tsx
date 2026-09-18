@@ -41,10 +41,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       void Promise.all([
         import("@/lib/storage/reader-storage"),
         import("@/lib/offline/chapter-cache"),
-      ]).then(async ([{ bindCurrentUserCache, flushProgressOutbox, flushSettingsOutbox }, { bindChapterCacheOwner }]) => {
+      ]).then(async ([{ bindCurrentUserCache, flushLibraryOutbox, flushProgressOutbox, flushSettingsOutbox }, { bindChapterCacheOwner }]) => {
         const user = await bindCurrentUserCache();
         await bindChapterCacheOwner(user.id);
         await Promise.all([
+          flushLibraryOutbox().catch(() => null),
           flushProgressOutbox().catch(() => null),
           flushSettingsOutbox().catch(() => null),
         ]);
