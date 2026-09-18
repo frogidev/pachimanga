@@ -8,43 +8,38 @@ For a new development session:
 
 1. `../AGENTS.md`
 2. `WORKPLAN.md`
-3. `verification-2026-09-17.md`
-4. `START-HERE-NEW-CHAT.md`
-5. `architecture.md`
-6. `operations.md`
-7. `library-state.md`
-8. `reader-pwa-hardening.md`
-9. `browser-e2e-performance.md`
-10. `../supabase/README.md`
-11. `vercel-build-policy.md`
-12. `free-pwa-distribution.md`
-13. `art-direction.md`
-14. `hermes-local.md`
-15. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
+3. `verification-release-2026-09-18.md`
+4. `verification-2026-09-17.md`
+5. `START-HERE-NEW-CHAT.md`
+6. `architecture.md`
+7. `operations.md`
+8. `library-state.md`
+9. `reader-pwa-hardening.md`
+10. `browser-e2e-performance.md`
+11. `../supabase/README.md`
+12. `vercel-build-policy.md`
+13. `free-pwa-distribution.md`
+14. `art-direction.md`
+15. `hermes-local.md`
+16. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
 
 Historical verification files remain historical evidence. Always prefer the latest dated/current-state document and verify live infrastructure before making time-sensitive claims.
 
-## Current snapshot — 2026-09-17
+## Current snapshot — 2026-09-18
 
 ```text
-main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
-production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+release:    v0.4.0
+main:       9e0cc7c379541db0d640ebe03383466c37d933ba
+production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
 state:      READY
-runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
 ```
 
-PR #68 consolidated the remaining PWA test branch into `main`. The final PR head passed Repository Hygiene, Web Quality (install, tests, lint, typecheck, production build), and Production Smoke. Exact-head preview creation was affected by the Vercel Hobby build-rate limit, but the merged production commit deployed successfully and reached `READY`. Vercel error/fatal inspection for the exact production deployment was empty in the inspected post-deploy window.
+The owner designated v0.4.0 as the PWA/web release after the final local quality gate passed on the PR #74 branch. Exact-head Vercel preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`; PR #74 merged to `main`; the exact merged runtime reached production `READY`; and the inspected production `error`/`fatal` window was empty.
 
-Current implemented state also includes:
+Release functionality includes PR #72 integrity/scale/sync/library features, PR #73 light-theme polish, and PR #74 visible avatar/display-name account identity plus light-auth contrast/autofill fixes. Historical verification files remain unchanged; use `verification-release-2026-09-18.md` for the release record.
 
-- Settings-integrated account/profile/security controls with protected `/account` compatibility redirect;
-- confirmation resend, password recovery, signed-in password change, and sign-out that only clears local account state after successful Supabase sign-out;
-- theme quick toggle in the app shell and sign-out as the final Settings action;
-- account export, diagnostics, sync controls, and PWA/device state organized within Settings;
-- first-read behavior that opens the earliest available chapter rather than the latest;
-- shared visibility-aware sync-status observer using IndexedDB counts instead of hydrating queued payloads;
-- bounded/coalesced library provider refreshes and a hard refresh timeout;
-- WeebCentral parsed chapter caching that avoids Next.js raw-response cache failures for multi-megabyte chapter HTML.
+Manual real-device/account/import matrices remain post-release validation backlog and must not be represented as already observed.
 
 ## Source-of-truth ownership
 
@@ -52,7 +47,7 @@ Current implemented state also includes:
 | --- | --- | --- |
 | Engineering/security contract | `../AGENTS.md` | current code/live infrastructure |
 | Current priorities | `WORKPLAN.md` | live GitHub/Vercel/Supabase state |
-| Current evidence | `verification-2026-09-17.md` | live state + recorded evidence |
+| Current evidence | `verification-release-2026-09-18.md` | live state + recorded evidence |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | latest workplan/evidence |
 | Runtime architecture | `architecture.md` | `src/**`, `public/sw.js`, `relay/**`, `supabase/**` |
 | Library/progress semantics | `library-state.md` | storage/library code + Supabase schema |

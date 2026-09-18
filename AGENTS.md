@@ -8,11 +8,12 @@ Before substantive work, read:
 
 1. `AGENTS.md` — this file.
 2. `docs/WORKPLAN.md` — current priorities and acceptance criteria.
-3. `docs/architecture.md` — runtime and security boundaries.
-4. The relevant project-local skill in `.hermes/skills/`.
-5. `docs/art-direction.md` for user-facing UI work.
-6. `NATIVE.md` and `docs/native-release-pipeline.md` only for intentional native work.
-7. `docs/free-pwa-distribution.md` for PWA/install/relay work.
+3. `docs/verification-release-2026-09-18.md` — latest release evidence and explicit gaps.
+4. `docs/architecture.md` — runtime and security boundaries.
+5. The relevant project-local skill in `.hermes/skills/`.
+6. `docs/art-direction.md` for user-facing UI work.
+7. `NATIVE.md` and `docs/native-release-pipeline.md` only for intentional native work.
+8. `docs/free-pwa-distribution.md` for PWA/install/relay work.
 
 Then verify current repository and production state. Never assume a previous chat, branch, deployment, or workplan snapshot is still current.
 
@@ -36,15 +37,19 @@ Do not weaken these requirements to make a feature easier.
 
 ## Active delivery policy
 
-PWA/web is the only active delivery target until the release-candidate gate in `docs/WORKPLAN.md` is satisfied.
+PWA/web v0.4.0 is the released production product as of 2026-09-18. Vercel production from `main` remains the active delivery path.
 
-During this phase:
+Native source remains maintained for compatibility, but native packaging/signing/store distribution is a separate manually gated phase. The PWA release does not by itself authorize native distribution.
 
-- Vercel production from `main` remains the active delivery path.
-- Native source remains maintained for compatibility.
-- Android debug/release, desktop release, and iOS release workflows stay manual-only.
-- Do not re-add tag/push triggers to native release workflows.
-- Do not spend time on signing, stores, installers, TestFlight, or desktop packaging unless explicitly requested or the workplan reaches the final native phase.
+During the current phase:
+
+- keep normal product work PWA/web first unless the user explicitly changes scope;
+- Android debug/release, desktop release, and iOS release workflows stay manual-only;
+- do not re-add tag/push triggers to native release workflows;
+- do not begin signing, stores, installers, TestFlight, or desktop packaging without explicit user direction and native validation;
+- preserve all auth/RLS/cache/provider security boundaries across post-release maintenance.
+
+The release decision records product readiness accepted by the owner; it does not convert unobserved device/account/import checks into completed evidence.
 
 ## Hard stop conditions
 

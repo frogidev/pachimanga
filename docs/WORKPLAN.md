@@ -4,7 +4,7 @@ This is the current operational backlog. Historical evidence lives in the dated 
 
 ## Delivery policy
 
-PWA/web remains the only active delivery target until the PWA release-candidate gate is satisfied. Native source stays compatible, but native packaging/signing/store distribution remains deferred and manual-only.
+PWA/web v0.4.0 is released and remains the active delivery target. Native source stays compatible, but native packaging/signing/store distribution remains a separate manual-only phase that requires explicit user direction.
 
 Production URL: `https://pachimanga.frogilab.dev`
 
@@ -16,32 +16,32 @@ Production URL: `https://pachimanga.frogilab.dev`
 - Keep the existing ruleset/check requirements intact; do not weaken repository protections as a workaround for quota limits.
 - Until Actions capacity returns, merge only with equivalent trustworthy local verification plus final Vercel build evidence when available, or leave the PR open with the missing gate explicit.
 
-## Current verified state — 2026-09-17
+## Current release state — 2026-09-18
 
-Repository/runtime:
-
-\`\`\`text
-main:       dcfd284b1416ec7c85a6e00ab5d4e8ba7a9f1f8d
-production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+```text
+release:    v0.4.0
+main:       9e0cc7c379541db0d640ebe03383466c37d933ba
+production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
 state:      READY
-runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
-\`\`\`
+runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
+```
 
-PR #62 corrected the production-data truthfulness issue in Updates/Browse/History/Library. PR #68 subsequently merged the consolidated PWA test branch with account/security UX, sync-status efficiency, reader start-target correction, Settings/navigation cleanup, and provider-refresh performance hardening.
+Release evidence:
 
-Validation observed for PR #68 final head `0e4fdb5eefd2f870c9e47435ac40ccec9735ff92`:
+- owner explicitly designated this state as the PWA/web v0.4.0 release;
+- PR #72 merged the integrity/scale/sync/library batch and its production Supabase migration is applied;
+- PR #73 merged the warm-paper light-theme polish;
+- PR #74 merged visible avatar/display-name account identity plus the light-auth contrast/autofill fix;
+- operator reported the final local unit tests, lint, typecheck, and production build passing on PR #74 head `e2f4b0a263ec79736be699ad704fe33b2211f1f1`;
+- exact-head preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`;
+- exact merged runtime deployed as `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
+- Vercel build compiled successfully, TypeScript completed, and 22/22 static pages generated;
+- production `error`/`fatal` inspection for the release deployment returned no matching logs in the inspected window;
+- GitHub Actions capacity remains unavailable for the remainder of September 2026 and is not being misrepresented as a passing signal.
 
-- Repository Hygiene: success;
-- Web Quality: success, including `npm ci`, unit tests, lint, typecheck, and production build;
-- Production Smoke: success on the PR gate;
-- no open review threads at merge time;
-- exact-head Vercel preview attempts were affected by the Hobby build-rate limit, but the merged runtime commit deployed successfully;
-- exact production deployment `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` reached `READY` for `c9060fd177b7d3cdf607cbde1945af875e283fa7`;
-- production error/fatal log inspection for that deployment returned no matching entries in the inspected post-deploy window.
+A fresh credential-free Production Smoke on this exact release runtime was not observed by the agent session and remains a post-release confirmation item.
 
-A fresh post-merge `node ops/production-smoke.mjs` was rerun from GitHub-hosted Ubuntu on 2026-09-17 against this runtime and passed with 12 protected routes and 4 PWA icons checked.
-
-See `verification-2026-09-17.md` and the PR-specific verification records for exact evidence.
+See `verification-release-2026-09-18.md`.
 
 ## Completed autonomous hardening
 
@@ -69,7 +69,10 @@ Implemented and merged:
 - sign-out placed as the final Settings action and theme moved to a quick shell toggle;
 - first-read behavior starts at the earliest available chapter while real progress retains Continue behavior;
 - shared visibility-aware sync-status observer with IndexedDB count-only pending queue checks;
-- provider refresh coalescing, short freshness reuse, hard refresh timeout, and bounded parsed WeebCentral chapter caching that avoids Next.js >2 MB raw-response cache failures.
+- provider refresh coalescing, short freshness reuse, hard refresh timeout, and bounded parsed WeebCentral chapter caching that avoids Next.js >2 MB raw-response cache failures;
+- account-owned collections/tags, export/import round-trip restore, provider-result deduplication, richer reading statistics, logical-device clock hardening, owner-bound library mutation outbox, quota-aware/cancellable offline chapter saves, privacy-safe Web Vitals telemetry, and chapter publication dates;
+- warm-paper light theme across core surfaces including readable auth/autofill behavior;
+- display name/avatar identity surfaced in desktop/mobile shell navigation with immediate post-save refresh.
 
 ## Production-data truthfulness contract
 
@@ -85,9 +88,9 @@ Required behavior:
 - missing provider cover/metadata stays visibly missing rather than becoming fabricated content;
 - Updates may check stale source-backed titles on page open using the bounded freshness policy and may offer deliberate manual checking, but must not add aggressive background polling.
 
-## P0 — Manual release evidence
+## Post-release manual validation backlog
 
-Requires real identities/devices; do not fabricate completion.
+The v0.4.0 release decision does not fabricate these observations. They remain recommended post-release validation/regression evidence using real identities/devices.
 
 ### Authentication/account isolation
 
@@ -159,7 +162,7 @@ Using a real signed-in disposable/test account, verify that production reflects 
 
 - GitHub `main` remains protected by the active `Protect main` ruleset: PR required, strict up-to-date `hygiene` and `quality`, review-thread resolution, squash merge only, no bypass actor.
 - Supabase production project `gwpgaojsemcfikgynxwv` has RLS enabled on all account-owned tables and owner-scoped policies. Latest recorded performance advisor is clean; the known leaked-password-protection warning remains plan-limited.
-- No native/platform release work is permitted until the PWA release-candidate gate below is complete.
+- Native/platform distribution is not automatically enabled by the PWA release. It remains manual-only and requires explicit user direction plus the native security/signing/device gates.
 
 ## Quality gate
 
@@ -176,37 +179,53 @@ For runtime-impacting changes additionally require Vercel build evidence when av
 
 The optional `ops/browser-e2e.mjs` may be used only where Playwright + Chromium already exist. Do not add Playwright to normal project dependencies merely to run this optional evidence.
 
-## Release-candidate gate
+## Release decision and residual evidence
 
-Pachimanga may be called a PWA release candidate only when:
+Pachimanga v0.4.0 is considered released on the PWA/web path as of 2026-09-18 by explicit owner decision.
+
+Verified/implemented release facts:
 
 - [x] autonomous pre-human-testing hardening is implemented;
-- [x] production-data surfaces no longer use misleading static/decorative empty states for live availability;
-- [ ] live production-data matrix above passes with a real signed-in account;
-- [ ] full real auth/account isolation evidence is complete;
-- [ ] two-session/two-device sync evidence is complete;
-- [ ] installed-PWA device matrix is complete;
-- [ ] conventional + long-strip reader matrix is complete;
-- [ ] representative supported import formats are validated;
-- [x] fresh credential-free production smoke passes on the current runtime;
-- [x] current production runtime deployment `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` is `READY` for `c9060fd177b7d3cdf607cbde1945af875e283fa7`;
+- [x] production-data surfaces use truthful loading/error/zero states;
 - [x] RLS/least-privilege/account-bound cache architecture is in place;
 - [x] service-worker authenticated caching boundary is protected;
-- [x] no production mock fallback is registered.
+- [x] no production mock fallback is registered;
+- [x] Supabase collections/profile/clear-library migration is applied;
+- [x] final local tests/lint/typecheck/build were reported passing by the operator;
+- [x] final exact-head Vercel preview reached `READY`;
+- [x] exact release runtime production deployment reached `READY`;
+- [x] inspected production error/fatal logs were empty.
 
-When this gate is satisfied, record exact final commit/deployment/evidence. Native/platform distribution remains blocked until then.
+Not claimed as completed:
 
-## Later backlog after human testing begins
+- [ ] full live signed-in production-data matrix;
+- [ ] full real auth/account isolation matrix;
+- [ ] two-session/two-device sync matrix;
+- [ ] installed-PWA device matrix;
+- [ ] conventional + long-strip physical-device reader matrix;
+- [ ] representative supported import-format matrix;
+- [ ] fresh credential-free Production Smoke against exact release runtime in a network-capable environment.
 
-PR #72 now carries the autonomous implementations for collections/tags, account-export round-trip restore, provider-result deduplication, richer reading statistics, logical-device clock hardening, library mutation offline queueing, advanced offline download guards, and privacy-safe Web Vitals telemetry. These remain unmerged until the branch gate is satisfied.
+These unchecked items remain post-release evidence/backlog rather than being retroactively marked complete.
+
+## Later backlog after release
 
 Still deferred or externally blocked:
 
 - Web Push chapter delivery: browser subscription/service-worker work is possible, but a real sender requires VAPID key material and a server delivery path; do not expose a notification toggle that cannot actually deliver.
 - full append-only reading-event analytics/streaks: current synchronized history intentionally represents latest activity per title; richer statistics now use existing progress data without silently changing that data model.
 - broader accessibility browser automation remains optional while the project intentionally avoids adding Playwright to normal dependencies.
-- eventual native distribution remains blocked by the PWA release-candidate gate.
+- eventual native distribution remains deferred until explicitly requested and the native security/signing/device validation gates are satisfied.
 
 ## Exact next task
 
-Finish PR #72 as a single batched runtime change without further iterative pushes: perform equivalent local `npm test`, lint, typecheck and build when a trusted checkout is available, then use one final exact-head Vercel preview/build if available. Do not merge merely because GitHub Actions are unavailable. The new Supabase migration must remain unapplied until the runtime batch is ready to merge as one unit. After that, resume the remaining real-account/device/import release-candidate matrix.
+Treat v0.4.0 as the production baseline. Do not expand features merely to accumulate more pre-release work.
+
+Next work should be one of:
+
+1. execute the remaining real-account/device/import post-release matrix and record evidence;
+2. fix concrete defects found during production use;
+3. perform explicitly requested provider/relay maintenance;
+4. begin native distribution only after a separate explicit user request and a fresh native release audit.
+
+For any runtime fix, use one focused branch, the full local quality gate, one exact-head Vercel preview when practical, normal protected merge, exact production `READY`, Production Smoke when network access permits, and post-deploy error/fatal inspection.
