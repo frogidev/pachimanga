@@ -15,7 +15,7 @@ Before changing repository/deployment state:
 2. Resolve current `main` HEAD.
 3. List open PRs relevant to the work.
 4. Inspect active work branch and compare it to `main`.
-5. Inspect relevant GitHub Actions status/logs.
+5. Inspect relevant GitHub Actions status/logs when capacity is available; through September 30, 2026, record unavailable Actions explicitly instead of retrying pushes.
 6. Inspect latest Vercel production deployment for runtime work.
 7. Confirm whether the user requested code only, merge, deployment, or production mutation. Do not broaden authority silently.
 
@@ -28,6 +28,10 @@ Before changing repository/deployment state:
 - If `main` moved, compare/update the branch intentionally before merge.
 - Review changed filenames/diff before merge, even if CI is green.
 - Keep native release workflows manual-only during the PWA phase.
+
+## Temporary Actions outage
+
+GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. During this window, do not weaken rulesets, do not report missing checks as passing, and do not create push churn attempting to obtain unavailable jobs. Use trustworthy local gates plus exact-head Vercel build evidence for runtime changes when practical. Re-check real availability on or after October 1.
 
 ## CI failure protocol
 
@@ -113,6 +117,8 @@ If production is broken:
 Do not randomly revert unrelated work or redeploy old code without understanding data/schema compatibility.
 
 ## Completion evidence
+
+Keep the report concise. When the owner must validate locally, provide paste-ready PowerShell for `F:\LF\pachimanga`.
 
 Report:
 

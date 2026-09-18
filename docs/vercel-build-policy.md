@@ -89,7 +89,7 @@ The production build compiled successfully, completed TypeScript, generated 22/2
 
 ## Current validation mode
 
-Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions capacity is unavailable for the rest of September 2026, so v0.4.0 used operator-reported equivalent local verification plus exact-head Vercel evidence without representing absent Actions as passed. For subsequent runtime changes use:
+Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1, so v0.4.0 used operator-reported equivalent local verification plus exact-head Vercel evidence without representing absent Actions as passed. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
 
 1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
 2. local `npm ci` + `npm run verify` when available;

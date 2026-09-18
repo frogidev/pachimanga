@@ -13,10 +13,16 @@ Production UI: `https://pachimanga.frogilab.dev`
 - operator reported final local tests/lint/typecheck/build passing;
 - production build compiled successfully and generated 22/22 static pages;
 - production `error`/`fatal` log inspection returned no matching entries;
-- GitHub Actions capacity is unavailable for the rest of September 2026, so absent Action runs are not treated as passes;
+- GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1; absent Action runs are not treated as passes;
 - fresh exact-runtime Production Smoke remains a post-release confirmation when a network-capable environment is available.
 
 Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around CI, preview, provider, or platform limitations.
+
+## Feedback-driven runtime work
+
+Post-release runtime work should normally start from concrete user feedback. Prefer one focused branch per coherent feedback batch, reproduce the issue when practical, and minimize preview/deployment churn. Routine implementation decisions should be handled autonomously; escalate only ambiguous/destructive/security-sensitive/product-direction decisions.
+
+When owner-side validation is needed, provide paste-ready PowerShell rooted at `F:\LF\pachimanga` with exact branch/SHA and failure guards. See `post-release-feedback.md`.
 
 ## Standard runtime-change verification
 
@@ -51,7 +57,7 @@ Keep repository quality signals and platform capacity separate.
 - Preserve `npm run verify` as the local full gate.
 - Keep optional browser E2E separate from the merge-critical static gate unless the workplan explicitly promotes it.
 
-When platform capacity returns, restore normal hosted evidence for subsequent changes rather than retroactively relabeling the v0.4.0 local gate as GitHub Actions evidence.
+On or after October 1, re-check actual GitHub Actions availability. Once capacity is confirmed, restore normal hosted evidence for subsequent changes rather than retroactively relabeling outage-period local gates as Actions evidence.
 
 ## Vercel ignored-build policy
 

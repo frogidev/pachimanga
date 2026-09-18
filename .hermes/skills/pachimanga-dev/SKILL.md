@@ -9,7 +9,7 @@ description: Strict implementation workflow for frogidev/pachimanga. Use for fea
 
 ## Before editing
 
-1. Read `AGENTS.md` and `docs/WORKPLAN.md`.
+1. Read `AGENTS.md`, `docs/WORKPLAN.md`, and `docs/post-release-feedback.md` for feedback-driven work.
 2. Check current `main`, open PRs, active branch, and `git status` when local git is available.
 3. Preserve unrelated local changes.
 4. Load a more specific project skill when the task is primarily UI, reader, Supabase, review, or deployment operations.
@@ -23,6 +23,9 @@ description: Strict implementation workflow for frogidev/pachimanga. Use for fea
 - Prefer the smallest complete change that fixes the actual issue.
 - Do not redesign unrelated screens or refactor unrelated modules as collateral work.
 - Keep PWA/web as the active delivery target.
+- Post-release, prioritize concrete user feedback and improvements to existing flows over speculative expansion.
+- When the fix is clear and safe, proceed autonomously instead of asking for routine implementation choices.
+- GitHub Actions capacity is unavailable through September 30, 2026; do not burn pushes chasing unavailable CI and do not treat missing checks as passing.
 - Native platform packaging/distribution is out of scope unless explicitly requested or the workplan final phase is active.
 
 ## Non-negotiable invariants
@@ -76,6 +79,8 @@ node scripts/check-native-version.mjs
 
 If dependencies/tools are unavailable, report exactly what could not run. Never convert “not run” into “passed.”
 
+When owner-side local validation is needed, give concise paste-ready PowerShell rooted at `F:\LF\pachimanga`, including exact branch/SHA when relevant and `$LASTEXITCODE` guards.
+
 ## Final diff review
 
 Before PR/merge, inspect the whole diff for:
@@ -103,7 +108,7 @@ Do not accept worker self-reports as evidence of completion.
 
 ## Completion report
 
-Report only verified facts:
+Keep the response concise and report only verified facts:
 
 ```text
 Branch / PR:
