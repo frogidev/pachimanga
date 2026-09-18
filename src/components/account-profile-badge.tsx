@@ -94,7 +94,7 @@ export function AccountProfileBadge({ compact = false }: { compact?: boolean }) 
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void Promise.resolve().then(refresh);
     const onProfileChange = () => void refresh();
     const onFocus = () => void refresh();
     window.addEventListener('pachimanga:profile-change', onProfileChange);
