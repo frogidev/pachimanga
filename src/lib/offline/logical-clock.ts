@@ -13,6 +13,15 @@ function readStored(scope: string) {
   return Number.isFinite(value) ? value : Number.NaN;
 }
 
+export function nextLogicalMillis(previous: number, observed: number, now: number) {
+  const candidates = [
+    Number.isFinite(now) ? now : 0,
+    Number.isFinite(previous) ? previous + 1 : 0,
+    Number.isFinite(observed) ? observed + 1 : 0,
+  ];
+  return Math.max(...candidates);
+}
+
 function writeStored(scope: string, value: number) {
   if (typeof window === 'undefined') return;
   try {
@@ -32,12 +41,7 @@ export function observeLogicalClock(scope: string, timestamp?: string | null) {
 export function nextLogicalTimestamp(scope: string, observed?: string | null, now = Date.now()) {
   const stored = readStored(scope);
   const remote = parsed(observed);
-  const candidates = [
-    Number.isFinite(now) ? now : 0,
-    Number.isFinite(stored) ? stored + 1 : 0,
-    Number.isFinite(remote) ? remote + 1 : 0,
-  ];
-  const next = Math.max(...candidates);
+  const next = nextLogicalMillis(stored, remote, now);
   writeStored(scope, next);
   return new Date(next).toISOString();
 }
