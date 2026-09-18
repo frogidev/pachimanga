@@ -32,6 +32,24 @@ Brand accents:
 
 Avoid introducing a second unrelated accent system.
 
+### Light theme
+
+Light mode is a warm paper counterpart to the late-night dark theme, not an inversion.
+
+- App background: warm paper around `#f6f1e8`.
+- Primary surfaces/sidebar: off-white around `#fffdfa` / `#ffffff`.
+- Secondary surface: warm stone around `#f2ebe2`.
+- Primary text: warm ink around `#211c18`.
+- Secondary text: warm gray/brown around `#5d544c`.
+- Muted functional text should remain readable around `#74695f`; reserve lighter tones for non-essential metadata.
+- Borders use warm brown/ink at roughly 12–18% opacity instead of white transparency.
+- Dark-mode utility surfaces (search, filters, cards, collection panels, selects) must resolve to intentional light surfaces rather than remaining near-black.
+- Orange remains the active/brand accent. Blue remains reserved for reading progress/collection selection and should use a darker readable foreground on light surfaces.
+- Media overlays may remain dark when they sit directly on manga cover art; do not globally recolor those overlays into light cards.
+- Light-mode focus rings, hover states, disabled states, and input placeholders must remain visually distinct.
+
+The same hierarchy must hold in both themes: changing theme must not make an enabled control look disabled or reduce functional-text contrast.
+
 ## Typography
 
 - Display/pixel headings: existing `.pixel-heading` treatment; bold/mono/pixel-adjacent, tight tracking, restrained glow.
