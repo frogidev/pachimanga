@@ -32,6 +32,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const scrollFrame = useRef<number | undefined>(undefined);
   const touchStartY = useRef<number | null>(null);
   const progressBarRef = useRef<HTMLDivElement | null>(null);
+  const offlineAbortRef = useRef<AbortController | null>(null);
 
   const hydrated = loadedChapterId === chapter.id;
   const resumeProgress = resumeState?.chapterId === chapter.id ? resumeState.progress : null;
@@ -202,7 +203,12 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   }, [chapter.id, pages]);
 
   async function toggleChapterOffline() {
-    if (offlineBusy) return;
+    if (offlineBusy) {
+      offlineAbortRef.current?.abort();
+      return;
+    }
+    const controller = new AbortController();
+    offlineAbortRef.current = controller;
     setOfflineBusy(true);
     setOfflineError(null);
     try {
@@ -213,14 +219,25 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         await removeChapterPages(urls);
         setOfflineState({ saved: 0, total: urls.length });
       } else {
-        const result = await cacheChapterPages(urls, (saved, total) => setOfflineState({ saved, total }));
+        const result = await cacheChapterPages(
+          urls,
+          (saved, total) => setOfflineState({ saved, total }),
+          { signal: controller.signal },
+        );
         setOfflineState({ saved: result.saved, total: result.total });
         if (result.failed) setOfflineError(`${result.failed} page${result.failed === 1 ? "" : "s"} could not be cached.`);
       }
       window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
     } catch (error) {
-      setOfflineError(error instanceof Error ? error.message : "Offline chapter storage is unavailable.");
+      setOfflineError(
+        error instanceof Error && error.name === "AbortError"
+          ? "Offline save cancelled."
+          : error instanceof Error
+            ? error.message
+            : "Offline chapter storage is unavailable.",
+      );
     } finally {
+      if (offlineAbortRef.current === controller) offlineAbortRef.current = null;
       setOfflineBusy(false);
     }
   }
@@ -310,8 +327,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               {chapters.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => void toggleChapterOffline()} disabled={offlineBusy} className="rounded-xl bg-white/8 px-2.5 py-2 text-xs text-zinc-300 hover:bg-white/12 disabled:opacity-50" aria-label={offlineComplete ? "Remove downloaded chapter pages" : "Save chapter pages for offline reading"}>
-            {offlineBusy ? `${offlineState?.saved ?? 0}/${offlineState?.total ?? pages.length}` : offlineComplete ? "✓ Offline" : "↓ Offline"}
+          <button type="button" onClick={() => void toggleChapterOffline()} className="rounded-xl bg-white/8 px-2.5 py-2 text-xs text-zinc-300 hover:bg-white/12" aria-label={offlineBusy ? "Cancel offline chapter save" : offlineComplete ? "Remove downloaded chapter pages" : "Save chapter pages for offline reading"}>
+            {offlineBusy ? `Cancel ${offlineState?.saved ?? 0}/${offlineState?.total ?? pages.length}` : offlineComplete ? "✓ Offline" : "↓ Offline"}
           </button>
           {wakeLock.supported ? (
             <button type="button" onClick={() => updateSettings({ keepScreenAwake: !settings.keepScreenAwake })} className={`hidden rounded-xl px-3 py-2 text-xs sm:block ${settings.keepScreenAwake ? "bg-amber-300/15 text-amber-200" : "bg-white/8 text-zinc-400 hover:bg-white/12"}`} aria-pressed={Boolean(settings.keepScreenAwake)} title={wakeLock.active ? "Screen wake lock active" : "Keep screen awake while reading"}>
