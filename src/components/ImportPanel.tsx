@@ -335,7 +335,7 @@ export function ImportPanel() {
             scrollPosition: 0,
             percentage: item.percentage,
             updatedAt: item.updatedAt,
-          }, { historyReadAt: item.historyReadAt });
+          }, { historyReadAt: item.historyReadAt, preserveTimestamp: true });
         }
       }
       if (restoredReaderSettings) {
