@@ -91,13 +91,14 @@ Rules:
 - Left navigation around the existing ~252px visual density.
 - Clear active state with pink emphasis.
 - Brand/mascot moment is allowed below primary navigation.
-- Account settings live in the Settings page; version/sync information stays visually secondary in the sidebar footer.
+- Account settings live in the Settings page; the signed-in avatar/display name may appear as a compact identity link in the shell/sidebar footer, while version/sync information stays visually secondary.
 - A compact theme quick-toggle may sit immediately below Settings in desktop navigation because it is a frequent global preference, not a full settings workflow.
 - Do not duplicate Account or Import navigation in the sidebar footer or Settings cards when a primary navigation destination already exists.
 
 ### Mobile/PWA navigation
 
 - Compact top/header treatment plus bottom navigation where implemented.
+- The signed-in avatar may serve as the mobile shortcut to `Settings > Account`; keep its touch target at least ~40px and provide an accessible label.
 - Respect `env(safe-area-inset-*)` in standalone mode.
 - Avoid horizontal overflow at 360px.
 - Primary actions must remain reachable without precise taps.

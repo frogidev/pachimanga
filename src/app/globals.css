@@ -436,3 +436,41 @@ html[data-theme="light"] kbd {
   background-color: rgba(78, 55, 37, .045);
   color: #74695f;
 }
+
+
+/* Auth light-theme contract: keep the signed-out experience intentional rather than
+   inheriting dark hero surfaces with globally remapped dark text. */
+html[data-theme="light"] .auth-intro-card {
+  border-color: rgba(234, 88, 12, .20);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(251, 146, 60, .16), transparent 22rem),
+    linear-gradient(145deg, #fffdfa 0%, #f4eadf 100%);
+  box-shadow: 0 18px 44px rgba(84, 58, 37, .09);
+}
+html[data-theme="light"] .auth-intro-note {
+  border-color: rgba(72, 54, 39, .13);
+  background: rgba(255, 255, 255, .58);
+}
+html[data-theme="light"] .auth-intro-card .text-white,
+html[data-theme="light"] .auth-intro-card .text-zinc-100 {
+  color: #211c18;
+}
+html[data-theme="light"] .auth-intro-card .text-zinc-200 {
+  color: #302923;
+}
+html[data-theme="light"] .auth-intro-card .text-zinc-400 {
+  color: #5d544c;
+}
+html[data-theme="light"] .auth-intro-card .text-zinc-500 {
+  color: #74695f;
+}
+
+/* Keep browser credential autofill inside the active Pachimanga theme. */
+html[data-theme="light"] input.field:-webkit-autofill,
+html[data-theme="light"] input.field:-webkit-autofill:hover,
+html[data-theme="light"] input.field:-webkit-autofill:focus {
+  -webkit-text-fill-color: #211c18;
+  -webkit-box-shadow: 0 0 0 1000px #fffdfa inset;
+  box-shadow: 0 0 0 1000px #fffdfa inset;
+  caret-color: #211c18;
+}

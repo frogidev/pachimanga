@@ -13,6 +13,7 @@ const accountPage = source('src/app/account/page.tsx');
 const accountSettings = source('src/components/account-settings.tsx');
 const authForm = source('src/components/AuthForm.tsx');
 const appShell = source('src/components/app-shell.tsx');
+const accountProfileBadge = source('src/components/account-profile-badge.tsx');
 const settingsPage = source('src/app/settings/page.tsx');
 const signOutSettings = source('src/components/sign-out-settings.tsx');
 const productionSmoke = source('ops/production-smoke.mjs');
@@ -72,4 +73,16 @@ test('profile personalization uses profiles as canonical storage and keeps Auth 
   assert.match(accountSettings, /display_name: displayName/);
   assert.match(accountSettings, /avatar_url: avatarUrl \|\| null/);
   assert.match(accountSettings, /auth\.updateUser\(\{/);
+});
+
+
+test('saved avatar and display name are visible account identity in the application shell', () => {
+  assert.match(appShell, /<AccountProfileBadge\s*\/>/);
+  assert.match(appShell, /<AccountProfileBadge compact\s*\/>/);
+  assert.match(accountProfileBadge, /href="\/settings#account"/);
+  assert.match(accountProfileBadge, /\.from\('profiles'\)/);
+  assert.match(accountProfileBadge, /display_name,avatar_url/);
+  assert.match(accountProfileBadge, /ProfileAvatar/);
+  assert.match(accountSettings, /<ProfileAvatar/);
+  assert.match(accountSettings, /pachimanga:profile-change/);
 });

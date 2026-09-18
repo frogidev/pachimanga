@@ -27,3 +27,12 @@ test('art direction documents light mode as an intentional warm-paper theme', ()
   assert.match(artDirection, /warm paper counterpart/);
   assert.match(artDirection, /Media overlays may remain dark/);
 });
+
+
+test('light auth keeps hero copy readable and neutralizes browser autofill blue', () => {
+  const authPage = readFileSync(join(ROOT, 'src/app/auth/page.tsx'), 'utf8');
+  assert.match(authPage, /auth-intro-card/);
+  assert.match(authPage, /auth-intro-note/);
+  assert.match(css, /html\[data-theme="light"\] \.auth-intro-card/);
+  assert.match(css, /input\.field:-webkit-autofill/);
+});
