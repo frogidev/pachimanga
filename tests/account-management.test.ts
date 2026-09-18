@@ -64,3 +64,12 @@ test('account compatibility route stays protected and browser coverage exercises
   assert.match(browserE2E, /Personalize your account/);
   assert.match(browserE2E, /\/settings#account/);
 });
+
+
+test('profile personalization uses profiles as canonical storage and keeps Auth metadata as compatibility mirror', () => {
+  assert.match(accountSettings, /\.from\('profiles'\)/);
+  assert.match(accountSettings, /\.upsert\(\{/);
+  assert.match(accountSettings, /display_name: displayName/);
+  assert.match(accountSettings, /avatar_url: avatarUrl \|\| null/);
+  assert.match(accountSettings, /auth\.updateUser\(\{/);
+});

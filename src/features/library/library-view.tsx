@@ -13,6 +13,14 @@ import {
   getLibraryDashboardEntries,
   setLibraryReadingStatus,
 } from "@/lib/storage/library-dashboard";
+import {
+  createLibraryCollection,
+  deleteLibraryCollection,
+  getLibraryCollectionState,
+  setLibraryCollectionMembership,
+  type LibraryCollection,
+  type LibraryCollectionMembership,
+} from "@/lib/storage/library-collections";
 import { removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 
@@ -91,6 +99,11 @@ export function LibraryView() {
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [collections, setCollections] = useState<LibraryCollection[]>([]);
+  const [memberships, setMemberships] = useState<LibraryCollectionMembership[]>([]);
+  const [collectionFilter, setCollectionFilter] = useState<string>("all");
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [collectionBusy, setCollectionBusy] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const sourceRefreshRunning = useRef(false);
 
@@ -134,9 +147,14 @@ export function LibraryView() {
 
     const refresh = async () => {
       try {
-        const result = await getLibraryDashboardEntries();
+        const [result, collectionState] = await Promise.all([
+          getLibraryDashboardEntries(),
+          getLibraryCollectionState(),
+        ]);
         if (!cancelled) {
           setEntries(result);
+          setCollections(collectionState.collections);
+          setMemberships(collectionState.memberships);
           setLoadError(null);
           void refreshSources(result);
         }
@@ -179,6 +197,14 @@ export function LibraryView() {
         if (filter === "All") return true;
         if (filter === "Unread Updates") return Number(item.entry.newChapterCount || 0) > 0;
         return item.entry.readingStatus === filterStatus[filter];
+      })
+      .filter((item) => {
+        if (collectionFilter === "all") return true;
+        return memberships.some((membership) =>
+          membership.collectionId === collectionFilter
+          && membership.sourceId === item.entry.sourceId
+          && membership.mangaId === item.entry.mangaId
+        );
       });
 
     pairs.sort((a, b) => {
@@ -191,7 +217,7 @@ export function LibraryView() {
       return bUpdated.localeCompare(aUpdated);
     });
     return pairs;
-  }, [entries, filter, query, sort]);
+  }, [collectionFilter, entries, filter, memberships, query, sort]);
 
   const visibleManga = manga.slice(0, visibleCount);
   const continueReading = useMemo(() => entries
@@ -226,6 +252,72 @@ export function LibraryView() {
     void acknowledgeLibraryUpdates(entry.mangaId, entry.sourceId).catch(() => {
       // Opening the title should not be blocked if acknowledgement cannot sync yet.
     });
+  }
+
+  function collectionIdsFor(entry: LibraryEntry) {
+    return memberships
+      .filter((membership) => membership.sourceId === entry.sourceId && membership.mangaId === entry.mangaId)
+      .map((membership) => membership.collectionId);
+  }
+
+  async function createCollection() {
+    const name = newCollectionName.trim();
+    if (!name || collectionBusy) return;
+    setCollectionBusy(true);
+    try {
+      const created = await createLibraryCollection(name);
+      setCollections((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setCollectionFilter(created.id);
+      setNewCollectionName("");
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not create the collection.");
+    } finally {
+      setCollectionBusy(false);
+    }
+  }
+
+  async function removeCollection() {
+    if (collectionFilter === "all" || collectionBusy) return;
+    const selected = collections.find((collection) => collection.id === collectionFilter);
+    if (!selected) return;
+    if (!window.confirm(`Delete collection “${selected.name}”? Titles stay in your library.`)) return;
+    setCollectionBusy(true);
+    try {
+      await deleteLibraryCollection(selected.id);
+      setCollections((current) => current.filter((collection) => collection.id !== selected.id));
+      setMemberships((current) => current.filter((membership) => membership.collectionId !== selected.id));
+      setCollectionFilter("all");
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not delete the collection.");
+    } finally {
+      setCollectionBusy(false);
+    }
+  }
+
+  async function toggleCollection(entry: LibraryEntry, collectionId: string, member: boolean) {
+    try {
+      await setLibraryCollectionMembership({
+        collectionId,
+        sourceId: entry.sourceId,
+        mangaId: entry.mangaId,
+        member,
+      });
+      setMemberships((current) => {
+        const without = current.filter((membership) =>
+          !(membership.collectionId === collectionId
+            && membership.sourceId === entry.sourceId
+            && membership.mangaId === entry.mangaId)
+        );
+        return member
+          ? [...without, { collectionId, sourceId: entry.sourceId, mangaId: entry.mangaId }]
+          : without;
+      });
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Could not update the collection.");
+    }
   }
 
   async function purgeUnmatchedImports() {
@@ -301,6 +393,46 @@ export function LibraryView() {
           ))}
         </div>
 
+        <section className="mt-3 rounded-2xl border border-white/[.07] bg-[#111019] p-3" aria-label="Library collections">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                type="button"
+                onClick={() => setCollectionFilter("all")}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition ${collectionFilter === "all" ? "border-sky-300/55 bg-sky-300/10 text-sky-200" : "border-white/[.08] text-zinc-500 hover:text-zinc-200"}`}
+              >
+                All collections
+              </button>
+              {collections.map((collection) => (
+                <button
+                  type="button"
+                  key={collection.id}
+                  onClick={() => setCollectionFilter(collection.id)}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition ${collectionFilter === collection.id ? "border-sky-300/55 bg-sky-300/10 text-sky-200" : "border-white/[.08] text-zinc-500 hover:text-zinc-200"}`}
+                >
+                  {collection.name}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <label className="sr-only" htmlFor="new-library-collection">New collection name</label>
+              <input
+                id="new-library-collection"
+                value={newCollectionName}
+                maxLength={50}
+                onChange={(event) => setNewCollectionName(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") void createCollection(); }}
+                placeholder="New collection"
+                className="field min-w-0 flex-1 px-3 py-2 text-xs lg:w-44"
+              />
+              <button type="button" disabled={!newCollectionName.trim() || collectionBusy} onClick={() => void createCollection()} className="button-secondary px-3 py-2 text-xs disabled:opacity-40">Add</button>
+              {collectionFilter !== "all" ? (
+                <button type="button" disabled={collectionBusy} onClick={() => void removeCollection()} className="rounded-xl border border-red-300/15 px-3 py-2 text-xs text-red-300 hover:bg-red-400/[.06] disabled:opacity-40">Delete</button>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
         {ready && continueReading.length > 0 && !query && filter === "All" ? (
           <section className="mt-7" aria-labelledby="continue-reading-heading">
             <div className="flex items-end justify-between gap-4">
@@ -370,6 +502,9 @@ export function LibraryView() {
                   newChapterCount={entry.newChapterCount}
                   onStatusChange={(status) => void changeStatus(entry, status)}
                   onOpen={() => acknowledgeUpdates(entry)}
+                  collections={collections}
+                  collectionIds={collectionIdsFor(entry)}
+                  onCollectionToggle={(collectionId, member) => void toggleCollection(entry, collectionId, member)}
                 />
               ))}
             </div>

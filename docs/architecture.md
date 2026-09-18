@@ -287,3 +287,19 @@ PR #68 established the current PWA-facing architecture:
 - the reader-detail start target is derived from the earliest available chapter when no real progress exists, while existing progress retains Continue behavior.
 
 These changes do not alter the mandatory Supabase Auth/RLS ownership model, anonymous-route boundary, relay allowlist, or PWA-first delivery policy.
+
+
+## Pending PR #72 data-model additions
+
+The PWA integrity/scale hardening branch adds two account-owned collection tables:
+
+- `library_collections` stores user-named collections;
+- `library_collection_items` maps existing `library_entries` into those collections and cascades membership deletion when a library entry is removed.
+
+Both tables remain RLS-protected and explicitly user-scoped. Collection membership is synchronized server-side and does not create an anonymous/local-only parallel library.
+
+The same migration adds `profiles.avatar_url` so `profiles` becomes the canonical personalization row while Auth user metadata remains a compatibility mirror.
+
+The destructive “clear entire library” path prefers the authenticated `clear_my_library()` RPC so library, progress, and history deletes occur in one database transaction. Runtime code retains a temporary compatibility fallback for environments where the migration is not yet present.
+
+PR #72 also adds an owner-bound IndexedDB `libraryOutbox` for library add/remove operations. Remote snapshots are reconciled with pending mutations so reconnect or a truncated/older remote view cannot visually undo an unsynced local mutation.

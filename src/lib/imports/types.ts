@@ -24,6 +24,17 @@ export type ImportProgress = {
   historyReadAt?: string;
 };
 
+export type ImportCollection = {
+  id: string;
+  name: string;
+};
+
+export type ImportCollectionMembership = {
+  collectionId: string;
+  sourceId: string;
+  mangaId: string;
+};
+
 export type ImportReaderSettings = {
   autoScrollMultiplier?: number;
   baseSpeedPxPerSecond?: number;
@@ -38,4 +49,6 @@ export type ImportResult = {
   warnings: string[];
   progress?: ImportProgress[];
   readerSettings?: ImportReaderSettings;
+  collections?: ImportCollection[];
+  collectionMemberships?: ImportCollectionMembership[];
 };

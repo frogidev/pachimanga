@@ -29,7 +29,7 @@ export function AccountDataExport() {
       anchor.remove();
       URL.revokeObjectURL(url);
       setState('success');
-      setMessage('Export downloaded. It contains only allowlisted account data and reader settings.');
+      setMessage('Export downloaded. It contains only allowlisted account data, collections, and reader settings.');
     } catch (error) {
       setState('error');
       setMessage(error instanceof Error ? error.message : 'Export failed.');
@@ -41,7 +41,7 @@ export function AccountDataExport() {
       <p className="pixel-kicker text-[9px] text-emerald-300">Your data</p>
       <h2 id="account-export-title" className="mt-1 text-lg font-semibold text-zinc-100">Export my data</h2>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
-        Download a JSON snapshot of your signed-in Library metadata/status, reading progress, history, and reader settings. The export excludes credentials, session tokens, relay secrets, service-role data, and provider cookies.
+        Download a JSON snapshot of your signed-in Library metadata/status, collections, reading progress, history, and reader settings. The export excludes credentials, session tokens, relay secrets, service-role data, and provider cookies.
       </p>
       <button
         type="button"

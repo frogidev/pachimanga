@@ -1,4 +1,11 @@
-import type { ImportManga, ImportProgress, ImportReaderSettings, ImportResult } from './types';
+import type {
+  ImportCollection,
+  ImportCollectionMembership,
+  ImportManga,
+  ImportProgress,
+  ImportReaderSettings,
+  ImportResult,
+} from './types';
 
 const MAX_JSON_RECORDS = 10_000;
 const MAX_WARNING_DETAILS = 100;
@@ -111,11 +118,48 @@ function parsePachimangaExport(root: Record<string, unknown>): ImportResult | nu
     });
   }
 
+  const collections: ImportCollection[] = [];
+  const rawCollections = Array.isArray(root.collections) ? root.collections : [];
+  if (rawCollections.length > MAX_JSON_RECORDS) throw new Error('Pachimanga export contains too many collections.');
+  for (const [index, raw] of rawCollections.entries()) {
+    const row = objectRecord(raw);
+    const id = optionalString(row?.id);
+    const name = optionalString(row?.name);
+    if (!row || !id || !name) {
+      if (warnings.length < MAX_WARNING_DETAILS) warnings.push(`Skipped collection ${index + 1}: missing id/name.`);
+      continue;
+    }
+    collections.push({ id, name });
+  }
+
+  const collectionMemberships: ImportCollectionMembership[] = [];
+  const rawMemberships = Array.isArray(root.collectionItems) ? root.collectionItems : [];
+  if (rawMemberships.length > MAX_JSON_RECORDS * 20) throw new Error('Pachimanga export contains too many collection memberships.');
+  for (const [index, raw] of rawMemberships.entries()) {
+    const row = objectRecord(raw);
+    const collectionId = optionalString(row?.collection_id);
+    const sourceId = optionalString(row?.source_id);
+    const mangaId = optionalString(row?.manga_id);
+    if (!row || !collectionId || !sourceId || !mangaId) {
+      if (warnings.length < MAX_WARNING_DETAILS) warnings.push(`Skipped collection membership ${index + 1}: invalid identifiers.`);
+      continue;
+    }
+    collectionMemberships.push({ collectionId, sourceId, mangaId });
+  }
+
   const readerRoot = objectRecord(root.readerSettings);
   const readerSettings = safeReaderSettings(readerRoot?.settings);
 
   if (!manga.length && library.length) throw new Error('Pachimanga export contains no valid library rows.');
-  return { format: 'pachimanga', manga, warnings, progress, readerSettings };
+  return {
+    format: 'pachimanga',
+    manga,
+    warnings,
+    progress,
+    readerSettings,
+    collections,
+    collectionMemberships,
+  };
 }
 
 function listFromRoot(value: unknown): unknown[] {

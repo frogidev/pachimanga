@@ -8,6 +8,14 @@ PWA/web remains the only active delivery target until the PWA release-candidate 
 
 Production URL: `https://pachimanga.frogilab.dev`
 
+### Temporary execution constraints — remainder of September 2026
+
+- GitHub Actions capacity is unavailable for the remainder of the month. Do not spend pushes trying to obtain CI evidence and do not treat absent/skipped checks as a pass.
+- Batch repository changes before pushing. Avoid commit-by-commit remote iteration.
+- Minimize Vercel builds: use at most one exact-head preview/build for a completed runtime batch when possible, then one production deployment after an allowed merge.
+- Keep the existing ruleset/check requirements intact; do not weaken repository protections as a workaround for quota limits.
+- Until Actions capacity returns, merge only with equivalent trustworthy local verification plus final Vercel build evidence when available, or leave the PR open with the missing gate explicit.
+
 ## Current verified state — 2026-09-17
 
 Repository/runtime:
@@ -190,8 +198,15 @@ When this gate is satisfied, record exact final commit/deployment/evidence. Nati
 
 ## Later backlog after human testing begins
 
-Prioritize only from observed user feedback and measured performance. Candidate future work includes Web Push chapter notifications, collections/tags, richer history/statistics, provider-result deduplication, export/import round-trip restore, advanced offline download management, logical-device conflict clocks, library mutation offline queueing, improved accessibility automation, privacy-safe Web Vitals telemetry, and eventual native distribution.
+PR #72 now carries the autonomous implementations for collections/tags, account-export round-trip restore, provider-result deduplication, richer reading statistics, logical-device clock hardening, library mutation offline queueing, advanced offline download guards, and privacy-safe Web Vitals telemetry. These remain unmerged until the branch gate is satisfied.
+
+Still deferred or externally blocked:
+
+- Web Push chapter delivery: browser subscription/service-worker work is possible, but a real sender requires VAPID key material and a server delivery path; do not expose a notification toggle that cannot actually deliver.
+- full append-only reading-event analytics/streaks: current synchronized history intentionally represents latest activity per title; richer statistics now use existing progress data without silently changing that data model.
+- broader accessibility browser automation remains optional while the project intentionally avoids adding Playwright to normal dependencies.
+- eventual native distribution remains blocked by the PWA release-candidate gate.
 
 ## Exact next task
 
-Run the remaining manual live production-data/auth/device/import release-candidate matrix with real identities/devices. Fresh credential-free Production Smoke has now passed against the current runtime; treat concrete failures found during the remaining manual testing as the only priority for new feature/bug work. Freeze unrelated expansion and do not begin native/platform release work until the PWA release-candidate gate is complete.
+Finish PR #72 as a single batched runtime change without further iterative pushes: perform equivalent local `npm test`, lint, typecheck and build when a trusted checkout is available, then use one final exact-head Vercel preview/build if available. Do not merge merely because GitHub Actions are unavailable. The new Supabase migration must remain unapplied until the runtime batch is ready to merge as one unit. After that, resume the remaining real-account/device/import release-candidate matrix.

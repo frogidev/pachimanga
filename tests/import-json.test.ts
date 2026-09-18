@@ -120,3 +120,27 @@ test('Pachimanga account export rejects unknown versions', () => {
     /Unsupported Pachimanga export version/,
   );
 });
+
+
+test('Pachimanga export preserves collection metadata for round-trip restore', () => {
+  const result = parseJsonBackupValue({
+    format: 'pachimanga-account-export',
+    version: 1,
+    library: [{ source_id: 'mangadex', manga_id: 'md-a', title: 'A' }],
+    progress: [],
+    history: [],
+    collections: [{ id: 'collection-1', name: 'Favorites' }],
+    collectionItems: [{
+      collection_id: 'collection-1',
+      source_id: 'mangadex',
+      manga_id: 'md-a',
+    }],
+  });
+
+  assert.deepEqual(result.collections, [{ id: 'collection-1', name: 'Favorites' }]);
+  assert.deepEqual(result.collectionMemberships, [{
+    collectionId: 'collection-1',
+    sourceId: 'mangadex',
+    mangaId: 'md-a',
+  }]);
+});

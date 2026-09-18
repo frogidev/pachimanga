@@ -344,10 +344,19 @@ export async function setEntryProgress(
 export async function clearAccountLibrary() {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
-  for (const table of ['library_entries', 'reading_progress', 'reading_history']) {
-    const { error } = await auth.sb.from(table).delete().eq('user_id', auth.user.id);
-    if (error) throw error;
+  const rpcResult = await auth.sb.rpc('clear_my_library');
+
+  // Compatibility fallback while the migration is not yet present on a target.
+  if (rpcResult.error) {
+    const missingRpc = rpcResult.error.code === 'PGRST202'
+      || rpcResult.error.message.toLowerCase().includes('clear_my_library');
+    if (!missingRpc) throw rpcResult.error;
+    for (const table of ['reading_history', 'reading_progress', 'library_entries']) {
+      const { error } = await auth.sb.from(table).delete().eq('user_id', auth.user.id);
+      if (error) throw error;
+    }
   }
+
   // Clear only library/progress/history state. Pending/current reader settings belong
   // to the account but are not part of the user-facing "clear library" action.
   await clearLibraryContentIdb();
@@ -507,6 +516,58 @@ export async function getHistory() {
   await idbClear('history');
   await Promise.all(history.map((entry) => idbPut('history', entry as unknown as Record<string, unknown>)));
   return history;
+}
+
+export type ReadingStats = {
+  trackedChapters: number;
+  completedChapters: number;
+  activeTitles: number;
+  averageProgress: number;
+  lastUpdatedAt: string | null;
+};
+
+export async function getReadingStats(): Promise<ReadingStats> {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const local = await idbGetAll<ReadingProgress>('progress');
+
+  let rows: Array<{ manga_id: string; scroll_progress: number; completed: boolean; updated_at: string }>;
+  try {
+    rows = await collectPagedRows(async (from, to) => {
+      const result = await auth.sb
+        .from('reading_progress')
+        .select('manga_id,scroll_progress,completed,updated_at')
+        .eq('user_id', auth.user.id)
+        .order('id', { ascending: true })
+        .range(from, to);
+      return { data: result.data || [], error: result.error };
+    });
+  } catch {
+    rows = local.map((entry) => ({
+      manga_id: entry.mangaId,
+      scroll_progress: Math.max(0, Math.min(1, Number(entry.percentage || 0) / 100)),
+      completed: Number(entry.percentage || 0) >= 99,
+      updated_at: entry.updatedAt,
+    }));
+  }
+
+  const activeTitles = new Set(rows.map((row) => row.manga_id)).size;
+  const completedChapters = rows.filter((row) => row.completed || Number(row.scroll_progress) >= 0.99).length;
+  const averageProgress = rows.length
+    ? rows.reduce((sum, row) => sum + Math.max(0, Math.min(1, Number(row.scroll_progress) || 0)), 0) / rows.length * 100
+    : 0;
+  const lastUpdatedAt = rows.reduce<string | null>((latest, row) => {
+    if (!Number.isFinite(Date.parse(row.updated_at))) return latest;
+    return !latest || Date.parse(row.updated_at) > Date.parse(latest) ? row.updated_at : latest;
+  }, null);
+
+  return {
+    trackedChapters: rows.length,
+    completedChapters,
+    activeTitles,
+    averageProgress,
+    lastUpdatedAt,
+  };
 }
 
 function readerSettingsKey() {

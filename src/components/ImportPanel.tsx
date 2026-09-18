@@ -5,9 +5,20 @@ import Link from 'next/link';
 import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import { parseSeriesIdFromUrl } from '@/sources/weebcentral/endpoints';
-import type { ImportManga, ImportProgress, ImportReaderSettings } from '@/lib/imports/types';
+import type {
+  ImportCollection,
+  ImportCollectionMembership,
+  ImportManga,
+  ImportProgress,
+  ImportReaderSettings,
+} from '@/lib/imports/types';
 import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, saveReaderSettings, setEntryProgress } from '@/lib/storage/reader-storage';
 import { setLibraryReadingStatus } from '@/lib/storage/library-dashboard';
+import {
+  createLibraryCollection,
+  getLibraryCollectionState,
+  setLibraryCollectionMembership,
+} from '@/lib/storage/library-collections';
 import type { Manga } from '@/types/models';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
@@ -141,6 +152,8 @@ export function ImportPanel() {
   const [reviewPage, setReviewPage] = useState(0);
   const [exactProgress, setExactProgress] = useState<ImportProgress[]>([]);
   const [restoredReaderSettings, setRestoredReaderSettings] = useState<ImportReaderSettings | null>(null);
+  const [restoredCollections, setRestoredCollections] = useState<ImportCollection[]>([]);
+  const [restoredCollectionMemberships, setRestoredCollectionMemberships] = useState<ImportCollectionMembership[]>([]);
 
   function refreshLibraryCount() {
     void Promise.resolve()
@@ -161,6 +174,8 @@ export function ImportPanel() {
       setItems([]);
       setExactProgress([]);
       setRestoredReaderSettings(null);
+      setRestoredCollections([]);
+      setRestoredCollectionMemberships([]);
       setImportedCount(null);
       await refreshLibraryCount();
       setStatus('Library cleared. Re-import any time from a backup file.');
@@ -181,6 +196,8 @@ export function ImportPanel() {
       setItems(linked);
       setExactProgress(out.progress || []);
       setRestoredReaderSettings(out.readerSettings || null);
+      setRestoredCollections(out.collections || []);
+      setRestoredCollectionMemberships(out.collectionMemberships || []);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
@@ -200,6 +217,8 @@ export function ImportPanel() {
       setItems(titles.map((title) => ({ title, favorite: true, selected: false, reviewed: false })));
       setExactProgress([]);
       setRestoredReaderSettings(null);
+      setRestoredCollections([]);
+      setRestoredCollectionMemberships([]);
       setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed');
@@ -348,12 +367,52 @@ export function ImportPanel() {
         });
       }
 
+      let restoredMembershipCount = 0;
+      if (restoredCollections.length) {
+        try {
+          const existing = await getLibraryCollectionState();
+          const collectionByName = new Map(
+            existing.collections.map((collection) => [normalizedTitle(collection.name), collection.id]),
+          );
+          const collectionIdMap = new Map<string, string>();
+          for (const collection of restoredCollections) {
+            let collectionId = collectionByName.get(normalizedTitle(collection.name));
+            if (!collectionId) {
+              const created = await createLibraryCollection(collection.name);
+              collectionId = created.id;
+              collectionByName.set(normalizedTitle(created.name), created.id);
+            }
+            collectionIdMap.set(collection.id, collectionId);
+          }
+
+          for (const membership of restoredCollectionMemberships) {
+            if (!savedMangaIds.has(membership.mangaId)) continue;
+            const collectionId = collectionIdMap.get(membership.collectionId);
+            if (!collectionId) continue;
+            await setLibraryCollectionMembership({
+              collectionId,
+              sourceId: membership.sourceId,
+              mangaId: membership.mangaId,
+              member: true,
+            });
+            restoredMembershipCount += 1;
+          }
+        } catch (error) {
+          setWarnings((current) => [
+            ...current,
+            error instanceof Error
+              ? `Library titles restored, but collections could not be restored: ${error.message}`
+              : 'Library titles restored, but collections could not be restored.',
+          ]);
+        }
+      }
+
       const done = chosen.length - failed.length;
       setImportedCount(done);
       setStatus(
         failed.length
           ? `Imported ${done} of ${chosen.length} titles (${withProgress} with progress). Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
-          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''} Unmatched titles remain marked as imported until you match them to a source.`
+          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''}${restoredMembershipCount ? ` Restored ${restoredMembershipCount} collection membership${restoredMembershipCount === 1 ? '' : 's'}.` : ''} Unmatched titles remain marked as imported until you match them to a source.`
       );
     } finally {
       setImporting(false);

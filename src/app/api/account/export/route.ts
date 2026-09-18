@@ -68,6 +68,41 @@ async function loadHistory(sb: Awaited<ReturnType<typeof createClient>>, userId:
   }
 }
 
+function missingOptionalTable(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === '42P01'
+    || error?.code === 'PGRST205'
+    || Boolean(error?.message?.includes('library_collections'))
+    || Boolean(error?.message?.includes('library_collection_items'));
+}
+
+async function loadCollections(sb: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const { data, error } = await sb
+    .from('library_collections')
+    .select('id,name,created_at,updated_at')
+    .eq('user_id', userId)
+    .order('name', { ascending: true });
+  if (missingOptionalTable(error)) return [];
+  if (error) throw new Error('Could not export library collections.');
+  return data || [];
+}
+
+async function loadCollectionItems(sb: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const rows: Array<Record<string, unknown>> = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await sb
+      .from('library_collection_items')
+      .select('collection_id,source_id,manga_id,added_at')
+      .eq('user_id', userId)
+      .order('collection_id', { ascending: true })
+      .order('manga_id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (missingOptionalTable(error)) return [];
+    if (error) throw new Error('Could not export collection memberships.');
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
+
 export async function GET() {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
@@ -79,10 +114,12 @@ export async function GET() {
   }
 
   try {
-    const [library, progress, history, settingsResult] = await Promise.all([
+    const [library, progress, history, collections, collectionItems, settingsResult] = await Promise.all([
       loadLibrary(sb, user.id),
       loadProgress(sb, user.id),
       loadHistory(sb, user.id),
+      loadCollections(sb, user.id),
+      loadCollectionItems(sb, user.id),
       sb.from('user_settings').select('settings,updated_at').eq('user_id', user.id).maybeSingle(),
     ]);
     if (settingsResult.error) throw new Error('Could not export reader settings.');
@@ -95,6 +132,8 @@ export async function GET() {
       library,
       progress,
       history,
+      collections,
+      collectionItems,
       readerSettings: {
         settings: safeReaderSettings(settingsResult.data?.settings),
         updatedAt: settingsResult.data?.updated_at || null,
