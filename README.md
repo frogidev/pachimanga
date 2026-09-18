@@ -12,7 +12,7 @@ Pachimanga v0.4.0 is released on the authenticated PWA/web production path.
 
 ```text
 release:    v0.4.0
-main:       9e0cc7c379541db0d640ebe03383466c37d933ba
+release SHA:9e0cc7c379541db0d640ebe03383466c37d933ba
 production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
 state:      READY
 runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba

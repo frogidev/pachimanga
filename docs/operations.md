@@ -7,7 +7,7 @@ Production UI: `https://pachimanga.frogilab.dev`
 ## Current operating mode — 2026-09-18
 
 - release: v0.4.0;
-- `main` / production runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`;
+- production runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`; current `main` may be a documentation-only runtime-equivalent descendant;
 - production deployment: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
 - exact-head preview before merge: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;
 - operator reported final local tests/lint/typecheck/build passing;

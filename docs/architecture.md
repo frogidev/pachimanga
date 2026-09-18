@@ -7,7 +7,7 @@ Production UI: `https://pachimanga.frogilab.dev`
 ## Current release runtime — 2026-09-18
 
 - release: v0.4.0;
-- `main` / runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`;
+- release runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`; current `main` may be a documentation-only runtime-equivalent descendant;
 - Vercel production: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
 - production alias: `https://pachimanga.frogilab.dev`;
 - exact-head PR #74 preview: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;

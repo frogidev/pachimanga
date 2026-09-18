@@ -39,7 +39,7 @@ These changes were motivated by local development evidence showing repeated `/ap
 ## v0.4.0 release verification — 2026-09-18
 
 ```text
-main/runtime: 9e0cc7c379541db0d640ebe03383466c37d933ba
+release runtime: 9e0cc7c379541db0d640ebe03383466c37d933ba
 production:   dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
 state:        READY
 preview:      dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ (READY)
