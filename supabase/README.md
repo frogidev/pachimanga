@@ -4,7 +4,7 @@ Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active m
 
 ## Production migration history
 
-Verified against production on 2026-09-15 and rechecked after the library-progress summary migrations on 2026-09-17:
+Verified against production through the v0.4.0 release on 2026-09-18:
 
 | Version | Name | Purpose |
 | --- | --- | --- |
@@ -17,13 +17,15 @@ Verified against production on 2026-09-15 and rechecked after the library-progre
 | `20260916165443` | `add_library_state_tracking` | Adds account-owned reading status plus publication/chapter-update tracking fields and validation checks to `library_entries`. |
 | `20260917024919` | `add_library_progress_summary_rpc` | Adds an account-bound `SECURITY INVOKER` aggregate RPC that returns one progress/history summary row per library title. |
 | `20260917024951` | `restrict_library_progress_summary_rpc` | Explicitly removes `anon`/`PUBLIC` execute access from the summary RPC while retaining `authenticated` execute access. |
+| `20260917030319` | `restrict_library_progress_summary_rpc` | Reasserts authenticated-only execute grants for the summary RPC in canonical production history. |
+| `20260918010000` | `pwa_collections_profile_and_clear_rpc` | Adds `profiles.avatar_url`, owner-scoped collections/memberships, authenticated grants/RLS, and transactional `clear_my_library()`. |
 
-Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, and `user_settings`.
+Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, `user_settings`, `library_collections`, and `library_collection_items`.
 
 The production account-data role contract is:
 
 - `anon`: no table or identity-sequence privileges on Pachimanga account tables and no execute access to the library summary RPC;
-- `authenticated`: `SELECT/INSERT/UPDATE` on `profiles` and `user_settings`; `SELECT/INSERT/UPDATE/DELETE` on library/progress/history; `USAGE/SELECT` on identity sequences; execute access to the account-bound summary RPC;
+- `authenticated`: required `SELECT/INSERT/UPDATE` access on profile/settings, required library/progress/history privileges, owner-scoped collection privileges, `USAGE/SELECT` on required identity sequences, and execute access only to the intended account-bound RPCs;
 - row ownership is enforced by RLS policies using `auth.uid()`; grants do not replace RLS.
 
 ## Library state tracking and summary loading
@@ -59,9 +61,9 @@ The current client complements the database guards with owner-bound local retry 
 - the shell and Settings expose queue/network state as Synced, Syncing/pending, or Offline rather than claiming synchronization unconditionally.
 - sync-status surfaces share a visibility-aware observer and use IndexedDB count-only queries for pending outboxes; this is a client efficiency change and does not alter server ownership, timestamp, or RLS semantics.
 
-Library add/remove remains remote-first and does not currently use an offline mutation queue. Library reading status and provider-update metadata are stored in the same owner-RLS-protected `library_entries` row. Pending progress outbox writes suppress automatic status persistence from a potentially stale aggregate until the queue has flushed.
+Library add/remove uses an owner-bound IndexedDB `libraryOutbox`; pending mutations are reconciled with remote snapshots so reconnect cannot visually undo unsynced local intent. Library reading status and provider-update metadata are stored in the same owner-RLS-protected `library_entries` row. Pending progress outbox writes suppress automatic status persistence from a potentially stale aggregate until the queue has flushed.
 
-Client timestamps remain the ordering signal for progress/history/settings, so real two-device validation should still observe clock-skew behavior before release-candidate status.
+Client timestamps remain part of the ordering model, with logical-device clock hardening in the v0.4.0 client. Real two-device/near-simultaneous behavior remains post-release validation evidence.
 
 ## Repository layout
 
@@ -90,7 +92,7 @@ After reset:
 supabase migration list --local
 ```
 
-Expected baseline versions are the nine production versions listed above. Future forward migrations may add later versions.
+Expected baseline versions are the eleven production versions listed above. Future forward migrations may add later versions.
 
 Do not use `supabase db reset --linked` against production. It is destructive.
 
@@ -122,13 +124,16 @@ Before a production push, review pending migrations and SQL. Production mutation
 
 ## Current advisor state
 
-As of the post-migration 2026-09-17 check:
+As of the 2026-09-18 post-migration/release check:
 
-- performance advisor: no lints;
-- security advisor: one warning, leaked-password protection disabled.
+- security advisor: known leaked-password-protection warning remains;
+- performance advisor: the new collection lookup index was reported unused while the new collection tables had no rows.
 
-The current Supabase plan does not include leaked-password protection, so that warning is accepted/documented rather than treated as a release blocker. Mandatory authentication, owner-scoped RLS, account-bound local storage/outboxes, restricted redirects, and publishable-key-only browser access remain the compensating controls.
+The leaked-password-protection warning is accepted/documented under the current plan rather than treated as evidence that owner RLS or account isolation is absent. An unused-index advisory immediately after adding empty tables is tracked as usage evidence, not a reason to remove the ownership lookup index without workload data.
 
+## v0.4.0 release data-model note
+
+Production migration `20260918010000_pwa_collections_profile_and_clear_rpc.sql` is applied. `profiles` is the canonical personalization row for `display_name` and `avatar_url`; Auth metadata remains a compatibility mirror. Collections are owner-RLS protected, and `clear_my_library()` is `SECURITY INVOKER`, authenticated-only, and operates on the current `auth.uid()`.
 
 ## 2026-09-17 PR #68 note
 

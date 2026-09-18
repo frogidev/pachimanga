@@ -4,7 +4,7 @@ Pachimanga separates deterministic repository quality checks from optional brows
 
 ## Current operating mode
 
-Repository Hygiene and Web Quality are active required checks. Web Quality runs dependency installation, unit tests, lint, typecheck, and the Next.js production build for runtime-impacting PRs.
+PWA/web v0.4.0 is released. Repository Hygiene and Web Quality remain the normal required checks, but GitHub Actions capacity is unavailable for the rest of September 2026. The release therefore used the operator-reported equivalent local tests/lint/typecheck/build gate plus exact-head Vercel build evidence; absent Actions are not represented as passing.
 
 `ops/browser-e2e.mjs` remains optional evidence for environments where Playwright and Chromium are already available. Pachimanga does not install Playwright as a normal project dependency and does not download browser binaries during standard install/build/deploy.
 
@@ -18,7 +18,7 @@ The optional runner covers the real auth/offline boundary and protected applicat
 
 Disposable account environment variables may be supplied to exercise signed-in Settings account controls and account-cache ownership. Credentials are never printed and no service-role bypass is used.
 
-Real two-device synchronization and Account A -> B -> A isolation remain manual release-gate evidence even when optional browser automation passes.
+Real two-device synchronization and Account A -> B -> A isolation remain manual post-release evidence even when optional browser automation passes.
 
 ## Performance boundaries protected by code/tests
 
@@ -36,34 +36,18 @@ The deterministic suite now protects these properties:
 
 These changes were motivated by local development evidence showing repeated `/api/library/refresh` requests around 500–1000 ms, several provider stalls lasting roughly 110–140 seconds, and WeebCentral chapter payloads around 2.96 MB exceeding the Next.js Data Cache item limit.
 
-## PR #68 verification — 2026-09-17
-
-Final PR head:
+## v0.4.0 release verification — 2026-09-18
 
 ```text
-0e4fdb5eefd2f870c9e47435ac40ccec9735ff92
+release runtime: 9e0cc7c379541db0d640ebe03383466c37d933ba
+production:   dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
+state:        READY
+preview:      dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ (READY)
 ```
 
-Observed required checks:
+The operator reported the final local unit tests, lint, typecheck, and production build passing. Vercel independently compiled the production build, completed TypeScript, generated 22/22 static pages, and deployed successfully. Production error/fatal inspection was empty in the inspected window.
 
-- Repository Hygiene: success;
-- Web Quality: success;
-- dependency installation: success, 0 vulnerabilities;
-- unit tests: success;
-- lint: success;
-- typecheck: success;
-- Next.js production build: success;
-- Production Smoke PR gate: success.
-
-Merged runtime:
-
-```text
-main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
-production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
-state:      READY
-```
-
-Vercel preview creation was intermittently rate-limited by the Hobby plan during the branch, but the exact merged runtime deployed successfully. Post-deploy error/fatal inspection for the exact production deployment returned no matching logs in the inspected window.
+GitHub Actions capacity was unavailable and is not claimed as passing release evidence.
 
 ## What still needs measurement
 

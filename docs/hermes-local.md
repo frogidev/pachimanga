@@ -2,7 +2,7 @@
 
 Pachimanga uses the root `AGENTS.md` plus project-local Hermes skills under `.hermes/skills/`.
 
-The root agent contract is mandatory. Skills specialize the contract for a task; they do not override security, account isolation, git discipline, or release gates.
+The root agent contract is mandatory. Skills specialize the contract for a task; they do not override security, account isolation, git discipline, or release/post-release validation rules.
 
 ## First-time Windows setup
 
@@ -43,6 +43,10 @@ hermes
 
 Hermes loads the root `AGENTS.md` as project context. Do not add `.hermes.md` casually: it has higher priority and could silently bypass the repository-wide contract. If one is ever introduced, it must intentionally preserve or strengthen the root invariants and be reviewed as a high-risk agent-configuration change.
 
+## Current product state
+
+PWA/web v0.4.0 is released. Post-release work remains PWA-first by default; native release workflows stay manual-only unless the user explicitly requests that phase.
+
 ## Mandatory Hermes boot sequence
 
 Before editing code, Hermes must:
@@ -82,11 +86,11 @@ Auth/RLS/schema/sync/account-owned persistence workflow. Separates migration aut
 
 ### `pachimanga-review`
 
-Pre-merge/release-readiness audit. Treats auth leaks, data isolation failures, broken reader/library flows, conflict markers, secret exposure, and failing gates as merge blockers.
+Pre-merge/release/post-release audit. Treats auth leaks, data isolation failures, broken reader/library flows, conflict markers, secret exposure, and failing gates as merge blockers.
 
 ### `pachimanga-ops`
 
-GitHub/Vercel/production operations workflow. Use for branch/PR/CI/deployment audits, production smoke checks, release gating, and keeping native workflows manual-only during the PWA phase.
+GitHub/Vercel/production operations workflow. Use for branch/PR/CI/deployment audits, production smoke checks, release evidence, and keeping native workflows manual-only unless native distribution is explicitly requested.
 
 ## Skill selection
 

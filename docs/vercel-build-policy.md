@@ -65,28 +65,31 @@ state:      READY
 
 The policy has remained in effect through later runtime deployments.
 
-## Current production state — 2026-09-17
+## Current production state — 2026-09-18
 
-Latest observed hosted runtime deployment:
+Released hosted runtime:
 
 ```text
-deployment: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
-runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+release:    v0.4.0
+deployment: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
+runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
 state:      READY
 alias:      https://pachimanga.frogilab.dev
 ```
 
-Observed repository `main`:
+Exact-head PR #74 preview:
 
 ```text
-c9060fd177b7d3cdf607cbde1945af875e283fa7
+deployment: dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ
+runtime:    e2f4b0a263ec79736be699ad704fe33b2211f1f1
+state:      READY
 ```
 
-PR #68 exercised both sides of the policy. Several branch preview attempts were rejected by the Vercel Hobby build-rate limit, which is external capacity and not an application build result. The exact merged runtime commit was accepted as a production build and reached `READY`. Post-deploy error/fatal inspection for that exact deployment returned no matching entries in the inspected window.
+The production build compiled successfully, completed TypeScript, generated 22/22 static pages, and reached `READY`. Post-deploy error/fatal inspection returned no matching entries.
 
 ## Current validation mode
 
-Repository Hygiene and Web Quality are active again and remain the primary repository gates. For runtime changes use:
+Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions capacity is unavailable for the rest of September 2026, so v0.4.0 used operator-reported equivalent local verification plus exact-head Vercel evidence without representing absent Actions as passed. For subsequent runtime changes use:
 
 1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
 2. local `npm ci` + `npm run verify` when available;

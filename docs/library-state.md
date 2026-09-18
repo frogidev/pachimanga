@@ -1,5 +1,7 @@
 # Library state, progress, and chapter updates
 
+Release baseline: v0.4.0 production runtime `9e0cc7c379541db0d640ebe03383466c37d933ba` on Vercel deployment `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` (`READY`).
+
 Pachimanga keeps provider publication state, personal reading state, chapter progress, and provider update baselines as separate concepts.
 
 ## Publication status
@@ -112,6 +114,12 @@ Library supports:
 
 `/updates` also exposes live account/provider availability and bounded deliberate `Check all now` refresh behavior; it does not use aggressive background polling.
 
+## User collections
+
+The v0.4.0 Library supports owner-scoped user collections. `library_collections` stores names and `library_collection_items` binds existing library rows into those collections using composite ownership foreign keys. Both tables have RLS enabled and authenticated owner policies. Deleting a collection removes only membership rows; deleting a library entry cascades its collection memberships.
+
+Collection state is synchronized with Supabase rather than becoming a separate anonymous/local library.
+
 ## Provider failure behavior
 
 Refresh/provider failures do not fabricate chapters, erase the previous baseline, or fall back to mock data. Provider/offline/network failures, `403`, `429`, relay-unavailable, missing-content, and generic upstream errors remain explicit with safe retry behavior where appropriate. A successful zero-result state is not used as a substitute for a failed provider check.
@@ -121,16 +129,20 @@ Refresh/provider failures do not fabricate chapters, erase the previous baseline
 - `20260916165443_add_library_state_tracking.sql`
 - `20260917024919_add_library_progress_summary_rpc.sql`
 - `20260917024951_restrict_library_progress_summary_rpc.sql`
+- `20260917030319_restrict_library_progress_summary_rpc.sql`
+- `20260918010000_pwa_collections_profile_and_clear_rpc.sql`
 
 Post-migration verification confirmed owner RLS/upsert constraints/grants remained intact, summary RPC `anon` execute was removed, performance advisor was clean, and leaked-password protection remained the accepted plan-limited warning.
 
-## 2026-09-17 verification
+## v0.4.0 release verification — 2026-09-18
 
-The latest merged runtime hardening passed required Repository Hygiene and Web Quality, including unit tests, lint, typecheck, and production build. PR Production Smoke passed against protected anonymous routes and PWA assets. The exact deployed runtime is `dcc14856863ee3ab7a9877e5c7cd9bf953582c95` on Vercel deployment `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`.
+The release runtime is `9e0cc7c379541db0d640ebe03383466c37d933ba` on production deployment `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` (`READY`). The exact-head preview reached `READY`, the operator reported unit tests/lint/typecheck/build passing, and the inspected production error/fatal window was empty.
 
-Real Account A -> B -> A isolation, two-device synchronization/clock-skew behavior, live signed-in production data, installed-PWA behavior, reader-device checks, representative imports, and a fresh direct production smoke from a network-capable environment remain manual release-candidate evidence.
+The merged baseline also includes owner-bound library add/remove outbox behavior, export/import collection round-trip handling, richer reading statistics, logical-device clock hardening, search deduplication, and chapter publication timestamps.
 
-## PR #68 library/read-state refinements — 2026-09-17
+Real Account A -> B -> A isolation, two-device synchronization/clock-skew behavior, live signed-in production data, installed-PWA behavior, reader-device checks, representative imports, and a fresh exact-runtime Production Smoke remain post-release validation evidence.
+
+## Earlier PR #68 library/read-state refinements — 2026-09-17
 
 The consolidated PWA merge adds two important behavioral refinements without changing account ownership semantics:
 

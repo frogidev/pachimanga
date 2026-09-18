@@ -2,20 +2,27 @@
 
 **Your manga. Everywhere.**
 
-Pachimanga is a private, account-based manga reader built with Next.js 16 and Supabase. The authenticated PWA/web app is the active product target; native distribution remains deferred until the PWA release-candidate gate is complete.
+Pachimanga is a private, account-based manga reader built with Next.js 16 and Supabase. PWA/web v0.4.0 is the released production product. Native distribution remains a separate manual phase and is not automatically enabled by the web release.
 
 Production: `https://pachimanga.frogilab.dev`
 
-## Current state — 2026-09-17
+## Release state — 2026-09-18
+
+Pachimanga v0.4.0 is released on the authenticated PWA/web production path.
 
 ```text
-main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
-production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
+release:    v0.4.0
+release SHA:9e0cc7c379541db0d640ebe03383466c37d933ba
+production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
 state:      READY
-runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
 ```
 
-PR #68 merged the consolidated PWA hardening branch. Its final required GitHub gates passed on head `0e4fdb5eefd2f870c9e47435ac40ccec9735ff92`: Repository Hygiene, Web Quality (install, tests, lint, typecheck, production build), and Production Smoke. Exact-head Vercel preview attempts were intermittently rate-limited on the Hobby plan, but the exact merged production commit deployed successfully and reached `READY`. Post-deploy Vercel error/fatal inspection for the new production deployment returned no matching logs in the inspected window.
+The release includes the consolidated PWA integrity/scale work from PR #72, light-theme polish from PR #73, and visible account identity plus auth light-theme fixes from PR #74. The final PR #74 exact-head preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`; the merged production deployment reached `READY` and Vercel returned no `error`/`fatal` runtime logs in the inspected post-deploy window.
+
+The operator reported the final local `npm test`, lint, typecheck, and production build gate passing before merge. GitHub Actions capacity remains unavailable for the rest of September 2026, so missing hosted Action runs are not represented as passing evidence.
+
+See `docs/verification-release-2026-09-18.md` for the release record and explicit evidence limits.
 
 ## Product contract
 
@@ -32,21 +39,21 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 
 ## Current capabilities
 
-- Registration, sign-in, confirmation resend, password recovery, signed-in password change, profile personalization, and secure sign-out.
+- Registration, sign-in, confirmation resend, password recovery, signed-in password change, profile personalization, visible avatar/display-name identity in desktop/mobile shell surfaces, and secure sign-out.
 - Account controls consolidated into Settings; `/account` remains a protected compatibility redirect to `/settings#account`.
 - Reader settings, sync status, PWA/device controls, account export, diagnostics, and sign-out organized by user importance.
 - Theme quick toggle in the main shell rather than a full Settings card.
 - Personal Library status separate from provider publication status.
 - Dynamic manga progress, deterministic rehydration, owner-bound progress/settings outboxes, explicit `Sync now`, and pending-sync retry.
-- Continue Reading, unread chapter updates, Recently Updated, Library sorting/filtering, and live data-backed Updates.
+- Continue Reading, unread chapter updates, Recently Updated, Library sorting/filtering, user collections, and live data-backed Updates.
 - New readers start from the earliest available chapter; `Continue` is shown only when real progress exists.
 - MangaDex reader integration.
 - WeebCentral browser/PWA support through the locked-down relay when configured.
 - ComicK metadata compatibility; public chapter-list `403` means it is not treated as a validated new-reader fallback.
 - Bounded provider refresh behavior: duplicate refreshes are coalesced, very recent checks can be reused, provider refresh has a hard timeout, and oversized WeebCentral raw chapter HTML is not placed in the Next.js data cache.
 - Conventional page and long-strip/manhwa reader layouts, progress/resume, navigation, auto-scroll, keyboard/touch controls, and optional Screen Wake Lock.
-- Explicit account-bound offline chapter downloads, bounded PWA runtime cache, and explicit service-worker update lifecycle.
-- OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, and validated JSON fallback.
+- Explicit account-bound offline chapter downloads with cancellation/quota guards, bounded PWA runtime cache, and explicit service-worker update lifecycle.
+- OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, validated JSON fallback, and account export/import round-trip support.
 - Optional browser E2E runner without Playwright in normal dependencies.
 
 ## Runtime architecture
@@ -69,18 +76,20 @@ same account model and production web UI
 
 See `docs/architecture.md`, `docs/library-state.md`, `docs/reader-pwa-hardening.md`, and `docs/operations.md`.
 
-## Remaining release-candidate evidence
+## Post-release validation backlog
 
-Code hardening is no longer the primary blocker. Do not call the PWA a release candidate until real identities/devices provide evidence for:
+The owner designated v0.4.0 as released on 2026-09-18. That release decision does not fabricate manual evidence that was not collected. The following remain useful post-release validation targets and regression checks:
 
-- fresh registration, email confirmation, resend/rate-limit behavior, password recovery, and fresh login after password change;
+- fresh registration/email confirmation/recovery flows across real mail delivery;
 - same-browser Account A -> B -> A isolation;
-- same-account two-session/two-device sync and near-simultaneous update behavior;
-- installed PWA on iPhone, iPad, Android, and desktop Chromium;
+- same-account two-session/two-device synchronization and near-simultaneous update behavior;
+- installed PWA behavior on iPhone, iPad, Android, and desktop Chromium;
 - service-worker upgrade from an older installed version;
 - physical-device conventional and long-strip reader testing;
 - representative OCR/`.tachibk`/`.proto.gz`/`.tmb` imports using disposable samples;
-- fresh post-deploy credential-free Production Smoke on the current production runtime from a network-capable environment.
+- a fresh credential-free Production Smoke against the exact v0.4.0 production runtime when a network-capable environment is available.
+
+These are post-release evidence/backlog items, not claims that the checks already passed.
 
 ## Local setup
 
@@ -154,14 +163,15 @@ Read new-session guidance in this order:
 
 1. `AGENTS.md`
 2. `docs/WORKPLAN.md`
-3. `docs/verification-2026-09-17.md`
-4. `docs/START-HERE-NEW-CHAT.md`
-5. `docs/architecture.md`
-6. `docs/operations.md`
-7. `docs/library-state.md`
-8. `docs/reader-pwa-hardening.md`
-9. `docs/browser-e2e-performance.md`
-10. `supabase/README.md`
+3. `docs/verification-release-2026-09-18.md`
+4. `docs/verification-2026-09-17.md`
+5. `docs/START-HERE-NEW-CHAT.md`
+6. `docs/architecture.md`
+7. `docs/operations.md`
+8. `docs/library-state.md`
+9. `docs/reader-pwa-hardening.md`
+10. `docs/browser-e2e-performance.md`
+11. `supabase/README.md`
 
 Documentation index: `docs/README.md`.
 
@@ -169,4 +179,4 @@ Documentation index: `docs/README.md`.
 
 The supported delivery target is the authenticated PWA at `https://pachimanga.frogilab.dev`.
 
-Native source remains maintained for compatibility, but signing, stores, installers, TestFlight, desktop packaging, and native distribution remain blocked until the PWA release-candidate gate is satisfied.
+Native source remains maintained for compatibility. Signing, stores, installers, TestFlight, desktop packaging, and native distribution remain manual-only and require a separate explicit user decision plus the native validation/security gates.

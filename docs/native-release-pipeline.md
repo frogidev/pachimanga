@@ -1,12 +1,12 @@
 # Native release pipeline
 
-Pachimanga's active distribution path is the authenticated PWA. Native artifact workflows are retained for the final platform phase but are intentionally manual-only today.
+Pachimanga's active released distribution path is the authenticated PWA v0.4.0. Native artifact workflows are retained for a separate platform phase and remain intentionally manual-only.
 
 This document describes the retained pipeline and the prerequisites for re-validating it later. It must not be read as authorization to publish native releases during the PWA phase.
 
 ## Current policy
 
-Until the PWA release-candidate gate in `WORKPLAN.md` is complete:
+Even though PWA/web v0.4.0 is released, native distribution is not automatically authorized. Until the user explicitly starts the native phase:
 
 - `.github/workflows/android-apk.yml` is manual-only.
 - `.github/workflows/android-release.yml` is manual-only.
@@ -56,14 +56,14 @@ Do not change only one version source.
 
 Before the final native phase starts:
 
-1. PWA release-candidate checklist is complete.
-2. Web production is stable with no known P0/P1 release blockers.
+1. Current PWA production is stable with no known P0/P1 release blockers.
+2. The user explicitly requests native distribution.
 3. Native security boundary has been reviewed.
 4. Required signing credentials exist in GitHub Actions Secrets or an equivalent secret manager.
 5. Credential ownership, backup, and recovery procedures are documented.
 6. Manual workflows pass from current `main`.
 7. Install/upgrade behavior is tested on real target devices.
-8. The user explicitly approves native distribution.
+8. Final target-platform release scope is explicitly approved.
 
 ## Android debug/test APK
 
@@ -173,7 +173,7 @@ dev.frogilab.pachimanga
 
 Building an IPA is separate from TestFlight/App Store upload unless an explicit upload step is later added and reviewed.
 
-During the PWA phase, iPhone/iPad users use the installed PWA instead.
+Until native iOS distribution is explicitly requested and validated, iPhone/iPad users use the installed PWA.
 
 ## Security boundaries
 
