@@ -26,8 +26,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const [offlineState, setOfflineState] = useState<{ saved: number; total: number } | null>(null);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const [offlineError, setOfflineError] = useState<string | null>(null);
-  const [failedPages, setFailedPages] = useState<Record<number, boolean>>({});
-  const [pageRetryVersion, setPageRetryVersion] = useState<Record<number, number>>({});
+  const [failedPages, setFailedPages] = useState<Record<string, Record<number, boolean>>>({});
+  const [pageRetryVersion, setPageRetryVersion] = useState<Record<string, Record<number, number>>>({});
   const saveTimer = useRef<number | undefined>(undefined);
   const scrollFrame = useRef<number | undefined>(undefined);
   const touchStartY = useRef<number | null>(null);
@@ -71,11 +71,6 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     dispatch({ type: "page", index: bounded });
     dispatch({ type: "show-controls" });
   }, [pages.length, reducedMotion]);
-
-  useEffect(() => {
-    setFailedPages({});
-    setPageRetryVersion({});
-  }, [chapter.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,7 +246,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           const hasDimensions = Boolean(page.width && page.height);
           return (
             <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 [content-visibility:auto] [contain-intrinsic-size:1200px] ${index > 0 ? "border-t border-black" : ""}`}>
-              {failedPages[index] ? (
+              {failedPages[chapter.id]?.[index] ? (
                 <div className="grid min-h-80 w-full max-w-[800px] place-items-center px-6 py-12 text-center">
                   <div>
                     <p className="text-sm font-medium text-zinc-300">Page {index + 1} could not be loaded.</p>
@@ -260,8 +255,17 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        setFailedPages((current) => ({ ...current, [index]: false }));
-                        setPageRetryVersion((current) => ({ ...current, [index]: (current[index] || 0) + 1 }));
+                        setFailedPages((current) => ({
+                          ...current,
+                          [chapter.id]: { ...(current[chapter.id] || {}), [index]: false },
+                        }));
+                        setPageRetryVersion((current) => ({
+                          ...current,
+                          [chapter.id]: {
+                            ...(current[chapter.id] || {}),
+                            [index]: (current[chapter.id]?.[index] || 0) + 1,
+                          },
+                        }));
                       }}
                       className="button-secondary mt-4 px-4 py-2 text-xs"
                     >
@@ -271,7 +275,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
                 </div>
               ) : (
                 <Image
-                  key={`${page.imageUrl}:${pageRetryVersion[index] || 0}`}
+                  key={`${page.imageUrl}:${pageRetryVersion[chapter.id]?.[index] || 0}`}
                   src={page.imageUrl}
                   alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
                   width={page.width ?? 1200}
@@ -280,7 +284,10 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
                   loading={index < 2 ? "eager" : "lazy"}
                   decoding="async"
                   unoptimized
-                  onError={() => setFailedPages((current) => ({ ...current, [index]: true }))}
+                  onError={() => setFailedPages((current) => ({
+                    ...current,
+                    [chapter.id]: { ...(current[chapter.id] || {}), [index]: true },
+                  }))}
                   style={!hasDimensions && settings.fitMode === "width" ? { width: "100%", height: "auto" } : undefined}
                   className={settings.fitMode === "screen" ? "block h-auto max-h-[100svh] w-auto max-w-full object-contain" : "block h-auto w-full max-w-[1200px] object-contain"}
                 />
