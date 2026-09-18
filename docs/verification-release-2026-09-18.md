@@ -36,7 +36,7 @@ npm run build
 
 Earlier observed output in the same release sequence included 135/135 tests, clean lint/typecheck, and a successful Next.js production build. The final post-fix gate is recorded as operator-reported evidence rather than re-executed by the agent.
 
-GitHub Actions capacity is unavailable for the remainder of September 2026. Missing/skipped hosted Action runs are not treated as passing evidence, and repository/security rules were not intentionally weakened as part of the release work.
+GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. Missing/skipped hosted Action runs are not treated as passing evidence, and repository/security rules were not intentionally weakened as part of the release work. Future work should re-check actual availability on or after October 1.
 
 ## Vercel evidence
 
@@ -112,3 +112,17 @@ The release designation is an explicit owner product decision; it is not a state
 ## Release baseline
 
 Future work should treat `9e0cc7c379541db0d640ebe03383466c37d933ba` / `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` as the v0.4.0 hosted-runtime baseline unless a later current-state document records a newer release.
+
+
+## Post-release workflow note
+
+After v0.4.0, the default product-development mode is user-feedback-driven improvement. This does not alter the release evidence above.
+
+- prioritize reproducible bugs, UX friction, reliability/performance, accessibility, and responsive/theme regressions;
+- proceed autonomously on clear safe fixes;
+- batch related feedback to minimize Vercel churn;
+- keep responses concise;
+- when owner-side local testing is needed, provide exact paste-ready PowerShell rooted at `F:\LF\pachimanga`;
+- preserve every security/account/provider boundary documented for the release.
+
+See `post-release-feedback.md`.
