@@ -8,9 +8,9 @@ PWA/web v0.4.0 is released and remains the active delivery target. Native source
 
 Production URL: `https://pachimanga.frogilab.dev`
 
-### Temporary execution constraints — remainder of September 2026
+### Temporary execution constraints — through September 30, 2026
 
-- GitHub Actions capacity is unavailable for the remainder of the month. Do not spend pushes trying to obtain CI evidence and do not treat absent/skipped checks as a pass.
+- GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. Do not spend pushes trying to obtain unavailable CI evidence and do not treat absent/skipped checks as a pass. Re-check actual availability on or after October 1.
 - Batch repository changes before pushing. Avoid commit-by-commit remote iteration.
 - Minimize Vercel builds: use at most one exact-head preview/build for a completed runtime batch when possible, then one production deployment after an allowed merge.
 - Keep the existing ruleset/check requirements intact; do not weaken repository protections as a workaround for quota limits.
@@ -42,6 +42,16 @@ Release evidence:
 A fresh credential-free Production Smoke on this exact release runtime was not observed by the agent session and remains a post-release confirmation item.
 
 See `verification-release-2026-09-18.md`.
+
+## Post-release operating priority
+
+Real user feedback is now the primary source of improvements. Prioritize reproducible defects, confusing/high-friction flows, performance/reliability problems, accessibility issues, and responsive/theme regressions before speculative feature expansion.
+
+Default execution is autonomous: when feedback is clear and the fix is safe, inspect, reproduce, implement, cover, validate, and prepare/merge the coherent batch without asking for routine implementation choices. Ask only for genuinely ambiguous product decisions, destructive/security-sensitive actions, credentials/secrets, production data/schema mutation without prior authorization, or native-distribution scope.
+
+Batch related feedback to minimize Vercel deployments. Keep responses concise. When owner-side local verification is needed, provide exact paste-ready PowerShell commands for `F:\LF\pachimanga`.
+
+See `post-release-feedback.md`.
 
 ## Completed autonomous hardening
 
@@ -219,7 +229,7 @@ Still deferred or externally blocked:
 
 ## Exact next task
 
-Treat v0.4.0 as the production baseline. Do not expand features merely to accumulate more pre-release work.
+Treat v0.4.0 as the production baseline. Apply real user feedback as focused post-release improvements. Do not expand features merely to accumulate work.
 
 Next work should be one of:
 
