@@ -16,6 +16,7 @@ test('collections remain owner-scoped with RLS and library-entry cascade ownersh
   assert.match(migration, /alter table public\.library_collections enable row level security/);
   assert.match(migration, /alter table public\.library_collection_items enable row level security/);
   assert.match(migration, /auth\.uid\(\).*user_id/s);
+  assert.match(migration, /foreign key \(user_id, collection_id\).*references public\.library_collections\(user_id, id\).*on delete cascade/s);
   assert.match(migration, /references public\.library_entries\(user_id, source_id, manga_id\).*on delete cascade/s);
   assert.match(collections, /\.eq\('user_id', user\.id\)/);
   assert.match(collections, /onConflict: 'user_id,collection_id,source_id,manga_id'/);

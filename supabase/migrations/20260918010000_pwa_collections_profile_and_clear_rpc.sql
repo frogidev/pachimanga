@@ -14,7 +14,8 @@ create table if not exists public.library_collections (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null check (char_length(name) between 1 and 50),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (user_id, id)
 );
 
 create unique index if not exists library_collections_user_name_idx
@@ -22,11 +23,14 @@ create unique index if not exists library_collections_user_name_idx
 
 create table if not exists public.library_collection_items (
   user_id uuid not null references auth.users(id) on delete cascade,
-  collection_id uuid not null references public.library_collections(id) on delete cascade,
+  collection_id uuid not null,
   source_id text not null,
   manga_id text not null,
   added_at timestamptz not null default now(),
   primary key (user_id, collection_id, source_id, manga_id),
+  foreign key (user_id, collection_id)
+    references public.library_collections(user_id, id)
+    on delete cascade,
   foreign key (user_id, source_id, manga_id)
     references public.library_entries(user_id, source_id, manga_id)
     on delete cascade
