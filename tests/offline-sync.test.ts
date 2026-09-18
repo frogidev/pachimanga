@@ -21,12 +21,13 @@ test("uniquePageUrls dedupes and drops blanks, preserving order", () => {
 });
 
 test("account-bound cache stores include progress and settings sync outboxes", () => {
-  assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox", "settingsOutbox"]);
+  assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox", "settingsOutbox", "libraryOutbox"]);
 });
 
 test("clearing the library preserves reader settings sync state", () => {
-  assert.deepEqual(LIBRARY_CONTENT_IDB_STORES, ["library", "progress", "history", "outbox"]);
+  assert.deepEqual(LIBRARY_CONTENT_IDB_STORES, ["library", "progress", "history", "outbox", "libraryOutbox"]);
   assert.equal(LIBRARY_CONTENT_IDB_STORES.includes("settingsOutbox" as never), false);
+  assert.equal(LIBRARY_CONTENT_IDB_STORES.includes("libraryOutbox"), true);
 });
 
 test("sortOutboxByTime orders oldest-first for last-write-wins flush", () => {

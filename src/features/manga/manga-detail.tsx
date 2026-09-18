@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MockCoverArt } from "@/components/mock-cover-art";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import { idbGetAll } from "@/lib/storage/idb";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
@@ -39,6 +38,13 @@ function sourceName(sourceId: string) {
   if (sourceId === "comick") return "ComicK";
   if (sourceId === "mangadex") return "MangaDex";
   return "this source";
+}
+
+function chapterDate(value?: string) {
+  if (!value) return "Date unknown";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Date unknown";
+  return new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(date);
 }
 
 function summarizeReadState(chapters: Chapter[], map: Record<string, number>) {
@@ -298,7 +304,11 @@ export function MangaDetail({
       <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[.08] bg-gradient-to-br from-[#171520] to-[#0f0e15] p-4 shadow-[0_24px_70px_rgba(0,0,0,.2)] sm:p-6 lg:p-8">
         <div className="grid gap-7 sm:grid-cols-[190px_1fr] lg:grid-cols-[230px_1fr] lg:gap-10">
           <div className="relative mx-auto aspect-[2/3] w-44 overflow-hidden rounded-[16px] bg-zinc-900 shadow-2xl shadow-black/35 ring-1 ring-white/10 sm:mx-0 sm:w-full">
-            {manga.sourceId === "mock" ? <MockCoverArt manga={manga} className="h-full w-full" /> : <Image src={manga.coverUrl} alt={`${manga.title} cover`} fill className="object-cover" priority unoptimized />}
+{manga.coverUrl ? (
+              <Image src={manga.coverUrl} alt={`${manga.title} cover`} fill className="object-cover" priority unoptimized />
+            ) : (
+              <div className="grid h-full w-full place-items-center px-4 text-center text-xs text-zinc-600">No cover available</div>
+            )}
           </div>
 
           <div className="self-center">
@@ -398,7 +408,10 @@ export function MangaDetail({
               <Link key={chapter.id} href={chapterHref(chapter.id)} className="group flex min-h-14 items-center gap-3 px-4 py-3 text-sm transition hover:bg-white/[.035] sm:px-5">
                 <span aria-hidden="true" title={read ? "Read" : pct > 0 ? `${Math.round(pct)}% read` : "Unread"} className={`size-2 shrink-0 rounded-full ${read ? "bg-emerald-400" : pct > 0 ? "bg-sky-300" : "bg-zinc-700"}`} />
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] font-mono text-[10px] text-zinc-600 group-hover:bg-pink-400/10 group-hover:text-pink-300">{String(chapters.length - globalIndex).padStart(2, "0")}</span>
-                <span className={`min-w-0 flex-1 truncate font-medium ${read ? "text-zinc-500" : "text-zinc-200"}`}>{chapter.title}</span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate font-medium ${read ? "text-zinc-500" : "text-zinc-200"}`}>{chapter.title}</span>
+                  <span className="mt-0.5 block text-[10px] text-zinc-600">{chapterDate(chapter.publishedAt)}</span>
+                </span>
                 <button
                   type="button"
                   disabled={busy}

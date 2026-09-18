@@ -61,3 +61,86 @@ test('JSON import rejects invalid numeric progress without emitting NaN', () => 
   assert.equal(Number.isNaN(result.manga[0]?.lastPageRead), false);
   assert.equal(result.warnings.length, 2);
 });
+
+
+test('Pachimanga account export restores stable IDs, progress, history timestamps and reader settings', () => {
+  const result = parseJsonBackupValue({
+    format: 'pachimanga-account-export',
+    version: 1,
+    library: [{
+      source_id: 'mangadex',
+      manga_id: 'md-abc',
+      title: 'Example',
+      cover_url: 'https://example.test/cover.jpg',
+      reading_status: 'reading',
+      reading_status_manual: true,
+      publication_status: 'ongoing',
+      chapter_count: 12,
+    }],
+    progress: [{
+      source_id: 'mangadex',
+      manga_id: 'md-abc',
+      chapter_id: 'mdc-one',
+      page_index: 4,
+      scroll_progress: 0.42,
+      updated_at: '2026-09-17T12:00:00.000Z',
+    }],
+    history: [{
+      source_id: 'mangadex',
+      manga_id: 'md-abc',
+      chapter_id: 'mdc-one',
+      percentage: 42,
+      read_at: '2026-09-17T12:05:00.000Z',
+    }],
+    readerSettings: {
+      settings: {
+        autoScrollMultiplier: 1.5,
+        baseSpeedPxPerSecond: 150,
+        fitMode: 'screen',
+        theme: 'dark',
+        keepScreenAwake: true,
+      },
+    },
+  });
+
+  assert.equal(result.format, 'pachimanga');
+  assert.equal(result.manga[0]?.mangaId, 'md-abc');
+  assert.equal(result.manga[0]?.sourceId, 'mangadex');
+  assert.equal(result.manga[0]?.readingStatus, 'reading');
+  assert.equal(result.progress?.[0]?.percentage, 42);
+  assert.equal(result.progress?.[0]?.pageIndex, 4);
+  assert.equal(result.progress?.[0]?.historyReadAt, '2026-09-17T12:05:00.000Z');
+  assert.equal(result.readerSettings?.fitMode, 'screen');
+  assert.equal(result.readerSettings?.keepScreenAwake, true);
+});
+
+test('Pachimanga account export rejects unknown versions', () => {
+  assert.throws(
+    () => parseJsonBackupValue({ format: 'pachimanga-account-export', version: 99, library: [] }),
+    /Unsupported Pachimanga export version/,
+  );
+});
+
+
+test('Pachimanga export preserves collection metadata for round-trip restore', () => {
+  const result = parseJsonBackupValue({
+    format: 'pachimanga-account-export',
+    version: 1,
+    library: [{ source_id: 'mangadex', manga_id: 'md-a', title: 'A' }],
+    progress: [],
+    history: [],
+    collections: [{ id: 'collection-1', name: 'Favorites' }],
+    collectionItems: [{
+      collection_id: 'collection-1',
+      source_id: 'mangadex',
+      manga_id: 'md-a',
+    }],
+  });
+
+  assert.deepEqual(result.collections, [{ id: 'collection-1', name: 'Favorites' }]);
+  assert.deepEqual(result.collectionMemberships, [{
+    collectionId: 'collection-1',
+    sourceId: 'mangadex',
+    mangaId: 'md-a',
+  }]);
+});

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ProviderFailure } from '@/components/provider-failure';
 import { ReaderView } from '@/features/reader/reader-view';
-import { getMockChapter, getMockChapters, getMockManga, getMockPages } from '@/lib/mock-data';
 import { classifyProviderError } from '@/lib/source/provider-error';
 import { getComickChapterContext } from '@/sources/comick/comick-source';
 import { getMangaDexChapterContext } from '@/sources/mangadex/mangadex-source';
@@ -25,19 +24,7 @@ async function resolve(chapterId: string) {
     }
   }
 
-  const chapter = getMockChapter(chapterId);
-  if (!chapter) return null;
-  const manga = getMockManga(chapter.mangaId);
-  if (!manga) return null;
-  return {
-    data: {
-      manga,
-      chapter,
-      chapters: getMockChapters(manga.id),
-      pages: getMockPages(chapter.id),
-    },
-    error: null,
-  };
+  return null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ chapterId: string }> }): Promise<Metadata> {

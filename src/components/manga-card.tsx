@@ -25,6 +25,9 @@ export function MangaCard({
   newChapterCount = 0,
   onStatusChange,
   onOpen,
+  collections = [],
+  collectionIds = [],
+  onCollectionToggle,
 }: {
   manga: Manga;
   progress?: number;
@@ -36,6 +39,9 @@ export function MangaCard({
   newChapterCount?: number;
   onStatusChange?: (status: LibraryReadingStatus | null) => void;
   onOpen?: () => void;
+  collections?: Array<{ id: string; name: string }>;
+  collectionIds?: string[];
+  onCollectionToggle?: (collectionId: string, member: boolean) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -51,7 +57,7 @@ export function MangaCard({
         : manga.status === "cancelled"
           ? "Publication cancelled"
           : manga.sourceId === "import" ? "Imported title" : manga.sourceId;
-  const hasMenu = Boolean(onRemove || onStatusChange);
+  const hasMenu = Boolean(onRemove || onStatusChange || (collections.length && onCollectionToggle));
   const statusOptions: Array<{ value: LibraryReadingStatus | null; label: string }> = [
     { value: null, label: `Automatic (${statusLabels[readingStatus]})` },
     { value: "reading", label: "Reading" },
@@ -121,6 +127,30 @@ export function MangaCard({
                           }}
                           className={`block w-full rounded-lg px-2.5 py-1.5 text-left text-xs transition ${active ? "bg-pink-400/12 text-pink-200" : "text-zinc-300 hover:bg-white/[.06]"}`}
                         >{option.label}</button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {collections.length && onCollectionToggle ? (
+                  <div className="border-t border-white/[.07] pb-1 pt-1">
+                    <div className="px-2 py-1 text-[9px] font-medium uppercase tracking-[.14em] text-zinc-500">Collections</div>
+                    {collections.map((collection) => {
+                      const member = collectionIds.includes(collection.id);
+                      return (
+                        <button
+                          key={collection.id}
+                          type="button"
+                          aria-pressed={member}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            onCollectionToggle(collection.id, !member);
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${member ? "bg-sky-400/10 text-sky-200" : "text-zinc-300 hover:bg-white/[.06]"}`}
+                        >
+                          <span className="truncate">{collection.name}</span>
+                          <span aria-hidden="true">{member ? "✓" : "+"}</span>
+                        </button>
                       );
                     })}
                   </div>

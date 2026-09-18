@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Detect runtime-impacting changes
         id: changes
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const runtimePatterns = [
@@ -80,7 +80,7 @@ jobs:
         if: steps.changes.outputs.runtime != 'true'
         run: echo "No hosted-runtime paths changed; required Web Quality status is satisfied without an unnecessary build."
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         if: steps.changes.outputs.runtime == 'true'
         with:
           node-version: 22

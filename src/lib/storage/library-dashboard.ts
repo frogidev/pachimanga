@@ -56,6 +56,16 @@ type ProgressOutboxRow = ReadingProgress & {
   historyReadAt: string;
 };
 
+type LibraryMutationRow = {
+  key: string;
+  userId?: string;
+  operation: 'upsert' | 'delete';
+  mangaId: string;
+  sourceId: string;
+  entry?: LibraryEntry;
+  updatedAt: string;
+};
+
 function mangaStatus(value: unknown): MangaStatus {
   return value === 'ongoing' || value === 'complete' || value === 'hiatus' || value === 'cancelled'
     ? value
@@ -170,23 +180,36 @@ async function loadDetailedProgressFallback(
 export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
   const user = await bindCurrentUserCache();
   const sb = createClient();
-  const [localEntries, localProgress, localOutbox, libraryResult] = await Promise.all([
+  const [localEntries, localProgress, localOutbox, libraryOutbox] = await Promise.all([
     idbGetAll<LibraryEntry>('library'),
     idbGetAll<ReadingProgress>('progress'),
     idbGetAll<ProgressOutboxRow>('outbox'),
-    sb
-      .from('library_entries')
-      .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
-      .eq('user_id', user.id)
-      .order('added_at', { ascending: false }),
+    idbGetAll<LibraryMutationRow>('libraryOutbox'),
   ]);
+  const libraryMutations = libraryOutbox.filter((entry) => entry.userId === user.id);
+  const pendingLibraryUpserts = new Set(
+    libraryMutations.filter((entry) => entry.operation === 'upsert').map((entry) => entry.mangaId),
+  );
+  const pendingLibraryDeletes = new Set(
+    libraryMutations.filter((entry) => entry.operation === 'delete').map((entry) => entry.mangaId),
+  );
 
-  if (libraryResult.error) {
+  let libraryRows: LibraryRow[];
+  try {
+    libraryRows = await collectPagedRows<LibraryRow>(async (from, to) => {
+      const result = await sb
+        .from('library_entries')
+        .select('manga_id,source_id,title,cover_url,added_at,reading_status,reading_status_manual,publication_status,chapter_count,latest_chapter_id,latest_chapter_number,latest_chapter_published_at,new_chapter_count,last_chapter_change_at,last_checked_at')
+        .eq('user_id', user.id)
+        .order('added_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to);
+      return { data: (result.data || []) as LibraryRow[], error: result.error };
+    });
+  } catch {
     return withDerivedLocalState(localEntries, localProgress)
       .sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
   }
-
-  const libraryRows = (libraryResult.data || []) as LibraryRow[];
   const pendingMangaIds = new Set(
     localOutbox
       .filter((entry) => !entry.userId || entry.userId === user.id)
@@ -310,11 +333,22 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
 
   const remoteIds = new Set(remoteEntries.map((entry) => entry.mangaId));
   const staleLibraryDeletes = localEntries
-    .filter((entry) => !remoteIds.has(entry.mangaId))
+    .filter((entry) => !remoteIds.has(entry.mangaId) && !pendingLibraryUpserts.has(entry.mangaId))
     .map((entry) => idbDelete('library', entry.mangaId));
   await Promise.all([...libraryCacheWrites, ...staleLibraryDeletes]);
   if (statusWrites.length) await Promise.allSettled(statusWrites);
-  return remoteEntries;
+
+  const visibleById = new Map(
+    remoteEntries
+      .filter((entry) => !pendingLibraryDeletes.has(entry.mangaId))
+      .map((entry) => [entry.mangaId, entry]),
+  );
+  for (const mutation of libraryMutations) {
+    if (mutation.operation !== 'upsert') continue;
+    const pending = mutation.entry || localById.get(mutation.mangaId);
+    if (pending) visibleById.set(mutation.mangaId, pending);
+  }
+  return [...visibleById.values()].sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
 }
 
 export async function setLibraryReadingStatus(

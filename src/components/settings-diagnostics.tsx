@@ -22,6 +22,7 @@ type DiagnosticSnapshot = {
   serviceWorker: string;
   storageUsage: number | null;
   storageQuota: number | null;
+  pendingLibrary: number;
   pendingProgress: number;
   pendingSettings: number;
   providers: ProviderFreshness[];
@@ -76,7 +77,8 @@ async function readServiceWorkerState() {
 }
 
 async function collectDiagnostics(): Promise<DiagnosticSnapshot> {
-  const [progress, settings, library, storage, serviceWorker] = await Promise.all([
+  const [libraryMutations, progress, settings, library, storage, serviceWorker] = await Promise.all([
+    idbGetAll('libraryOutbox'),
     idbGetAll('outbox'),
     idbGetAll('settingsOutbox'),
     idbGetAll<LibraryEntry>('library'),
@@ -99,6 +101,7 @@ async function collectDiagnostics(): Promise<DiagnosticSnapshot> {
     serviceWorker,
     storageUsage: storage?.usage ?? null,
     storageQuota: storage?.quota ?? null,
+    pendingLibrary: libraryMutations.length,
     pendingProgress: progress.length,
     pendingSettings: settings.length,
     providers: aggregateProviderFreshness(library),
@@ -119,7 +122,7 @@ function diagnosticsText(snapshot: DiagnosticSnapshot) {
     `Network: ${snapshot.online ? 'online' : 'offline'}`,
     `Display mode: ${snapshot.installed ? 'installed/standalone' : 'browser'}`,
     `Account cache: ${snapshot.cacheBound ? 'bound to signed-in account' : 'not bound'}`,
-    `Sync queue: ${snapshot.pendingProgress} progress, ${snapshot.pendingSettings} settings pending`,
+    `Sync queue: ${snapshot.pendingLibrary} library, ${snapshot.pendingProgress} progress, ${snapshot.pendingSettings} settings pending`,
     `Service worker: ${snapshot.serviceWorker}`,
     `Site storage: ${formatBytes(snapshot.storageUsage)} used / ${formatBytes(snapshot.storageQuota)} quota`,
     'Provider freshness:',
@@ -172,7 +175,7 @@ export function SettingsDiagnostics() {
     }
   }
 
-  const pending = snapshot ? snapshot.pendingProgress + snapshot.pendingSettings : 0;
+  const pending = snapshot ? snapshot.pendingLibrary + snapshot.pendingProgress + snapshot.pendingSettings : 0;
 
   return (
     <section className="surface-card p-5 sm:p-6" aria-labelledby="settings-diagnostics-title">
@@ -201,7 +204,7 @@ export function SettingsDiagnostics() {
         </div>
         <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
           <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">Sync</dt>
-          <dd className="mt-2 leading-6 text-zinc-300">{snapshot?.online === false ? 'Offline' : 'Online'} · {pending} pending ({snapshot?.pendingProgress ?? 0} progress, {snapshot?.pendingSettings ?? 0} settings)</dd>
+          <dd className="mt-2 leading-6 text-zinc-300">{snapshot?.online === false ? 'Offline' : 'Online'} · {pending} pending ({snapshot?.pendingLibrary ?? 0} library, {snapshot?.pendingProgress ?? 0} progress, {snapshot?.pendingSettings ?? 0} settings)</dd>
         </div>
         <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
           <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">Service worker</dt>

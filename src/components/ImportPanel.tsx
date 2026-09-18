@@ -5,12 +5,53 @@ import Link from 'next/link';
 import { parseBackup } from '@/lib/imports';
 import { extractTitlesFromImage } from '@/lib/imports/ocr';
 import { parseSeriesIdFromUrl } from '@/sources/weebcentral/endpoints';
-import type { ImportManga } from '@/lib/imports/types';
-import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, setEntryProgress } from '@/lib/storage/reader-storage';
+import type {
+  ImportCollection,
+  ImportCollectionMembership,
+  ImportManga,
+  ImportProgress,
+  ImportReaderSettings,
+} from '@/lib/imports/types';
+import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, saveReaderSettings, setEntryProgress } from '@/lib/storage/reader-storage';
+import { setLibraryReadingStatus } from '@/lib/storage/library-dashboard';
+import {
+  createLibraryCollection,
+  getLibraryCollectionState,
+  setLibraryCollectionMembership,
+} from '@/lib/storage/library-collections';
 import type { Manga } from '@/types/models';
 
-type Candidate = ImportManga & { match?: Manga; selected?: boolean };
+type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
+const REVIEW_PAGE_SIZE = 50;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const normalizedTitle = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ');
+const normalizedCollectionName = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+function exactTitleMatch(items: Manga[], title: string) {
+  const expected = normalizedTitle(title);
+  return items.find((item) =>
+    [item.title, ...(item.alternativeTitles || [])].some((candidate) => normalizedTitle(candidate) === expected),
+  );
+}
+
+function explicitPachimangaManga(item: ImportManga): Manga | null {
+  if (!item.sourceId || !item.mangaId) return null;
+  const status = item.publicationStatus === 'ongoing' || item.publicationStatus === 'complete' || item.publicationStatus === 'hiatus' || item.publicationStatus === 'cancelled'
+    ? item.publicationStatus
+    : 'unknown';
+  return {
+    id: item.mangaId,
+    sourceId: item.sourceId,
+    title: item.title,
+    alternativeTitles: [],
+    description: '',
+    coverUrl: item.coverUrl || '',
+    author: '',
+    artist: '',
+    status,
+    genres: [],
+    sourceUrl: item.sourceUrl || '',
+  };
+}
 
 function weebCentralMatch(item: ImportManga): Manga | null {
   if (!item.sourceUrl) return null;
@@ -70,6 +111,8 @@ function dedupeCandidates(items: ImportManga[]): { items: ImportManga[]; merged:
 }
 
 function linkCandidate(item: ImportManga, library: Manga[]): Manga | null {
+  const explicit = explicitPachimangaManga(item);
+  if (explicit) return explicit;
   const direct = weebCentralMatch(item);
   if (direct) return direct;
   const key = item.title.trim().toLowerCase();
@@ -77,6 +120,8 @@ function linkCandidate(item: ImportManga, library: Manga[]): Manga | null {
 }
 
 function importedManga(item: Candidate, index: number): Manga {
+  const explicit = explicitPachimangaManga(item);
+  if (explicit) return explicit;
   if (item.match) return item.match;
   const id = `import-${index}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'title'}`;
   return {
@@ -105,6 +150,11 @@ export function ImportPanel() {
   const [wiping, setWiping] = useState(false);
   const [libraryCount, setLibraryCount] = useState<number | null>(null);
   const [taskProgress, setTaskProgress] = useState<{ done: number; total: number } | null>(null);
+  const [reviewPage, setReviewPage] = useState(0);
+  const [exactProgress, setExactProgress] = useState<ImportProgress[]>([]);
+  const [restoredReaderSettings, setRestoredReaderSettings] = useState<ImportReaderSettings | null>(null);
+  const [restoredCollections, setRestoredCollections] = useState<ImportCollection[]>([]);
+  const [restoredCollectionMemberships, setRestoredCollectionMemberships] = useState<ImportCollectionMembership[]>([]);
 
   function refreshLibraryCount() {
     void Promise.resolve()
@@ -118,11 +168,15 @@ export function ImportPanel() {
   }, []);
 
   async function wipe() {
-    if (!window.confirm('Remove EVERYTHING in your library, including progress and history? This cannot be undone.')) return;
+    if (!window.confirm('Remove your ENTIRE library, including all reading progress and history for this account? This affects matched, manually added, and imported titles and cannot be undone.')) return;
     setWiping(true);
     try {
       await clearAccountLibrary();
       setItems([]);
+      setExactProgress([]);
+      setRestoredReaderSettings(null);
+      setRestoredCollections([]);
+      setRestoredCollectionMemberships([]);
       setImportedCount(null);
       await refreshLibraryCount();
       setStatus('Library cleared. Re-import any time from a backup file.');
@@ -139,8 +193,12 @@ export function ImportPanel() {
       const out = await parseBackup(file);
       const deduped = dedupeCandidates(out.manga);
       const library = await readExistingLibrary();
-      const linked = deduped.items.map((item) => ({ ...item, selected: item.favorite !== false, match: linkCandidate(item, library) ?? undefined }));
+      const linked = deduped.items.map((item) => ({ ...item, selected: item.favorite !== false, reviewed: false, match: linkCandidate(item, library) ?? undefined }));
       setItems(linked);
+      setExactProgress(out.progress || []);
+      setRestoredReaderSettings(out.readerSettings || null);
+      setRestoredCollections(out.collections || []);
+      setRestoredCollectionMemberships(out.collectionMemberships || []);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
@@ -157,7 +215,11 @@ export function ImportPanel() {
     setProgress(0);
     try {
       const titles = await extractTitlesFromImage(file, setProgress);
-      setItems(titles.map((title) => ({ title, favorite: true, selected: false })));
+      setItems(titles.map((title) => ({ title, favorite: true, selected: false, reviewed: false })));
+      setExactProgress([]);
+      setRestoredReaderSettings(null);
+      setRestoredCollections([]);
+      setRestoredCollectionMemberships([]);
       setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed');
@@ -168,15 +230,15 @@ export function ImportPanel() {
     const item = items[index];
     const direct = weebCentralMatch(item);
     if (direct) {
-      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match: direct } : candidate));
+      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match: direct, reviewed: true } : candidate));
       return true;
     }
     try {
       const response = await fetch(`/api/source/weebcentral/search?q=${encodeURIComponent(item.title)}`);
       const body = await response.json();
-      const match = (body.items || [])[0] as Manga | undefined;
+      const match = exactTitleMatch((body.items || []) as Manga[], item.title);
       if (match) {
-        setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
+        setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match, reviewed: true } : candidate));
         return true;
       }
     } catch {
@@ -185,8 +247,8 @@ export function ImportPanel() {
     try {
       const response = await fetch(`/api/source/search?q=${encodeURIComponent(item.title)}`);
       const body = await response.json();
-      const match = (body.items || [])[0] as Manga | undefined;
-      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match } : candidate));
+      const match = exactTitleMatch((body.items || []) as Manga[], item.title);
+      setItems((value) => value.map((candidate, i) => i === index ? { ...candidate, match, reviewed: true } : candidate));
       return Boolean(match);
     } catch {
       return false;
@@ -213,6 +275,11 @@ export function ImportPanel() {
 
   async function save() {
     const chosen = items.filter((item) => item.selected !== false);
+    const unreviewed = chosen.filter((item) => !item.reviewed);
+    if (unreviewed.length) {
+      setStatus(`Review all selected titles before importing. ${unreviewed.length} selected title${unreviewed.length === 1 ? '' : 's'} still need review.`);
+      return;
+    }
     if (!chosen.length) {
       setStatus('Select at least one title first.');
       return;
@@ -220,6 +287,7 @@ export function ImportPanel() {
     setImporting(true);
     setImportedCount(null);
     const failed: string[] = [];
+    const savedMangaIds = new Set<string>();
     let withProgress = 0;
     try {
       for (let index = 0; index < chosen.length; index += 1) {
@@ -228,6 +296,13 @@ export function ImportPanel() {
         try {
           const manga = importedManga(chosen[index], index);
           await addLibraryEntry(manga.id, manga.sourceId, manga);
+          savedMangaIds.add(manga.id);
+          if (chosen[index].readingStatusManual && chosen[index].readingStatus) {
+            const value = chosen[index].readingStatus;
+            if (value === 'reading' || value === 'completed' || value === 'on_hold' || value === 'dropped' || value === 'plan_to_read') {
+              await setLibraryReadingStatus(manga.id, manga.sourceId, value);
+            }
+          }
           const lastChapterRead = Number(chosen[index].lastChapterRead || 0);
           const lastPageRead = Number(chosen[index].lastPageRead || 0);
           const totalChapters = Number(chosen[index].totalChapters || 0);
@@ -270,12 +345,75 @@ export function ImportPanel() {
           failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
         }
       }
+      if (exactProgress.length) {
+        for (const item of exactProgress) {
+          if (!savedMangaIds.has(item.mangaId)) continue;
+          await saveProgress({
+            mangaId: item.mangaId,
+            chapterId: item.chapterId,
+            pageIndex: item.pageIndex,
+            scrollPosition: 0,
+            percentage: item.percentage,
+            updatedAt: item.updatedAt,
+          }, { historyReadAt: item.historyReadAt, preserveTimestamp: true });
+        }
+      }
+      if (restoredReaderSettings) {
+        saveReaderSettings({
+          autoScrollMultiplier: restoredReaderSettings.autoScrollMultiplier ?? 1,
+          baseSpeedPxPerSecond: restoredReaderSettings.baseSpeedPxPerSecond ?? 120,
+          fitMode: restoredReaderSettings.fitMode ?? 'width',
+          theme: restoredReaderSettings.theme ?? 'dark',
+          keepScreenAwake: restoredReaderSettings.keepScreenAwake,
+        });
+      }
+
+      let restoredMembershipCount = 0;
+      if (restoredCollections.length) {
+        try {
+          const existing = await getLibraryCollectionState();
+          const collectionByName = new Map(
+            existing.collections.map((collection) => [normalizedCollectionName(collection.name), collection.id]),
+          );
+          const collectionIdMap = new Map<string, string>();
+          for (const collection of restoredCollections) {
+            let collectionId = collectionByName.get(normalizedCollectionName(collection.name));
+            if (!collectionId) {
+              const created = await createLibraryCollection(collection.name);
+              collectionId = created.id;
+              collectionByName.set(normalizedCollectionName(created.name), created.id);
+            }
+            collectionIdMap.set(collection.id, collectionId);
+          }
+
+          for (const membership of restoredCollectionMemberships) {
+            if (!savedMangaIds.has(membership.mangaId)) continue;
+            const collectionId = collectionIdMap.get(membership.collectionId);
+            if (!collectionId) continue;
+            await setLibraryCollectionMembership({
+              collectionId,
+              sourceId: membership.sourceId,
+              mangaId: membership.mangaId,
+              member: true,
+            });
+            restoredMembershipCount += 1;
+          }
+        } catch (error) {
+          setWarnings((current) => [
+            ...current,
+            error instanceof Error
+              ? `Library titles restored, but collections could not be restored: ${error.message}`
+              : 'Library titles restored, but collections could not be restored.',
+          ]);
+        }
+      }
+
       const done = chosen.length - failed.length;
       setImportedCount(done);
       setStatus(
         failed.length
           ? `Imported ${done} of ${chosen.length} titles (${withProgress} with progress). Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
-          : `Imported ${done} titles (${withProgress} with progress) into your private library. Unmatched titles remain marked as imported until you match them to a source.`
+          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''}${restoredMembershipCount ? ` Restored ${restoredMembershipCount} collection membership${restoredMembershipCount === 1 ? '' : 's'}.` : ''} Unmatched titles remain marked as imported until you match them to a source.`
       );
     } finally {
       setImporting(false);
@@ -285,8 +423,12 @@ export function ImportPanel() {
   }
 
   function patch(index: number, value: Partial<Candidate>) {
-    setItems((current) => current.map((item, i) => i === index ? { ...item, ...value } : item));
+    setItems((current) => current.map((item, i) => i === index ? { ...item, ...value, reviewed: value.reviewed ?? true } : item));
   }
+
+  const reviewPageCount = Math.max(1, Math.ceil(items.length / REVIEW_PAGE_SIZE));
+  const safeReviewPage = Math.min(reviewPage, reviewPageCount - 1);
+  const visibleItems = items.slice(safeReviewPage * REVIEW_PAGE_SIZE, safeReviewPage * REVIEW_PAGE_SIZE + REVIEW_PAGE_SIZE);
 
   return (
     <div className="mt-6 grid gap-5">
@@ -323,25 +465,35 @@ export function ImportPanel() {
               <strong className="mt-1 block text-zinc-100">{items.length} candidates</strong>
             </div>
             <span className="flex-1" />
-            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true })))}>Select all</button>
-            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false })))}>Select none</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true, reviewed: true })))}>Select all</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false, reviewed: true })))}>Select none</button>
             <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match all'}</button>
             <button disabled={importing} className="button-primary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void save()}>{importing ? 'Importing…' : 'Import selected'}</button>
           </div>
 
           <div className="grid gap-2 p-3 sm:p-4">
-            {items.slice(0, 150).map((manga, index) => (
+            {visibleItems.map((manga, pageIndex) => {
+              const index = safeReviewPage * REVIEW_PAGE_SIZE + pageIndex;
+              return (
               <div className="grid gap-3 rounded-xl border border-white/[.065] bg-[#0e0d14] p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center" key={`${manga.title}-${index}`}>
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
                   <input className="w-full bg-transparent font-medium text-zinc-200 outline-none" value={manga.title} onChange={(event) => patch(index, { title: event.target.value, match: undefined })} />
-                  <div className="mt-1 text-xs text-zinc-600">{manga.match ? `Matched: ${manga.match.title} · ${matchSourceLabel(manga.match.sourceId)}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{!manga.reviewed ? 'Needs review · ' : ''}{manga.match ? `Matched: ${manga.match.title} · ${matchSourceLabel(manga.match.sourceId)}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
                 </div>
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
                 <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
               </div>
-            ))}
+              );
+            })}
           </div>
+          {reviewPageCount > 1 ? (
+            <div className="flex items-center justify-center gap-2 border-t border-white/[.06] px-4 py-3">
+              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>← Previous</button>
+              <span className="font-mono text-[11px] text-zinc-500">Review page {safeReviewPage + 1}/{reviewPageCount}</span>
+              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage >= reviewPageCount - 1} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>Next →</button>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -358,7 +510,7 @@ export function ImportPanel() {
           onClick={() => void wipe()}
           className="mt-3 rounded-xl border border-red-300/25 px-4 py-2 text-sm text-red-300 transition hover:bg-red-400/10 disabled:opacity-50"
         >
-          {wiping ? 'Removing…' : 'Remove everything I imported'}
+          {wiping ? 'Removing…' : 'Remove entire library'}
         </button>
       </section>
     </div>

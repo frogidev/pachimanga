@@ -2,10 +2,11 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import { idbCount } from '@/lib/storage/idb';
-import { flushProgressOutbox, flushSettingsOutbox } from '@/lib/storage/reader-storage';
+import { flushLibraryOutbox, flushProgressOutbox, flushSettingsOutbox } from '@/lib/storage/reader-storage';
 
 type SyncSnapshot = {
   online: boolean;
+  pendingLibrary: number;
   pendingProgress: number;
   pendingSettings: number;
   lastSyncedAt: string | null;
@@ -20,6 +21,7 @@ type SyncActionState =
 
 const initialSnapshot: SyncSnapshot = {
   online: true,
+  pendingLibrary: 0,
   pendingProgress: 0,
   pendingSettings: 0,
   lastSyncedAt: null,
@@ -59,12 +61,14 @@ function writeLastSyncedAt(value: string) {
 }
 
 async function readSyncSnapshot(): Promise<SyncSnapshot> {
-  const [pendingProgress, pendingSettings] = await Promise.all([
+  const [pendingLibrary, pendingProgress, pendingSettings] = await Promise.all([
+    idbCount('libraryOutbox'),
     idbCount('outbox'),
     idbCount('settingsOutbox'),
   ]);
   return {
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
+    pendingLibrary,
     pendingProgress,
     pendingSettings,
     lastSyncedAt: readLastSyncedAt(),
@@ -73,6 +77,7 @@ async function readSyncSnapshot(): Promise<SyncSnapshot> {
 
 function snapshotsEqual(a: SyncSnapshot, b: SyncSnapshot) {
   return a.online === b.online
+    && a.pendingLibrary === b.pendingLibrary
     && a.pendingProgress === b.pendingProgress
     && a.pendingSettings === b.pendingSettings
     && a.lastSyncedAt === b.lastSyncedAt;
@@ -184,7 +189,7 @@ function useSyncSnapshot() {
 
 export function SyncStatusIndicator({ compact = false }: { compact?: boolean }) {
   const snapshot = useSyncSnapshot();
-  const pending = snapshot.pendingProgress + snapshot.pendingSettings;
+  const pending = snapshot.pendingLibrary + snapshot.pendingProgress + snapshot.pendingSettings;
   const label = !snapshot.online
     ? pending ? `Offline · ${pending} pending` : 'Offline'
     : pending
@@ -207,7 +212,7 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean }) 
 export function SyncStatusPanel() {
   const snapshot = useSyncSnapshot();
   const [action, setAction] = useState<SyncActionState>({ kind: 'idle', message: '' });
-  const pending = snapshot.pendingProgress + snapshot.pendingSettings;
+  const pending = snapshot.pendingLibrary + snapshot.pendingProgress + snapshot.pendingSettings;
   const relative = formatRelative(snapshot.lastSyncedAt);
   const title = !snapshot.online ? 'Offline' : pending ? 'Changes waiting to sync' : 'Account data synchronized';
   const detail = !snapshot.online
@@ -215,7 +220,7 @@ export function SyncStatusPanel() {
       ? `${pending} change${pending === 1 ? '' : 's'} will retry when this device reconnects.`
       : 'Reading remains available only where data is already cached; new account operations need a connection.'
     : pending
-      ? `${snapshot.pendingProgress} reading and ${snapshot.pendingSettings} settings change${pending === 1 ? '' : 's'} still pending.`
+      ? `${snapshot.pendingLibrary} library, ${snapshot.pendingProgress} reading and ${snapshot.pendingSettings} settings change${pending === 1 ? '' : 's'} still pending.`
       : relative
         ? `No pending changes. Last queue flush completed ${relative}.`
         : 'No pending reading-progress or settings changes.';
@@ -224,12 +229,13 @@ export function SyncStatusPanel() {
     if (!snapshot.online || action.kind === 'running') return;
     setAction({ kind: 'running', message: `${label}…` });
     try {
-      const [progressResult, settingsResult] = await Promise.all([
+      const [libraryResult, progressResult, settingsResult] = await Promise.all([
+        flushLibraryOutbox(),
         flushProgressOutbox(),
         flushSettingsOutbox(),
       ]);
-      const remaining = progressResult.pending + settingsResult.pending;
-      const synced = progressResult.synced + settingsResult.synced;
+      const remaining = libraryResult.pending + progressResult.pending + settingsResult.pending;
+      const synced = libraryResult.synced + progressResult.synced + settingsResult.synced;
       if (remaining > 0) {
         setAction({
           kind: 'pending',

@@ -54,12 +54,20 @@ test("service worker evicts only stale Pachimanga caches", () => {
   assert.doesNotMatch(serviceWorker, /!ACTIVE_CACHES\.has\(key\) && !key\.startsWith\("pachimanga-"\)/);
 });
 
-test("production source registry excludes the mock provider", () => {
+test("production runtime excludes mock providers and reader fallbacks", () => {
   const registry = readFileSync(join(ROOT, "src/sources/core/registry.ts"), "utf8");
+  const reader = readFileSync(join(ROOT, "src/app/reader/[chapterId]/page.tsx"), "utf8");
+  const mangaDetail = readFileSync(join(ROOT, "src/features/manga/manga-detail.tsx"), "utf8");
   assert.match(registry, /weebCentralSource/);
   assert.match(registry, /mangaDexSource/);
   assert.match(registry, /comickSource/);
   assert.doesNotMatch(registry, /sources\/mock|mockSource/);
+  assert.doesNotMatch(reader, /mock-data|getMock/);
+  assert.doesNotMatch(mangaDetail, /MockCoverArt|sourceId === ["']mock["']/);
+  assert.equal(existsSync(join(ROOT, "src/lib/mock-data.ts")), false);
+  assert.equal(existsSync(join(ROOT, "src/components/mock-cover-art.tsx")), false);
+  assert.equal(existsSync(join(ROOT, "src/sources/mock/mock-source.ts")), false);
+  assert.equal(existsSync(join(ROOT, "public/mock")), false);
 });
 
 test("native artifact and release workflows remain manual-only during the PWA phase", () => {

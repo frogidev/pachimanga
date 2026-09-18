@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeading } from "@/components/page-heading";
-import { getHistory, getLibraryEntries } from "@/lib/storage/reader-storage";
+import { getHistory, getLibraryEntries, getReadingStats, type ReadingStats } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, ReadingHistoryEntry } from "@/types/models";
 
 export function HistoryView() {
@@ -12,13 +12,15 @@ export function HistoryView() {
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<ReadingStats | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextHistory, nextLibrary] = await Promise.all([getHistory(), getLibraryEntries()]);
+      const [nextHistory, nextLibrary, nextStats] = await Promise.all([getHistory(), getLibraryEntries(), getReadingStats()]);
       setHistory(nextHistory);
       setLibrary(nextLibrary);
+      setStats(nextStats);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load reading history for this account.");
@@ -46,6 +48,28 @@ export function HistoryView() {
           <span>{error}</span>
           <button type="button" onClick={() => void load()} className="button-secondary shrink-0 px-3 py-2 text-xs">Retry history load</button>
         </div>
+      ) : null}
+
+      {stats ? (
+        <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Reading statistics">
+          <div className="surface-card p-4">
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Tracked chapters</p>
+            <strong className="mt-2 block text-2xl text-zinc-100">{stats.trackedChapters}</strong>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Completed chapters</p>
+            <strong className="mt-2 block text-2xl text-zinc-100">{stats.completedChapters}</strong>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Active titles</p>
+            <strong className="mt-2 block text-2xl text-zinc-100">{stats.activeTitles}</strong>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Average saved progress</p>
+            <strong className="mt-2 block text-2xl text-zinc-100">{Math.round(stats.averageProgress)}%</strong>
+            {stats.lastUpdatedAt ? <p className="mt-1 text-[10px] text-zinc-600">Latest save {new Date(stats.lastUpdatedAt).toLocaleString()}</p> : null}
+          </div>
+        </section>
       ) : null}
 
       <div className="mt-6 space-y-3">

@@ -25,3 +25,11 @@ test('sign out clears downloaded chapter pages', () => {
   assert.match(authSource, /clearChapterCache/);
   assert.match(authSource, /Promise\.all\(\[clearLocalUserCache\(\), clearChapterCache\(\)\]\)/);
 });
+
+
+test('offline chapter saves are quota-aware and cancellable', () => {
+  assert.match(cacheSource, /getOfflineStorageEstimate\(\)/);
+  assert.match(cacheSource, /16 \* 1024 \* 1024/);
+  assert.match(cacheSource, /options\.signal\?\.aborted/);
+  assert.match(cacheSource, /signal: options\.signal/);
+});

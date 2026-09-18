@@ -11,7 +11,7 @@ import {
 } from "@/lib/native/tauri-bridge";
 import type { Manga } from "@/types/models";
 
-const WEB_STATUS = "Search the live WeebCentral relay first, with MangaDex as the readable fallback.";
+const WEB_STATUS = "Search live WeebCentral and MangaDex results with duplicate titles collapsed.";
 const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device, with MangaDex fallback.";
 
 type RuntimeMode = "checking" | "web" | "native";
@@ -28,6 +28,7 @@ type WebRelayStatus = {
 type SearchResponse = {
   items?: Manga[];
   source?: string | null;
+  sources?: string[];
   transport?: string;
   warning?: string;
   error?: string;
@@ -143,17 +144,19 @@ export function BrowseView() {
       }
 
       try {
-        const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}`, { signal: controller.signal, cache: "no-store" });
+        const skipWeebCentral = runtime === "native" ? "&skipWeebCentral=1" : "";
+        const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}${skipWeebCentral}`, { signal: controller.signal, cache: "no-store" });
         const body = await response.json() as SearchResponse;
         if (!response.ok) throw new Error(body.error || `Search failed with HTTP ${response.status}`);
         if (cancelled) return;
 
         const items = Array.isArray(body.items) ? body.items : [];
         const source = typeof body.source === "string" ? body.source : null;
+        const sources = Array.isArray(body.sources) ? body.sources.filter((item): item is string => typeof item === "string") : source ? [source] : [];
         setResults(items);
         setSearchState("done");
 
-        const viaRelay = runtime === "web" && source === "WeebCentral" && body.transport === "relay";
+        const viaRelay = runtime === "web" && sources.includes("WeebCentral") && body.transport === "relay";
         if (runtime === "native") {
           setSourceNotice(
             source
@@ -173,7 +176,7 @@ export function BrowseView() {
         }
 
         if (items.length && source) {
-          const fallbackNote = body.warning && source === "MangaDex"
+          const fallbackNote = body.warning && sources.length === 1 && sources[0] === "MangaDex"
             ? " · WeebCentral unavailable"
             : viaRelay
               ? " · private relay"

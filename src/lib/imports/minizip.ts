@@ -9,6 +9,8 @@ const EOCD64_LOCATOR_SIG = 0x07064b50;
 const CD_SIG = 0x02014b50;
 const ZIP64_EXTRA_TAG = 0x0001;
 const MAX_ENTRY_BYTES = 256 * 1024 * 1024;
+const MAX_TOTAL_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
+const MAX_ARCHIVE_ENTRIES = 4096;
 
 function u16(view: DataView, offset: number): number {
   return view.getUint16(offset, true);
@@ -69,8 +71,10 @@ function readCentralDirectory(raw: Uint8Array): Record<string, Uint8Array> {
     count = u64(view, eocd64 + 32);
     pos = u64(view, eocd64 + 48);
   }
+  if (count > MAX_ARCHIVE_ENTRIES) throw new Error(`zip: too many entries (${count})`);
   const out: Record<string, Uint8Array> = {};
   const decoder = new TextDecoder();
+  let totalUncompressedBytes = 0;
   for (let n = 0; n < count; n++) {
     if (pos + 46 > raw.length || u32(view, pos) !== CD_SIG) throw new Error('zip: corrupt central directory');
     const method = u16(view, pos + 10);
@@ -112,6 +116,10 @@ function readCentralDirectory(raw: Uint8Array): Record<string, Uint8Array> {
       if (!resolved) throw new Error(`zip: ZIP64 sizes missing (${name})`);
     }
     if (compSize > MAX_ENTRY_BYTES || uncompSize > MAX_ENTRY_BYTES) throw new Error(`zip: entry too large (${name})`);
+    totalUncompressedBytes += uncompSize;
+    if (totalUncompressedBytes > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+      throw new Error('zip: archive expands beyond the 256 MiB cumulative safety limit');
+    }
     if (localOffset + 30 > raw.length) throw new Error('zip: corrupt local header');
     const localNameLen = u16(view, localOffset + 26);
     const localExtraLen = u16(view, localOffset + 28);

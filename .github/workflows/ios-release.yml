@@ -26,9 +26,9 @@ jobs:
       IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: npm
@@ -36,11 +36,11 @@ jobs:
       - name: Verify release version
         run: node scripts/check-native-version.mjs
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           workspaces: src-tauri
 
@@ -71,7 +71,7 @@ jobs:
           test -n "$(find dist/ios -type f -name '*.ipa' -print -quit)"
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: pachimanga-ios-${{ env.RELEASE_VERSION }}
           path: dist/ios/*.ipa

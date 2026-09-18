@@ -46,21 +46,33 @@ export async function getOfflineStorageEstimate(): Promise<{ usage: number; quot
 export async function cacheChapterPages(
   urls: string[],
   onProgress?: (saved: number, total: number) => void,
+  options: { signal?: AbortSignal } = {},
 ): Promise<{ saved: number; total: number; failed: number }> {
   const total = urls.length;
   if (!hasCacheApi() || total === 0) return { saved: 0, total, failed: total };
+  const estimate = await getOfflineStorageEstimate();
+  if (estimate?.quota) {
+    const remaining = Math.max(0, estimate.quota - estimate.usage);
+    if (remaining < 16 * 1024 * 1024 || estimate.usage / estimate.quota >= 0.9) {
+      throw new Error("Not enough browser storage is available to safely save another chapter offline.");
+    }
+  }
   const cache = await caches.open(CHAPTER_CACHE);
   let saved = 0;
   let failed = 0;
   for (const url of urls) {
+    if (options.signal?.aborted) throw new DOMException("Offline chapter save cancelled.", "AbortError");
     try {
       const hit = await cache.match(url);
       if (!hit) {
-        const response = await fetch(url, { mode: "no-cors", credentials: "omit" });
+        const response = await fetch(url, { mode: "no-cors", credentials: "omit", signal: options.signal });
         await cache.put(url, response);
       }
       saved += 1;
-    } catch { failed += 1; }
+    } catch (error) {
+      if (options.signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+      failed += 1;
+    }
     onProgress?.(saved, total);
   }
   return { saved, total, failed };

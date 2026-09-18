@@ -6,6 +6,9 @@ const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT || 8787);
 const TOKEN = process.env.RELAY_TOKEN?.trim();
 const CACHE_LIMIT = 512;
+const CACHE_MAX_BYTES = 64 * 1024 * 1024;
+const CACHE_ITEM_MAX_BYTES = 4 * 1024 * 1024;
+let cacheBytes = 0;
 const RATE_LIMIT = Number(process.env.RATE_LIMIT_PER_MINUTE || 600);
 
 if (!TOKEN) {
@@ -83,22 +86,38 @@ function sendText(response, status, body, cacheState = 'miss') {
   response.end(body);
 }
 
+function dropCached(key) {
+  const item = cache.get(key);
+  if (!item) return;
+  cacheBytes = Math.max(0, cacheBytes - item.bytes);
+  cache.delete(key);
+}
+
 function getCached(key) {
   const item = cache.get(key);
   if (!item) return null;
   if (item.expiresAt <= Date.now()) {
-    cache.delete(key);
+    dropCached(key);
     return null;
   }
   return item;
 }
 
+function evictOldest() {
+  const oldest = cache.keys().next().value;
+  if (oldest) dropCached(oldest);
+}
+
 function putCached(key, body, ttl) {
-  if (cache.size >= CACHE_LIMIT) {
-    const oldest = cache.keys().next().value;
-    if (oldest) cache.delete(oldest);
+  const bytes = Buffer.byteLength(body, 'utf8');
+  if (bytes > CACHE_ITEM_MAX_BYTES) return;
+  dropCached(key);
+  while (cache.size >= CACHE_LIMIT || cacheBytes + bytes > CACHE_MAX_BYTES) {
+    if (!cache.size) break;
+    evictOldest();
   }
-  cache.set(key, { body, expiresAt: Date.now() + ttl });
+  cache.set(key, { body, bytes, expiresAt: Date.now() + ttl });
+  cacheBytes += bytes;
 }
 
 async function fetchUpstream(spec) {

@@ -32,17 +32,30 @@ export function AccountSettings() {
   useEffect(() => {
     let cancelled = false;
     const sb = createClient();
-    void sb.auth.getUser().then(({ data, error }) => {
+    void sb.auth.getUser().then(async ({ data, error }) => {
       if (cancelled) return;
       if (error || !data.user) {
         setProfile(null);
-      } else {
-        setProfile({
-          email: data.user.email ?? '',
-          displayName: typeof data.user.user_metadata?.display_name === 'string' ? data.user.user_metadata.display_name : '',
-          avatarUrl: typeof data.user.user_metadata?.avatar_url === 'string' ? data.user.user_metadata.avatar_url : '',
-        });
+        setLoading(false);
+        return;
       }
+
+      const fallback = {
+        email: data.user.email ?? '',
+        displayName: typeof data.user.user_metadata?.display_name === 'string' ? data.user.user_metadata.display_name : '',
+        avatarUrl: typeof data.user.user_metadata?.avatar_url === 'string' ? data.user.user_metadata.avatar_url : '',
+      };
+      const profileResult = await sb
+        .from('profiles')
+        .select('display_name,avatar_url')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setProfile(profileResult.error ? fallback : {
+        email: fallback.email,
+        displayName: profileResult.data?.display_name || fallback.displayName,
+        avatarUrl: profileResult.data?.avatar_url || fallback.avatarUrl,
+      });
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -55,19 +68,23 @@ export function AccountSettings() {
     try {
       const avatarUrl = cleanAvatarUrl(profile.avatarUrl);
       const sb = createClient();
-      const { data, error } = await sb.auth.updateUser({
-        data: {
-          display_name: profile.displayName.trim(),
-          avatar_url: avatarUrl,
-        },
+      const { data: { user }, error: userError } = await sb.auth.getUser();
+      if (userError || !user) throw userError || new Error('Sign in again to update your profile.');
+      const displayName = profile.displayName.trim();
+      const { error: profileError } = await sb.from('profiles').upsert({
+        id: user.id,
+        display_name: displayName,
+        avatar_url: avatarUrl || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (profileError) throw profileError;
+
+      // Keep Auth metadata synchronized for compatibility with older clients.
+      const { error: metadataError } = await sb.auth.updateUser({
+        data: { display_name: displayName, avatar_url: avatarUrl },
       });
-      if (error) throw error;
-      setProfile((current) => current ? {
-        ...current,
-        displayName: typeof data.user.user_metadata?.display_name === 'string' ? data.user.user_metadata.display_name : '',
-        avatarUrl: typeof data.user.user_metadata?.avatar_url === 'string' ? data.user.user_metadata.avatar_url : '',
-      } : current);
-      setProfileMessage('Profile saved.');
+      setProfile((current) => current ? { ...current, displayName, avatarUrl } : current);
+      setProfileMessage(metadataError ? 'Profile saved. Auth metadata will refresh on a later update.' : 'Profile saved.');
     } catch (error) {
       setProfileMessage(error instanceof Error ? error.message : 'Could not save profile.');
     } finally {
@@ -140,7 +157,7 @@ export function AccountSettings() {
           <div>
             <p className="pixel-kicker text-[9px] text-pink-400">Profile</p>
             <h2 className="mt-1 text-lg font-semibold text-zinc-100">Personalize your account</h2>
-            <p className="mt-1 text-sm leading-6 text-zinc-500">Profile fields are stored with your authenticated account and never include credentials or session tokens.</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-500">Profile fields are stored in your private account profile and mirrored to Auth metadata for compatibility. They never include credentials or session tokens.</p>
           </div>
           <div className="rounded-full border border-white/[.08] bg-white/[.03] px-3 py-1.5 text-xs text-zinc-400">{profile.email}</div>
         </div>

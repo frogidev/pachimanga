@@ -1,10 +1,10 @@
 /** Pure offline-sync helpers (no browser or Supabase imports, unit-testable). */
 
 /** IndexedDB stores that contain authenticated account-owned state. */
-export const ACCOUNT_BOUND_IDB_STORES = ["library", "progress", "history", "outbox", "settingsOutbox"] as const;
+export const ACCOUNT_BOUND_IDB_STORES = ["library", "progress", "history", "outbox", "settingsOutbox", "libraryOutbox"] as const;
 
 /** Stores cleared by the user-facing "clear library" action. Reader settings are intentionally preserved. */
-export const LIBRARY_CONTENT_IDB_STORES = ["library", "progress", "history", "outbox"] as const;
+export const LIBRARY_CONTENT_IDB_STORES = ["library", "progress", "history", "outbox", "libraryOutbox"] as const;
 
 /** Order queued progress oldest-first so last-write-wins on flush. */
 export function sortOutboxByTime<T extends { updatedAt: string }>(entries: T[]): T[] {
