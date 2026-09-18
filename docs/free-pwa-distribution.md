@@ -8,26 +8,21 @@ Production:
 https://pachimanga.frogilab.dev
 ```
 
-Native distribution remains deferred until the PWA release-candidate gate in `WORKPLAN.md` is complete.
+PWA/web v0.4.0 is released. Native distribution remains a separate manual phase and requires explicit user direction plus native security/signing/device validation.
 
-## Current production evidence — 2026-09-17
-
-Latest observed production runtime:
+## Current production evidence — 2026-09-18
 
 ```text
-deployment: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
-runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
+release:    v0.4.0
+deployment: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
+runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
 state:      READY
+alias:      https://pachimanga.frogilab.dev
 ```
 
-User-operated production smoke passed:
+Exact-head preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`. The operator reported final local tests/lint/typecheck/build passing. Production error/fatal inspection returned no matching entries in the inspected window.
 
-```text
-Protected routes checked: 9
-PWA icons checked: 4
-```
-
-Recent Vercel production error/fatal inspection was clean in the inspected window.
+A fresh exact-runtime credential-free Production Smoke remains a post-release confirmation item.
 
 ## Access model
 
@@ -142,9 +137,9 @@ Never prefix either with `NEXT_PUBLIC_`.
 
 After environment changes, redeploy intentionally and repeat production smoke/provider checks.
 
-## Installed-PWA release matrix still required
+## Installed-PWA post-release validation matrix
 
-Do not mark release-candidate PWA evidence complete until tested on real devices:
+Do not claim these real-device observations until they are actually tested:
 
 - iPhone Safari Add to Home Screen;
 - iPad standalone;

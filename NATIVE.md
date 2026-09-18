@@ -12,9 +12,9 @@ There is no native-only guest/demo mode. Users authenticate with the same Supaba
 
 ## Current project status
 
-Native source is maintained, but native distribution is not an active delivery target.
+Native source is maintained, but native distribution is not an active delivery target. PWA/web v0.4.0 is released; that web release does not automatically authorize native publication.
 
-Until the PWA release-candidate gate in `docs/WORKPLAN.md` is complete:
+Until the user explicitly opens the native distribution phase and its security/signing/device gates are satisfied:
 
 - Android debug/release workflows remain manual-only.
 - Windows/Linux/macOS release workflow remains manual-only.
@@ -136,7 +136,7 @@ cargo tauri ios build
 - `.github/workflows/desktop-release.yml` — manual Windows/Linux/macOS artifacts.
 - `.github/workflows/ios-release.yml` — manual iOS signed build/export.
 
-Release workflows are intentionally manual-only during the PWA phase.
+Release workflows remain intentionally manual-only after the PWA v0.4.0 release until native distribution is explicitly requested.
 
 See `docs/native-release-pipeline.md` for final-phase signing requirements.
 
@@ -169,7 +169,7 @@ A pure hosted UI change normally does not require reinstalling a native shell.
 
 ## Final native release gate
 
-Native distribution may start only after the PWA release-candidate gate is met or the user explicitly changes priority. The final phase must validate:
+Native distribution may start only after an explicit user decision to begin the native phase. The final phase must validate:
 
 - persistent signing credentials and recovery/backup procedures;
 - install and upgrade behavior from an older build;
