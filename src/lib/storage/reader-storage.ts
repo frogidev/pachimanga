@@ -1,6 +1,7 @@
 import type { LibraryEntry, Manga, MangaStatus, ReaderSettings, ReadingHistoryEntry, ReadingProgress } from '@/types/models';
 import { idbClear, idbDelete, idbGet, idbGetAll, idbPut } from '@/lib/storage/idb';
 import { collectPagedRows } from '@/lib/storage/paged-query';
+import { clearLogicalClock, nextLogicalTimestamp, observeLogicalClock } from '@/lib/offline/logical-clock';
 import {
   ACCOUNT_BOUND_IDB_STORES,
   LIBRARY_CONTENT_IDB_STORES,
@@ -107,7 +108,10 @@ export async function bindCurrentUserCache() {
 export async function clearLocalUserCache() {
   if (typeof window !== 'undefined') {
     const owner = localStorage.getItem(CACHE_OWNER_KEY);
-    if (owner) localStorage.removeItem(`pachimanga:reader-settings:${owner}`);
+    if (owner) {
+      localStorage.removeItem(`pachimanga:reader-settings:${owner}`);
+      clearLogicalClock(owner);
+    }
     localStorage.removeItem(CACHE_OWNER_KEY);
     localStorage.removeItem('pachimanga:reader-settings');
     localStorage.removeItem('frogilab:reader-settings');
@@ -274,7 +278,7 @@ export async function flushLibraryOutbox(): Promise<{ synced: number; pending: n
 export async function addLibraryEntry(mangaId: string, sourceId = 'import', manga?: Manga) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
-  const now = new Date().toISOString();
+  const now = nextLogicalTimestamp(auth.user.id);
   const entry: LibraryEntry = {
     mangaId,
     sourceId,
@@ -314,7 +318,7 @@ export async function removeLibraryEntry(mangaId: string) {
     operation: 'delete',
     mangaId,
     sourceId,
-    updatedAt: new Date().toISOString(),
+    updatedAt: nextLogicalTimestamp(auth.user.id),
   };
 
   await Promise.all([
@@ -368,6 +372,7 @@ export async function getProgress(chapterId: string) {
   }
   if (!data) return local;
 
+  observeLogicalClock(auth.user.id, data.updated_at);
   const remote: ReadingProgress = {
     mangaId: data.manga_id,
     chapterId: data.chapter_id,
@@ -384,23 +389,28 @@ export async function getProgress(chapterId: string) {
 }
 
 /** Pure: order queued progress oldest-first so last-write-wins on flush (see '@/lib/offline/sync'). */
-export async function saveProgress(progress: ReadingProgress, options: { historyReadAt?: string } = {}) {
+export async function saveProgress(progress: ReadingProgress, options: { historyReadAt?: string; preserveTimestamp?: boolean } = {}) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);
+  const updatedAt = options.preserveTimestamp
+    ? progress.updatedAt
+    : nextLogicalTimestamp(auth.user.id, progress.updatedAt);
+  if (options.preserveTimestamp) observeLogicalClock(auth.user.id, progress.updatedAt);
+  const normalizedProgress = { ...progress, updatedAt };
   const sourceId = sourceIdFromMangaId(progress.mangaId);
   const history: ReadingHistoryEntry = {
     mangaId: progress.mangaId,
     chapterId: progress.chapterId,
     percentage: progress.percentage,
-    readAt: options.historyReadAt || progress.updatedAt,
+    readAt: options.historyReadAt || updatedAt,
   };
 
   // Local-first: IDB + owner-bound outbox always land, even with no network.
   await Promise.all([
-    idbPut('progress', progress as unknown as Record<string, unknown>),
+    idbPut('progress', normalizedProgress as unknown as Record<string, unknown>),
     idbPut('history', history as unknown as Record<string, unknown>),
     idbPut('outbox', {
-      ...progress,
+      ...normalizedProgress,
       userId: auth.user.id,
       sourceId,
       historyReadAt: history.readAt,
@@ -533,6 +543,7 @@ export async function loadReaderSettings() {
     .maybeSingle();
   if (error) return pending?.settings || local;
 
+  observeLogicalClock(auth.user.id, data?.updated_at);
   const remote = normalizeReaderSettings(data?.settings);
   if (pending && isStrictlyNewerTimestamp(pending.updatedAt, data?.updated_at)) {
     localStorage.setItem(readerSettingsKey(), JSON.stringify(pending.settings));
@@ -582,6 +593,7 @@ export async function flushSettingsOutbox(): Promise<{ synced: number; pending: 
     }, { onConflict: 'user_id' }).select('settings,updated_at').single();
     if (error) break;
 
+    observeLogicalClock(auth.user.id, data?.updated_at);
     const remote = normalizeReaderSettings(data?.settings);
     if (remote) {
       localStorage.setItem(readerSettingsKey(), JSON.stringify(remote));
@@ -606,7 +618,7 @@ export function saveReaderSettings(settings: ReaderSettings) {
     const entry: SettingsOutboxEntry = {
       userId: auth.user.id,
       settings,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nextLogicalTimestamp(auth.user.id),
     };
     await idbPut('settingsOutbox', entry as unknown as Record<string, unknown>);
     await flushSettingsOutbox();
