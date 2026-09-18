@@ -53,6 +53,21 @@ GitHub Actions capacity was unavailable and is not claimed as passing release ev
 
 When user feedback reports slowness, hangs, repeated requests, excessive memory, or installed-PWA problems, measure the implicated path before broad optimization. Prefer one focused reproduction and one coherent fix batch. Owner-side reproduction/validation commands should be paste-ready PowerShell for `F:\LF\pachimanga`.
 
+## Post-release Web Vitals attribution fix — 2026-09-18
+
+Production telemetry on the v0.4.0 runtime showed identical CLS and INP samples being emitted under multiple route classes during the same navigation sequence. That pattern was sufficient to establish duplicate/misattributed telemetry, but not to conclude that every labeled route independently had the same layout shift.
+
+Next.js 16.3.3 installs Web Vitals observers from an effect keyed by the reporting callback. Pachimanga previously created that callback inline while also subscribing to `usePathname()`, so each soft navigation changed the callback identity and registered another observer. The reporter now snapshots the coarse route class once per hard page load and passes a stable callback to `useReportWebVitals`.
+
+This preserves the existing privacy boundary and makes hard-navigation metrics useful again:
+
+- account/content identifiers remain excluded;
+- the metric ID remains excluded from the server log payload;
+- one page-load sample is no longer relabeled as every route visited later in the session;
+- route-specific CLS conclusions should use telemetry collected after this fix rather than the duplicated pre-fix samples.
+
+Client-side soft-navigation Web Vitals are not inferred from these hard-navigation samples.
+
 ## What still needs measurement
 
 Code-level changes reduce redundant work, but they do not replace measurement. During local/manual testing, capture:
