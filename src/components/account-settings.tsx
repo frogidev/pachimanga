@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ProfileAvatar } from '@/components/account-profile-badge';
 import { useEffect, useState } from 'react';
 import { buildPasswordRecoveryRedirect } from '@/lib/auth/redirects';
 import { createClient } from '@/lib/supabase/client';
@@ -84,6 +85,7 @@ export function AccountSettings() {
         data: { display_name: displayName, avatar_url: avatarUrl },
       });
       setProfile((current) => current ? { ...current, displayName, avatarUrl } : current);
+      window.dispatchEvent(new CustomEvent('pachimanga:profile-change'));
       setProfileMessage(metadataError ? 'Profile saved. Auth metadata will refresh on a later update.' : 'Profile saved.');
     } catch (error) {
       setProfileMessage(error instanceof Error ? error.message : 'Could not save profile.');
@@ -159,7 +161,13 @@ export function AccountSettings() {
             <h2 className="mt-1 text-lg font-semibold text-zinc-100">Personalize your account</h2>
             <p className="mt-1 text-sm leading-6 text-zinc-500">Profile fields are stored in your private account profile and mirrored to Auth metadata for compatibility. They never include credentials or session tokens.</p>
           </div>
-          <div className="rounded-full border border-white/[.08] bg-white/[.03] px-3 py-1.5 text-xs text-zinc-400">{profile.email}</div>
+          <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/[.08] bg-white/[.03] px-3 py-2">
+            <ProfileAvatar displayName={profile.displayName} email={profile.email} avatarUrl={profile.avatarUrl} className="size-11" />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-zinc-200">{profile.displayName.trim() || 'Add a display name'}</div>
+              <div className="mt-0.5 truncate text-xs text-zinc-500">{profile.email}</div>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4">

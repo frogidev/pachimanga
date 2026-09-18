@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { PachiLogo } from "@/components/pachi-logo";
+import { AccountProfileBadge } from "@/components/account-profile-badge";
 import { SyncStatusIndicator } from "@/components/sync-status";
 import { ThemeQuickToggle } from "@/components/theme-quick-toggle";
 
@@ -100,12 +101,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="mt-auto px-4 pb-4">
-          <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3.5 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="font-semibold text-zinc-200">Pachimanga</div>
-                <SyncStatusIndicator />
-              </div>
+          <div className="rounded-[14px] border border-white/[.08] bg-[#111019] px-3 py-3 text-[11px] leading-5 text-zinc-500 shadow-[0_14px_40px_rgba(0,0,0,.18)]">
+            <AccountProfileBadge />
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-white/[.06] px-1 pt-2">
+              <SyncStatusIndicator />
               <span className="rounded-md bg-white/[.045] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">v0.4</span>
             </div>
           </div>
@@ -119,9 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/" className="inline-flex"><PachiLogo /></Link>
         <div className="ml-auto flex items-center gap-1">
           <SyncStatusIndicator compact />
-          <Link href="/settings" className="grid size-10 place-items-center rounded-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label="Open Settings">
-            <NavIcon name="settings" />
-          </Link>
+          <AccountProfileBadge compact />
         </div>
       </div>
 
