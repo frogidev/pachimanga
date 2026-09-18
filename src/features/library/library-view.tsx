@@ -433,7 +433,7 @@ export function LibraryView() {
           </div>
         </section>
 
-        {ready && continueReading.length > 0 && !query && filter === "All" ? (
+        {ready && continueReading.length > 0 && !query && filter === "All" && collectionFilter === "all" ? (
           <section className="mt-7" aria-labelledby="continue-reading-heading">
             <div className="flex items-end justify-between gap-4">
               <div>
@@ -521,7 +521,7 @@ export function LibraryView() {
               <span className="ml-2">{entries.length ? "The loaded account data has no rows matching this view." : "The signed-in library returned no titles."}</span>
             </p>
             {entries.length ? (
-              <button type="button" onClick={() => { setFilter("All"); setQuery(""); }} className="button-secondary shrink-0 px-3 py-2 text-xs">Clear filters</button>
+              <button type="button" onClick={() => { setFilter("All"); setCollectionFilter("all"); setQuery(""); }} className="button-secondary shrink-0 px-3 py-2 text-xs">Clear filters</button>
             ) : (
               <div className="flex shrink-0 gap-2">
                 <Link href="/browse" className="button-primary px-3 py-2 text-xs">Browse live sources</Link>

@@ -25,6 +25,7 @@ type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: b
 const REVIEW_PAGE_SIZE = 50;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const normalizedTitle = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ');
+const normalizedCollectionName = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 function exactTitleMatch(items: Manga[], title: string) {
   const expected = normalizedTitle(title);
   return items.find((item) =>
@@ -372,15 +373,15 @@ export function ImportPanel() {
         try {
           const existing = await getLibraryCollectionState();
           const collectionByName = new Map(
-            existing.collections.map((collection) => [normalizedTitle(collection.name), collection.id]),
+            existing.collections.map((collection) => [normalizedCollectionName(collection.name), collection.id]),
           );
           const collectionIdMap = new Map<string, string>();
           for (const collection of restoredCollections) {
-            let collectionId = collectionByName.get(normalizedTitle(collection.name));
+            let collectionId = collectionByName.get(normalizedCollectionName(collection.name));
             if (!collectionId) {
               const created = await createLibraryCollection(collection.name);
               collectionId = created.id;
-              collectionByName.set(normalizedTitle(created.name), created.id);
+              collectionByName.set(normalizedCollectionName(created.name), created.id);
             }
             collectionIdMap.set(collection.id, collectionId);
           }

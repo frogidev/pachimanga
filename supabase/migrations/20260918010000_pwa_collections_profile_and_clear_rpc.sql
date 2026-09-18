@@ -1,6 +1,14 @@
 alter table public.profiles
   add column if not exists avatar_url text;
 
+alter table public.profiles
+  drop constraint if exists profiles_display_name_length_check,
+  add constraint profiles_display_name_length_check
+    check (display_name is null or char_length(display_name) <= 80),
+  drop constraint if exists profiles_avatar_url_https_check,
+  add constraint profiles_avatar_url_https_check
+    check (avatar_url is null or avatar_url ~ '^https://');
+
 create table if not exists public.library_collections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,

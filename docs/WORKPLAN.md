@@ -21,7 +21,7 @@ Production URL: `https://pachimanga.frogilab.dev`
 Repository/runtime:
 
 \`\`\`text
-main:       c9060fd177b7d3cdf607cbde1945af875e283fa7
+main:       dcfd284b1416ec7c85a6e00ab5d4e8ba7a9f1f8d
 production: dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA
 state:      READY
 runtime:    c9060fd177b7d3cdf607cbde1945af875e283fa7
@@ -39,7 +39,7 @@ Validation observed for PR #68 final head `0e4fdb5eefd2f870c9e47435ac40ccec9735f
 - exact production deployment `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` reached `READY` for `c9060fd177b7d3cdf607cbde1945af875e283fa7`;
 - production error/fatal log inspection for that deployment returned no matching entries in the inspected post-deploy window.
 
-A fresh direct post-merge `node ops/production-smoke.mjs` from a network-capable operator environment remains part of the manual release evidence if it has not yet been rerun against this exact runtime.
+A fresh post-merge `node ops/production-smoke.mjs` was rerun from GitHub-hosted Ubuntu on 2026-09-17 against this runtime and passed with 12 protected routes and 4 PWA icons checked.
 
 See `verification-2026-09-17.md` and the PR-specific verification records for exact evidence.
 
