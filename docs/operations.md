@@ -1,19 +1,20 @@
 # Pachimanga production operations
 
-This runbook covers the active PWA/web production path. Native distribution remains deferred and manual-only.
+This runbook covers the released PWA/web production path. Native distribution remains separate, explicit, and manual-only.
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current operating mode — 2026-09-17
+## Current operating mode — 2026-09-18
 
-- observed `main`: `b54beabf1b6dcc23a67f977e834487ada595a44f`;
-- latest production runtime deployment: `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`;
-- production runtime commit: `dcc14856863ee3ab7a9877e5c7cd9bf953582c95`;
-- the current `main` tip is verification/docs-only and runtime-equivalent to that deployed commit;
-- required Repository Hygiene and Web Quality checks are active and passed for the latest merged runtime hardening;
-- PR Production Smoke passed against the anonymous production boundary;
-- the latest direct post-deploy `node ops/production-smoke.mjs` attempt from the agent container did not run assertions because DNS resolution failed with `EAI_AGAIN`; rerun it from a network-capable environment before release-candidate status;
-- Vercel Hobby build-rate capacity can temporarily block preview creation; treat that as a platform blocker, not as permission to skip runtime preview/build evidence.
+- release: v0.4.0;
+- `main` / production runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`;
+- production deployment: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
+- exact-head preview before merge: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;
+- operator reported final local tests/lint/typecheck/build passing;
+- production build compiled successfully and generated 22/22 static pages;
+- production `error`/`fatal` log inspection returned no matching entries;
+- GitHub Actions capacity is unavailable for the rest of September 2026, so absent Action runs are not treated as passes;
+- fresh exact-runtime Production Smoke remains a post-release confirmation when a network-capable environment is available.
 
 Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around CI, preview, provider, or platform limitations.
 
@@ -22,7 +23,7 @@ Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around 
 For every `main` change that affects hosted runtime:
 
 1. run `npm ci` and `npm run verify` from an updated local clone or equivalent trusted environment;
-2. require the repository's Repository Hygiene and Web Quality checks to pass;
+2. require the repository's Repository Hygiene and Web Quality checks when Actions capacity is available; during the documented September 2026 outage, use equivalent trustworthy local verification without claiming the hosted checks passed;
 3. require a successful Vercel preview/build signal for runtime changes when the project can produce one;
 4. merge only after the branch/diff is reviewed and the repository's active merge rules permit it;
 5. confirm the exact intended runtime commit (or runtime-equivalent descendant) reaches a Vercel production deployment in `READY`;
@@ -50,7 +51,7 @@ Keep repository quality signals and platform capacity separate.
 - Preserve `npm run verify` as the local full gate.
 - Keep optional browser E2E separate from the merge-critical static gate unless the workplan explicitly promotes it.
 
-When platform capacity returns, rerun the missing hosted evidence against the exact current branch head rather than relying on an older preview.
+When platform capacity returns, restore normal hosted evidence for subsequent changes rather than retroactively relabeling the v0.4.0 local gate as GitHub Actions evidence.
 
 ## Vercel ignored-build policy
 

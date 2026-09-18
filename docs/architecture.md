@@ -1,20 +1,21 @@
 # Pachimanga architecture
 
-Pachimanga is a private, account-based manga reader. The PWA/web application is the active production target; native source is retained for compatibility but native distribution is deferred until the PWA release-candidate gate is complete.
+Pachimanga is a private, account-based manga reader. PWA/web v0.4.0 is the released production target. Native source is retained for compatibility; native distribution remains a separate manual phase requiring explicit user direction.
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current runtime state — 2026-09-17
+## Current release runtime — 2026-09-18
 
-- observed `main`: `b54beabf1b6dcc23a67f977e834487ada595a44f`;
-- latest production runtime: `dcc14856863ee3ab7a9877e5c7cd9bf953582c95`;
-- Vercel deployment: `dpl_34FBFiKQBGwfYNNRedyo2ggCFB2Q`, `READY`;
-- `main` is newer only by the PR #63 verification/docs commit and is runtime-equivalent to the deployed PR #62 squash commit;
-- PR #62 passed required Repository Hygiene and Web Quality, including install, unit tests, lint, typecheck, and production build;
-- PR Production Smoke passed against the anonymous production boundary;
-- direct post-deploy production smoke still needs a fresh rerun from a network-capable environment because the latest agent-container attempt failed DNS resolution before assertions ran.
+- release: v0.4.0;
+- `main` / runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`;
+- Vercel production: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
+- production alias: `https://pachimanga.frogilab.dev`;
+- exact-head PR #74 preview: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;
+- operator reported final local tests/lint/typecheck/build passing;
+- Vercel production build compiled and generated 22/22 static pages;
+- inspected production `error`/`fatal` logs contained no matching entries.
 
-The remaining PWA release-candidate blockers are real-account/device/import evidence, not missing autonomous runtime hardening. See `WORKPLAN.md` for the exact matrix.
+The owner designated this runtime as v0.4.0. Remaining real-device/account/import matrices are post-release evidence, not retroactively completed checks.
 
 ## Non-negotiable boundaries
 
@@ -85,10 +86,12 @@ Account-owned synchronized tables:
 - `reading_progress`
 - `reading_history`
 - `user_settings`
+- `library_collections`
+- `library_collection_items`
 
 All account-owned tables remain protected by owner RLS. Application queries also scope to the current authenticated user; query scoping complements RLS rather than replacing it.
 
-`library_entries` now stores both personal reading state and provider/update baseline metadata. `reading_progress` remains chapter-granular and drives dynamic manga percentage.
+`library_entries` stores personal reading state plus provider/update baseline metadata. `reading_progress` remains chapter-granular and drives dynamic manga percentage. `library_collections` and `library_collection_items` add owner-scoped user collections. `profiles.avatar_url` is the canonical avatar field alongside `display_name`, with Auth metadata retained only as a compatibility mirror.
 
 ### Compact Library progress summary
 
@@ -115,7 +118,8 @@ Logout intentionally clears account-bound local state. A subsequent login recons
 
 - online reads reconcile remote `library_entries` into the current user's local cache;
 - temporary remote read failure may use the already-bound local cache;
-- add/remove operations remain remote-first rather than fully offline queued.
+- add/remove operations use an owner-bound IndexedDB `libraryOutbox` so pending local mutations survive reconnect and remote snapshots cannot visually undo unsynced intent;
+- collection membership remains server-synchronized and owner-RLS protected.
 
 ### Reading progress/history
 
@@ -241,19 +245,19 @@ A temporary Vercel Hobby build-rate limit is a platform/capacity blocker, not ev
 
 Do not interpret a docs/tests-only `main` commit without a new Vercel production build as deployment drift when runtime-equivalence is proven.
 
-## Remaining release-candidate work
+## Post-release validation backlog
 
-Autonomous pre-human-testing hardening is complete. The remaining gate requires observed real-world evidence for:
+Autonomous hardening is merged into the v0.4.0 baseline. Remaining real-world evidence remains valuable after release:
 
 - registration, confirmation, recovery, logout/login, and Account A -> B -> A isolation;
 - two-session/two-device synchronization and clock-skew behavior;
-- live production data on Library/Browse/Updates/History without placeholder substitution;
+- live signed-in production data on Library/Browse/Updates/History;
 - installed PWA behavior on representative iPhone/iPad/Android/desktop devices;
-- conventional and long-strip reader behavior;
+- conventional and long-strip reader behavior on physical devices;
 - representative supported import formats;
-- a fresh credential-free production smoke on the current runtime from a network-capable environment.
+- a fresh credential-free production smoke on the exact release runtime from a network-capable environment.
 
-Do not replace this evidence with additional unrelated feature expansion. See `WORKPLAN.md` for the exact checklist.
+Do not convert unobserved evidence into completed claims. See `WORKPLAN.md`.
 
 ## Required verification
 
@@ -272,26 +276,30 @@ Runtime changes additionally require Vercel preview/build evidence, production `
 
 Schema/auth changes additionally require migration/RLS/grant/advisor review.
 
-## Current PWA consolidation — 2026-09-17
+## Current PWA release architecture — 2026-09-18
 
-PR #68 established the current PWA-facing architecture:
+The v0.4.0 release includes the earlier PR #68 consolidation plus PR #72/#73/#74:
 
-- account profile/security controls live inside `/settings`; protected `/account` redirects to `/settings#account` for compatibility;
+- account profile/security controls live inside `/settings`; protected `/account` redirects to `/settings#account`;
+- display name/avatar are stored canonically in `profiles`, mirrored to Auth metadata for compatibility, and surfaced in desktop/mobile shell identity UI;
 - public auth remains in `/auth`, including signup confirmation resend and password recovery;
+- light auth UI has an explicit warm-paper treatment and themed browser autofill;
 - signed-in password change uses Supabase Auth and sign-out clears account-bound browser state only after Supabase sign-out succeeds;
-- shell theme control is a lightweight quick toggle below Settings navigation; the full theme selector is no longer duplicated inside Settings;
-- Settings ends with the sign-out action and otherwise groups reader behavior, sync, PWA/device state, export, and diagnostics;
+- shell theme control is a lightweight quick toggle below Settings navigation;
+- Settings ends with sign-out and groups reader behavior, sync, PWA/device state, export, diagnostics, and account controls;
 - sync-status UI instances share a visibility-aware observer and inspect outbox counts without hydrating payloads;
-- `/api/library/refresh` coalesces concurrent same-title refreshes, reuses very recent automatic checks, and enforces an overall timeout;
-- WeebCentral chapter HTML is fetched without Next.js raw-response caching when too large; parsed chapter lists use a bounded short-lived in-process cache with in-flight coalescing;
-- the reader-detail start target is derived from the earliest available chapter when no real progress exists, while existing progress retains Continue behavior.
+- library add/remove uses an owner-bound mutation outbox;
+- user collections are RLS-protected and tied to existing library rows;
+- `/api/library/refresh` coalesces concurrent same-title refreshes, reuses recent checks, and enforces an overall timeout;
+- WeebCentral chapter HTML avoids oversized Next.js raw-response cache entries; parsed lists use bounded short-lived caching;
+- first-read opens the earliest available chapter while real progress retains Continue behavior;
+- export/import round-trip, richer reading statistics, search deduplication, logical clock hardening, quota-aware/cancellable offline saving, Web Vitals telemetry, and chapter publication dates are part of the merged baseline.
 
-These changes do not alter the mandatory Supabase Auth/RLS ownership model, anonymous-route boundary, relay allowlist, or PWA-first delivery policy.
+These changes preserve mandatory Supabase Auth/RLS ownership, anonymous-route boundaries, relay allowlists, and PWA-first delivery.
 
+## Release data-model additions
 
-## Pending PR #72 data-model additions
-
-The PWA integrity/scale hardening branch adds two account-owned collection tables:
+Production migration `20260918010000_pwa_collections_profile_and_clear_rpc.sql` adds two account-owned collection tables:
 
 - `library_collections` stores user-named collections;
 - `library_collection_items` maps existing `library_entries` into those collections and cascades membership deletion when a library entry is removed.
@@ -300,6 +308,6 @@ Both tables remain RLS-protected and explicitly user-scoped. Collection membersh
 
 The same migration adds `profiles.avatar_url` so `profiles` becomes the canonical personalization row while Auth user metadata remains a compatibility mirror.
 
-The destructive “clear entire library” path prefers the authenticated `clear_my_library()` RPC so library, progress, and history deletes occur in one database transaction. Runtime code retains a temporary compatibility fallback for environments where the migration is not yet present.
+The destructive “clear entire library” path prefers the authenticated `clear_my_library()` RPC so library, progress, and history deletes occur in one database transaction. Runtime code retains a compatibility fallback for older/non-production environments where the migration is not present; production has the migration applied.
 
-PR #72 also adds an owner-bound IndexedDB `libraryOutbox` for library add/remove operations. Remote snapshots are reconciled with pending mutations so reconnect or a truncated/older remote view cannot visually undo an unsynced local mutation.
+The v0.4.0 client also includes an owner-bound IndexedDB `libraryOutbox` for library add/remove operations. Remote snapshots are reconciled with pending mutations so reconnect or a truncated/older remote view cannot visually undo an unsynced local mutation.

@@ -2,13 +2,13 @@
 
 This document records the current reader/PWA behavior after library sync scaling, explicit service-worker update handling, and account-bound offline chapter downloads.
 
-## Current implementation state — 2026-09-17
+## Current implementation state — v0.4.0 / 2026-09-18
 
-The reader/offline hardening is present in production runtime commit `c9060fd177b7d3cdf607cbde1945af875e283fa7` and deployed as Vercel production `dpl_BKK6unsasBkJGmcKUv7eSGLvV2BA` (`READY`).
+The reader/offline hardening is part of released production runtime `9e0cc7c379541db0d640ebe03383466c37d933ba`, deployed as `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` (`READY`).
 
-PR #68 final Web Quality passed dependency installation, unit tests, lint, typecheck, and production build. Its Production Smoke gate also passed. A fresh direct post-merge smoke against the exact production runtime remains manual evidence if it has not yet been rerun from a network-capable environment.
+The final release branch local tests/lint/typecheck/build were reported passing by the operator; exact-head Vercel preview reached `READY`; the merged production build compiled successfully; and the inspected production error/fatal window was empty.
 
-Physical installed-device validation remains outstanding and must not be inferred from these automated/local checks.
+Physical installed-device validation remains outstanding as post-release evidence and must not be inferred from automated/local checks.
 
 ## Explicit offline chapter pages
 
@@ -17,6 +17,8 @@ Pachimanga does not turn the authenticated application into a general offline sh
 The Reader offers explicit per-chapter page download:
 
 - page image URLs are deduplicated;
+- downloads are cancellable;
+- storage quota estimates/guardrails are checked where the browser exposes them;
 - downloaded image responses live in `pachimanga-chapters-v1`;
 - cross-origin manga image requests can be satisfied from that explicit cache;
 - normal PWA shell/runtime updates do not evict saved chapter pages;
@@ -66,7 +68,7 @@ Unsupported browsers degrade normally.
 - only explicit user action activates the waiting worker;
 - explicit chapter downloads survive shell/runtime cache rotation.
 
-## Validation still required on physical devices
+## Post-release physical-device validation
 
 - iPhone Safari Add to Home Screen;
 - iPad standalone;
@@ -86,4 +88,4 @@ Unsupported browsers degrade normally.
 
 The previously planned Settings diagnostics, manual sync/retry controls, provider error UX, account-data export, accessibility/state pass, and per-title provider refresh are implemented. PR #68 additionally consolidated account/security controls into Settings, moved theme selection to a shell quick toggle, placed Sign out last, and reduced redundant sync/provider refresh work.
 
-Remaining work is the real-account/device/import release-candidate matrix in `WORKPLAN.md`, not a new autonomous feature-expansion phase.
+Remaining evidence is the real-account/device/import post-release matrix in `WORKPLAN.md`, not a reason for unrelated feature expansion.
