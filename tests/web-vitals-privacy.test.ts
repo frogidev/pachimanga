@@ -18,7 +18,7 @@ test('Web Vitals reporting uses coarse routes and excludes account/content ident
 
 test('Web Vitals reporting keeps one observer callback across soft navigations', () => {
   assert.match(reporter, /useRef\(routeClass\(pathname\)\)/);
-  assert.match(reporter, /useCallback\(/);
+  assert.match(reporter, /useCallback(?:<[^>]+>)?\(/);
   assert.match(reporter, /route: initialRoute\.current/);
   assert.match(reporter, /useReportWebVitals\(reportMetric\)/);
   assert.doesNotMatch(reporter, /useReportWebVitals\(\(metric\)/);
