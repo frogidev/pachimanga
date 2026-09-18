@@ -4,7 +4,7 @@ Pachimanga separates deterministic repository quality checks from optional brows
 
 ## Current operating mode
 
-PWA/web v0.4.0 is released. Repository Hygiene and Web Quality remain the normal required checks, but GitHub Actions capacity is unavailable for the rest of September 2026. The release therefore used the operator-reported equivalent local tests/lint/typecheck/build gate plus exact-head Vercel build evidence; absent Actions are not represented as passing.
+PWA/web v0.4.0 is released. Repository Hygiene and Web Quality remain the normal required checks, but GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. During the outage, use trustworthy local tests/lint/typecheck/build plus exact-head Vercel build evidence where relevant; absent Actions are not represented as passing. Re-check actual Actions availability on or after October 1.
 
 `ops/browser-e2e.mjs` remains optional evidence for environments where Playwright and Chromium are already available. Pachimanga does not install Playwright as a normal project dependency and does not download browser binaries during standard install/build/deploy.
 
@@ -48,6 +48,10 @@ preview:      dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ (READY)
 The operator reported the final local unit tests, lint, typecheck, and production build passing. Vercel independently compiled the production build, completed TypeScript, generated 22/22 static pages, and deployed successfully. Production error/fatal inspection was empty in the inspected window.
 
 GitHub Actions capacity was unavailable and is not claimed as passing release evidence.
+
+## Feedback-driven measurement
+
+When user feedback reports slowness, hangs, repeated requests, excessive memory, or installed-PWA problems, measure the implicated path before broad optimization. Prefer one focused reproduction and one coherent fix batch. Owner-side reproduction/validation commands should be paste-ready PowerShell for `F:\LF\pachimanga`.
 
 ## What still needs measurement
 

@@ -17,6 +17,8 @@ Production UI: `https://pachimanga.frogilab.dev`
 
 The owner designated this runtime as v0.4.0. Remaining real-device/account/import matrices are post-release evidence, not retroactively completed checks.
 
+Post-release engineering is feedback-driven: user-reported defects and friction should improve the existing PWA architecture without weakening the boundaries below. See `post-release-feedback.md`.
+
 ## Non-negotiable boundaries
 
 1. Authentication is mandatory for normal application routes.
@@ -228,6 +230,8 @@ Imported titles always resolve into the normal signed-in Library model; there is
 ## Deployment and validation
 
 Vercel deploys hosted-runtime changes from `main`. `scripts/vercel-ignore-build.mjs` fails open to build when comparison SHAs are missing/unusable and skips only proven non-runtime changes.
+
+Current validation path is shown below. Through September 30, 2026, GitHub Actions are unavailable; during that window substitute trustworthy local verification for the unavailable hosted step without claiming Actions passed. Re-check Actions on or after October 1.
 
 Current validation path is:
 

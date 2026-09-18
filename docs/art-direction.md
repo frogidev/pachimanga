@@ -6,6 +6,8 @@ This is the canonical visual contract for production UI. Existing shared compone
 
 The v0.4.0 production baseline includes the warm-paper light theme, explicit light-auth surfaces/autofill treatment, and visible signed-in avatar/display-name identity in desktop/mobile shell navigation. Future visual work should preserve both dark and light contracts rather than treating light mode as a utility inversion.
 
+Post-release visual work should be driven by concrete user feedback and screenshots. Fix readability, interaction, responsive, and theme regressions before introducing new visual systems. Group related low-risk polish into coherent batches to reduce deploy churn.
+
 ## Design intent
 
 Pachimanga should feel like a quiet late-night manga room: warm, private, focused, slightly playful, and recognizably pixel-inspired without turning every surface into pixel art.

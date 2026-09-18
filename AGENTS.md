@@ -9,11 +9,12 @@ Before substantive work, read:
 1. `AGENTS.md` — this file.
 2. `docs/WORKPLAN.md` — current priorities and acceptance criteria.
 3. `docs/verification-release-2026-09-18.md` — latest release evidence and explicit gaps.
-4. `docs/architecture.md` — runtime and security boundaries.
-5. The relevant project-local skill in `.hermes/skills/`.
-6. `docs/art-direction.md` for user-facing UI work.
-7. `NATIVE.md` and `docs/native-release-pipeline.md` only for intentional native work.
-8. `docs/free-pwa-distribution.md` for PWA/install/relay work.
+4. `docs/post-release-feedback.md` — default post-release feedback/improvement workflow.
+5. `docs/architecture.md` — runtime and security boundaries.
+6. The relevant project-local skill in `.hermes/skills/`.
+7. `docs/art-direction.md` for user-facing UI work.
+8. `NATIVE.md` and `docs/native-release-pipeline.md` only for intentional native work.
+9. `docs/free-pwa-distribution.md` for PWA/install/relay work.
 
 Then verify current repository and production state. Never assume a previous chat, branch, deployment, or workplan snapshot is still current.
 
@@ -51,6 +52,8 @@ During the current phase:
 
 The release decision records product readiness accepted by the owner; it does not convert unobserved device/account/import checks into completed evidence.
 
+Post-release default: treat concrete user feedback as the primary improvement input. Proceed autonomously on clear, safe fixes instead of asking for routine implementation decisions. Prefer improving existing flows over speculative expansion.
+
 ## Hard stop conditions
 
 Stop and resolve the problem before merge if any of these occur:
@@ -87,6 +90,16 @@ Do not:
 - claim validation that was not actually run or observed.
 
 A narrow, documented lint exception is acceptable only when the code is intentional, the rule is a false positive for that exact pattern, and the exception is scoped to the smallest possible file/rule surface.
+
+## Temporary CI constraint — through 2026-09-30
+
+GitHub Actions capacity is unavailable through September 30 and is expected to return October 1. Until then, do not waste pushes chasing unavailable Actions, do not treat missing/skipped jobs as passing, and do not weaken repository protections. Use trustworthy local verification plus exact-head Vercel build evidence for runtime work when available. Re-check actual Actions availability on or after October 1 before assuming normal CI has returned.
+
+## Communication and local-test handoff
+
+Keep repository-work responses concise. Lead with status/result, then changed scope, validation, and only the next required action.
+
+When the owner needs to validate locally, always provide clear paste-ready PowerShell commands rooted at `F:\LF\pachimanga`, including branch/expected SHA when relevant and `$LASTEXITCODE` failure guards. Avoid vague instructions such as “run the tests locally.”
 
 ## Session boot protocol
 

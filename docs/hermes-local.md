@@ -45,7 +45,9 @@ Hermes loads the root `AGENTS.md` as project context. Do not add `.hermes.md` ca
 
 ## Current product state
 
-PWA/web v0.4.0 is released. Post-release work remains PWA-first by default; native release workflows stay manual-only unless the user explicitly requests that phase.
+PWA/web v0.4.0 is released. Post-release work remains PWA-first by default and should prioritize real user feedback. Clear safe fixes should be executed autonomously; native release workflows stay manual-only unless the user explicitly requests that phase.
+
+GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. During the outage, do not burn pushes on unavailable CI; use local verification plus Vercel evidence where relevant and keep missing hosted evidence explicit.
 
 ## Mandatory Hermes boot sequence
 
@@ -58,9 +60,12 @@ Before editing code, Hermes must:
 5. preserve unrelated local changes;
 6. inspect Vercel/Supabase state when the task depends on them;
 7. define one coherent scope and use one active work branch;
-8. reproduce the issue first for bug-fix work when practical.
+8. reproduce the issue first for bug-fix work when practical;
+9. read `docs/post-release-feedback.md` for user-feedback work.
 
 Hermes must not treat its own previous chat/session notes as authoritative repository state.
+
+Default communication should be concise. If the owner must run a local check, provide paste-ready PowerShell for `F:\LF\pachimanga` rather than vague validation instructions.
 
 ## Project-local skills
 

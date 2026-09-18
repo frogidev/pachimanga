@@ -9,19 +9,20 @@ For a new development session:
 1. `../AGENTS.md`
 2. `WORKPLAN.md`
 3. `verification-release-2026-09-18.md`
-4. `verification-2026-09-17.md`
-5. `START-HERE-NEW-CHAT.md`
-6. `architecture.md`
-7. `operations.md`
-8. `library-state.md`
-9. `reader-pwa-hardening.md`
-10. `browser-e2e-performance.md`
-11. `../supabase/README.md`
-12. `vercel-build-policy.md`
-13. `free-pwa-distribution.md`
-14. `art-direction.md`
-15. `hermes-local.md`
-16. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
+4. `post-release-feedback.md`
+5. `verification-2026-09-17.md`
+6. `START-HERE-NEW-CHAT.md`
+7. `architecture.md`
+8. `operations.md`
+9. `library-state.md`
+10. `reader-pwa-hardening.md`
+11. `browser-e2e-performance.md`
+12. `../supabase/README.md`
+13. `vercel-build-policy.md`
+14. `free-pwa-distribution.md`
+15. `art-direction.md`
+16. `hermes-local.md`
+17. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
 
 Historical verification files remain historical evidence. Always prefer the latest dated/current-state document and verify live infrastructure before making time-sensitive claims.
 
@@ -49,6 +50,7 @@ Manual real-device/account/import matrices remain post-release validation backlo
 | Current priorities | `WORKPLAN.md` | live GitHub/Vercel/Supabase state |
 | Current evidence | `verification-release-2026-09-18.md` | live state + recorded evidence |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | latest workplan/evidence |
+| Post-release feedback workflow | `post-release-feedback.md` | feedback intake, autonomous execution, CI outage, PowerShell handoff |
 | Runtime architecture | `architecture.md` | `src/**`, `public/sw.js`, `relay/**`, `supabase/**` |
 | Library/progress semantics | `library-state.md` | storage/library code + Supabase schema |
 | Reader/PWA boundaries | `reader-pwa-hardening.md` | reader components + service worker/cache ownership |

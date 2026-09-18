@@ -24,6 +24,16 @@ The operator reported the final local `npm test`, lint, typecheck, and productio
 
 See `docs/verification-release-2026-09-18.md` for the release record and explicit evidence limits.
 
+## Post-release development
+
+Pachimanga is now in a feedback-driven improvement phase. Concrete user reports, screenshots, and reproducible friction should be treated as the primary product input. Clear and safe fixes should be handled autonomously in focused batches, with regression coverage and concise handoff.
+
+GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. Until then, use trustworthy local verification plus Vercel exact-head build evidence for runtime changes when available; never treat missing Actions as a pass or weaken protections to work around the outage.
+
+When local validation is needed, owner-facing instructions should be paste-ready PowerShell rooted at `F:\LF\pachimanga`.
+
+See `docs/post-release-feedback.md`.
+
 ## Product contract
 
 Pachimanga has no guest, demo, or anonymous reader mode.
@@ -164,14 +174,15 @@ Read new-session guidance in this order:
 1. `AGENTS.md`
 2. `docs/WORKPLAN.md`
 3. `docs/verification-release-2026-09-18.md`
-4. `docs/verification-2026-09-17.md`
-5. `docs/START-HERE-NEW-CHAT.md`
-6. `docs/architecture.md`
-7. `docs/operations.md`
-8. `docs/library-state.md`
-9. `docs/reader-pwa-hardening.md`
-10. `docs/browser-e2e-performance.md`
-11. `supabase/README.md`
+4. `docs/post-release-feedback.md`
+5. `docs/verification-2026-09-17.md`
+6. `docs/START-HERE-NEW-CHAT.md`
+7. `docs/architecture.md`
+8. `docs/operations.md`
+9. `docs/library-state.md`
+10. `docs/reader-pwa-hardening.md`
+11. `docs/browser-e2e-performance.md`
+12. `supabase/README.md`
 
 Documentation index: `docs/README.md`.
 
