@@ -56,6 +56,16 @@ type ProgressOutboxRow = ReadingProgress & {
   historyReadAt: string;
 };
 
+type LibraryMutationRow = {
+  key: string;
+  userId?: string;
+  operation: 'upsert' | 'delete';
+  mangaId: string;
+  sourceId: string;
+  entry?: LibraryEntry;
+  updatedAt: string;
+};
+
 function mangaStatus(value: unknown): MangaStatus {
   return value === 'ongoing' || value === 'complete' || value === 'hiatus' || value === 'cancelled'
     ? value
@@ -170,11 +180,19 @@ async function loadDetailedProgressFallback(
 export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
   const user = await bindCurrentUserCache();
   const sb = createClient();
-  const [localEntries, localProgress, localOutbox] = await Promise.all([
+  const [localEntries, localProgress, localOutbox, libraryOutbox] = await Promise.all([
     idbGetAll<LibraryEntry>('library'),
     idbGetAll<ReadingProgress>('progress'),
     idbGetAll<ProgressOutboxRow>('outbox'),
+    idbGetAll<LibraryMutationRow>('libraryOutbox'),
   ]);
+  const libraryMutations = libraryOutbox.filter((entry) => entry.userId === user.id);
+  const pendingLibraryUpserts = new Set(
+    libraryMutations.filter((entry) => entry.operation === 'upsert').map((entry) => entry.mangaId),
+  );
+  const pendingLibraryDeletes = new Set(
+    libraryMutations.filter((entry) => entry.operation === 'delete').map((entry) => entry.mangaId),
+  );
 
   let libraryRows: LibraryRow[];
   try {
@@ -315,11 +333,22 @@ export async function getLibraryDashboardEntries(): Promise<LibraryEntry[]> {
 
   const remoteIds = new Set(remoteEntries.map((entry) => entry.mangaId));
   const staleLibraryDeletes = localEntries
-    .filter((entry) => !remoteIds.has(entry.mangaId))
+    .filter((entry) => !remoteIds.has(entry.mangaId) && !pendingLibraryUpserts.has(entry.mangaId))
     .map((entry) => idbDelete('library', entry.mangaId));
   await Promise.all([...libraryCacheWrites, ...staleLibraryDeletes]);
   if (statusWrites.length) await Promise.allSettled(statusWrites);
-  return remoteEntries;
+
+  const visibleById = new Map(
+    remoteEntries
+      .filter((entry) => !pendingLibraryDeletes.has(entry.mangaId))
+      .map((entry) => [entry.mangaId, entry]),
+  );
+  for (const mutation of libraryMutations) {
+    if (mutation.operation !== 'upsert') continue;
+    const pending = mutation.entry || localById.get(mutation.mangaId);
+    if (pending) visibleById.set(mutation.mangaId, pending);
+  }
+  return [...visibleById.values()].sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt));
 }
 
 export async function setLibraryReadingStatus(
