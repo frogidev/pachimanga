@@ -68,6 +68,18 @@ This preserves the existing privacy boundary and makes hard-navigation metrics u
 
 Client-side soft-navigation Web Vitals are not inferred from these hard-navigation samples.
 
+### Validation
+
+```text
+merged runtime: 58b6df6bfc76400081ae38ef381d26558a875ac9
+production:     dpl_6LUeSkd1vdjRtVKXbj99Kwk78Wjt
+state:          READY
+```
+
+PR #77 `hygiene` and `quality` completed successfully; the quality job ran unit tests, lint, typecheck, and production build. Vercel compiled the merged runtime successfully and generated 22/22 static pages. Post-deploy Vercel error/fatal inspection was empty in the inspected window.
+
+On 2026-09-19, the operator ran the credential-free Production Smoke against `https://pachimanga.frogilab.dev` from local `main` at the merged SHA. It passed all 12 protected-route checks and all 4 PWA icon checks.
+
 ## What still needs measurement
 
 Code-level changes reduce redundant work, but they do not replace measurement. During local/manual testing, capture:
