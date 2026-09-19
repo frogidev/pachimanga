@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { nextLibrarySourceSnapshot } from '@/lib/library/library-state';
+import { withProviderConcurrency } from '@/lib/source/provider-limiter';
 import { classifyProviderError, providerErrorHttpStatus, providerErrorPayload } from '@/lib/source/provider-error';
 import { createClient } from '@/lib/supabase/server';
 import { getSource } from '@/sources/core/registry';
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
   if (!source) return json({ error: { kind: 'upstream', title: 'Unknown provider', message: 'This library entry references an unsupported provider.', retryable: false } }, 400);
 
   try {
-    const { manga, chapters } = await loadProviderSnapshot(source, row.manga_id);
+    const { manga, chapters } = await withProviderConcurrency(`${user.id}:${source.id}`, () => loadProviderSnapshot(source, row.manga_id));
     const observedAt = new Date().toISOString();
     const snapshot = nextLibrarySourceSnapshot(
       {
