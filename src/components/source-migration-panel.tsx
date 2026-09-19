@@ -11,7 +11,7 @@ type ChapterResponse = { chapters?: Chapter[]; error?: { message?: string } };
 export function SourceMigrationPanel({ manga, chapters, onMigrated }: {
   manga: Manga;
   chapters: Chapter[];
-  onMigrated?: () => void;
+  onMigrated?: (target: Manga) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(manga.title);
@@ -61,7 +61,7 @@ export function SourceMigrationPanel({ manga, chapters, onMigrated }: {
           : `Source changed. ${result.migratedProgress} progress row${result.migratedProgress === 1 ? "" : "s"} preserved.`,
       );
       setResults([]);
-      onMigrated?.();
+      onMigrated?.(target);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Source migration failed.");
     } finally {
