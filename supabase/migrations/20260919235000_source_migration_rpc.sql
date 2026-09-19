@@ -1,7 +1,7 @@
 create or replace function public.migrate_my_library_source(
   p_from_source_id text,p_from_manga_id text,p_to_source_id text,p_to_manga_id text,p_to_title text,p_to_cover_url text,p_to_publication_status text,p_chapter_map jsonb default '{}'::jsonb
 ) returns jsonb language plpgsql security invoker set search_path='' as $$
-declare uid uuid:=(select auth.uid()); source_row public.library_entries%rowtype; target_exists boolean:=false; migrated_progress integer:=0; total_progress integer:=0; map_entry record;
+declare uid uuid:=(select auth.uid()); source_row public.library_entries%rowtype; target_exists boolean:=false; migrated_progress integer:=0; total_progress integer:=0; mapped_progress integer:=0; history_chapter text; map_entry record;
 begin
  if uid is null then raise exception 'authentication required'; end if;
  if p_from_source_id=p_to_source_id and p_from_manga_id=p_to_manga_id then raise exception 'source and target are identical'; end if;
@@ -16,6 +16,15 @@ begin
  insert into public.library_collection_items(user_id,collection_id,source_id,manga_id,added_at)
  select uid,collection_id,p_to_source_id,p_to_manga_id,added_at from public.library_collection_items where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id on conflict do nothing;
  select count(*) into total_progress from public.reading_progress where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
+ select count(*) into mapped_progress from public.reading_progress
+ where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id and p_chapter_map ? chapter_id;
+ if mapped_progress < total_progress then
+   raise exception 'source migration cannot safely map % progress rows', total_progress-mapped_progress;
+ end if;
+ select chapter_id into history_chapter from public.reading_history where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
+ if history_chapter is not null and not (p_chapter_map ? history_chapter) then
+   raise exception 'source migration cannot safely map reading history';
+ end if;
  for map_entry in select key old_chapter_id,value #>> '{}' new_chapter_id from jsonb_each(coalesce(p_chapter_map,'{}'::jsonb)) loop
   insert into public.reading_progress(user_id,source_id,manga_id,chapter_id,page_index,scroll_progress,completed,updated_at)
   select uid,p_to_source_id,p_to_manga_id,map_entry.new_chapter_id,old.page_index,old.scroll_progress,old.completed,old.updated_at from public.reading_progress old
@@ -25,12 +34,12 @@ begin
   if found then migrated_progress:=migrated_progress+1; end if;
  end loop;
  insert into public.reading_history(user_id,source_id,manga_id,chapter_id,percentage,read_at)
- select uid,p_to_source_id,p_to_manga_id,coalesce(p_chapter_map->>old.chapter_id,old.chapter_id),old.percentage,old.read_at from public.reading_history old where old.user_id=uid and old.source_id=p_from_source_id and old.manga_id=p_from_manga_id
+ select uid,p_to_source_id,p_to_manga_id,p_chapter_map->>old.chapter_id,old.percentage,old.read_at from public.reading_history old where old.user_id=uid and old.source_id=p_from_source_id and old.manga_id=p_from_manga_id
  on conflict(user_id,source_id,manga_id) do update set chapter_id=excluded.chapter_id,percentage=excluded.percentage,read_at=excluded.read_at where excluded.read_at>public.reading_history.read_at;
  delete from public.reading_history where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
  delete from public.reading_progress where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
  delete from public.library_entries where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
- return jsonb_build_object('migratedProgress',migrated_progress,'unmappedProgress',greatest(0,total_progress-migrated_progress),'targetAlreadyExisted',target_exists);
+ return jsonb_build_object('migratedProgress',migrated_progress,'unmappedProgress',0,'targetAlreadyExisted',target_exists);
 end;$$;
 revoke all on function public.migrate_my_library_source(text,text,text,text,text,text,text,jsonb) from public, anon;
 grant execute on function public.migrate_my_library_source(text,text,text,text,text,text,text,jsonb) to authenticated;
