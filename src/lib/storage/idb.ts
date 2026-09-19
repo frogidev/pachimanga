@@ -1,7 +1,7 @@
-type StoreName = "library" | "progress" | "history" | "outbox" | "settingsOutbox" | "libraryOutbox";
+type StoreName = "library" | "progress" | "history" | "outbox" | "settingsOutbox" | "libraryOutbox" | "offlineChapters";
 
 const DB_NAME = "pachimanga";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 function hasIndexedDb() {
   return typeof window !== "undefined" && "indexedDB" in window;
@@ -14,7 +14,7 @@ function fallbackKey(store: StoreName) {
 function storeKeyField(store: StoreName) {
   if (store === "library" || store === "history") return "mangaId";
   if (store === "settingsOutbox") return "userId";
-  if (store === "libraryOutbox") return "key";
+  if (store === "libraryOutbox" || store === "offlineChapters") return "key";
   return "chapterId";
 }
 
@@ -72,6 +72,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains("libraryOutbox")) {
         db.createObjectStore("libraryOutbox", { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains("offlineChapters")) {
+        db.createObjectStore("offlineChapters", { keyPath: "key" });
       }
     };
     request.onsuccess = () => resolve(request.result);
