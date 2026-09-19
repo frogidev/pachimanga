@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { SourceMigrationPanel } from "@/components/source-migration-panel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getMangaProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import { normalizeLibraryReadingStatus, type LibraryReadingStatus } from "@/lib/library/library-state";
@@ -341,6 +342,13 @@ export function MangaDetail({
                 </label>
               ) : null}
             </div>
+            {inLibrary && manga.sourceId !== "import" ? (
+              <SourceMigrationPanel
+                manga={manga}
+                chapters={chapters}
+                onMigrated={(target) => { window.location.assign(`/manga/${target.id}`); }}
+              />
+            ) : null}
           </div>
         </div>
       </section>
