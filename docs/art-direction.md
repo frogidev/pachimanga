@@ -105,6 +105,7 @@ Rules:
 
 - Compact top/header treatment plus bottom navigation where implemented.
 - The signed-in avatar may serve as the mobile shortcut to `Settings > Account`; keep its touch target at least ~40px and provide an accessible label.
+- Because the desktop sidebar theme quick-toggle is absent on mobile, Settings must expose an equivalent reachable theme control on mobile/PWA.
 - Respect `env(safe-area-inset-*)` in standalone mode.
 - Avoid horizontal overflow at 360px.
 - Primary actions must remain reachable without precise taps.
@@ -114,7 +115,9 @@ Rules:
 - Welcome/brand section can use the warm room/mascot visual language.
 - Search remains prominent and keyboard friendly.
 - Status filters use consistent pills.
-- Manga cards keep a 2:3 cover ratio, clear title/status/progress hierarchy, and predictable action placement.
+- Grid manga cards keep a 2:3 cover ratio, clear title/status/progress hierarchy, and predictable action placement.
+- Library list/compact view is a real horizontal row layout rather than a denser grid of the same hero cards.
+- Personal reading-status editing belongs on manga detail; card overflow menus stay limited to list-level organization/removal actions.
 - Empty library state should guide the user toward Browse/Import rather than showing fake manga.
 
 ### Browse

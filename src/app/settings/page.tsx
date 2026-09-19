@@ -8,6 +8,7 @@ import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
 import { SignOutSettings } from '@/components/sign-out-settings';
 import { SyncStatusPanel } from '@/components/sync-status';
+import { ThemeQuickToggle } from '@/components/theme-quick-toggle';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
 
@@ -36,6 +37,15 @@ export default function SettingsPage() {
       <div className="mt-6 grid gap-4">
         <section id="account" className="scroll-mt-24">
           <AccountSettings />
+        </section>
+
+        <section className="surface-card p-5 md:hidden" aria-labelledby="mobile-theme-title">
+          <p className="pixel-kicker text-[9px] text-pink-400">Appearance</p>
+          <h2 id="mobile-theme-title" className="mt-1 text-lg font-semibold text-zinc-100">Theme</h2>
+          <p className="mt-1 text-sm leading-6 text-zinc-500">Switch between the dark room and warm-paper light theme.</p>
+          <div className="mt-3">
+            <ThemeQuickToggle />
+          </div>
         </section>
 
         <section className="surface-card p-5 sm:p-6">

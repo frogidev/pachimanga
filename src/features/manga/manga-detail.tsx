@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
-import { idbGetAll } from "@/lib/storage/idb";
+import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getMangaProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
+import { normalizeLibraryReadingStatus, type LibraryReadingStatus } from "@/lib/library/library-state";
+import { setLibraryReadingStatus } from "@/lib/storage/library-dashboard";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
 import { firstReadableChapter, latestReadableChapter } from "./read-target";
 
@@ -81,6 +82,8 @@ export function MangaDetail({
   backHref?: string;
 }) {
   const [inLibrary, setInLibrary] = useState(false);
+  const [readingStatus, setReadingStatus] = useState<LibraryReadingStatus>("plan_to_read");
+  const [readingStatusManual, setReadingStatusManual] = useState(false);
   const [busy, setBusy] = useState(false);
   const [chapterProgress, setChapterProgress] = useState<Record<string, number>>({});
   const [busyChapter, setBusyChapter] = useState<string | null>(null);
@@ -108,7 +111,11 @@ export function MangaDetail({
   useEffect(() => {
     let cancelled = false;
     void getLibraryEntries().then((entries) => {
-      if (!cancelled) setInLibrary(entries.some((entry) => entry.mangaId === manga.id));
+      if (cancelled) return;
+      const entry = entries.find((item) => item.mangaId === manga.id && item.sourceId === manga.sourceId);
+      setInLibrary(Boolean(entry));
+      setReadingStatus(normalizeLibraryReadingStatus(entry?.readingStatus));
+      setReadingStatusManual(Boolean(entry?.readingStatusManual));
     });
     return () => { cancelled = true; };
   }, [manga.id]);
@@ -118,15 +125,29 @@ export function MangaDetail({
     setReadStateLoaded(false);
     void (async () => {
       try {
-        const [allProgress, history] = await Promise.all([
-          idbGetAll<ReadingProgress>('progress'),
+        const [mangaProgress, history, entries] = await Promise.all([
+          getMangaProgress(manga.id),
           getHistory().catch(() => []),
+          getLibraryEntries().catch(() => []),
         ]);
         if (cancelled) return;
-        const mangaProgress = allProgress.filter((row) => row.mangaId === manga.id);
+
         const map: Record<string, number> = {};
         for (const row of mangaProgress) {
           map[row.chapterId] = Number(row.percentage || 0);
+        }
+
+        const libraryEntry = entries.find((entry) => entry.mangaId === manga.id && entry.sourceId === manga.sourceId);
+        const legacyLastChapter = mangaProgress.length ? 0 : Number(libraryEntry?.lastChapterRead || 0);
+        let legacyResume: Chapter | null = null;
+        if (legacyLastChapter > 0) {
+          for (const chapter of chapters) {
+            const chapterNumber = Number(chapter.chapterNumber || 0);
+            if (chapterNumber > 0 && chapterNumber <= legacyLastChapter) {
+              map[chapter.id] = 100;
+              if (!legacyResume || chapterNumber > Number(legacyResume.chapterNumber || 0)) legacyResume = chapter;
+            }
+          }
         }
         setChapterProgress(map);
 
@@ -134,16 +155,12 @@ export function MangaDetail({
         let resumeProgress = latestHistory
           ? mangaProgress.find((row) => row.chapterId === latestHistory.chapterId) || null
           : null;
-        if (!resumeProgress && latestHistory) {
-          const remoteProgress = await getProgress(latestHistory.chapterId).catch(() => undefined);
-          if (remoteProgress?.mangaId === manga.id) resumeProgress = remoteProgress;
-        }
         resumeProgress ||= newestProgress(mangaProgress);
         if (cancelled) return;
 
         const chapter = resumeProgress
           ? chapters.find((item) => item.id === resumeProgress.chapterId)
-          : null;
+          : legacyResume;
         setContinueTo(chapter ? { id: chapter.id, title: chapter.title } : null);
       } catch {
         if (!cancelled) setContinueTo(null);
@@ -153,45 +170,7 @@ export function MangaDetail({
       }
     })();
     return () => { cancelled = true; };
-  }, [manga.id, chapters]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const entries = await getLibraryEntries();
-        const entry = entries.find((item) => item.mangaId === manga.id);
-        if (cancelled || !entry || entry.progress != null) return;
-        const lastChapter = Number(entry.lastChapterRead || 0);
-        if (!lastChapter || !chapters.length) return;
-        const numbers = chapters.map((chapter) => Number(chapter.chapterNumber || 0)).filter((n) => n > 0);
-        const max = Math.max(...numbers, lastChapter);
-        const best = chapters.reduce<Chapter | null>((acc, chapter) => {
-          const n = Number(chapter.chapterNumber || 0);
-          if (n <= 0 || n > lastChapter) return acc;
-          if (!acc || n > Number(acc.chapterNumber || 0)) return chapter;
-          return acc;
-        }, null);
-        if (!best) return;
-        const percentage = Math.max(0, Math.min(99, Math.round((lastChapter / max) * 100)));
-        await saveProgress({
-          mangaId: manga.id,
-          chapterId: best.id,
-          pageIndex: Math.max(0, Number(entry.lastPageRead || 0)),
-          scrollPosition: 0,
-          percentage,
-          updatedAt: new Date().toISOString(),
-        });
-        if (!cancelled) {
-          setChapterProgress((map) => ({ ...map, [best.id]: percentage }));
-          await setEntryProgress(manga.id, { progress: percentage });
-        }
-      } catch {
-        // Imported-progress resolution is best-effort; the reader still works without it.
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [manga.id, chapters]);
+  }, [manga.id, manga.sourceId, chapters]);
 
   useEffect(() => { setPage(0); }, [manga.id]);
 
@@ -201,7 +180,23 @@ export function MangaDetail({
       if (inLibrary) await removeLibraryEntry(manga.id);
       else await addLibraryEntry(manga.id, manga.sourceId, manga);
       const entries = await getLibraryEntries();
-      setInLibrary(entries.some((entry) => entry.mangaId === manga.id));
+      const entry = entries.find((item) => item.mangaId === manga.id && item.sourceId === manga.sourceId);
+      setInLibrary(Boolean(entry));
+      setReadingStatus(normalizeLibraryReadingStatus(entry?.readingStatus));
+      setReadingStatusManual(Boolean(entry?.readingStatusManual));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeReadingStatus(value: string) {
+    if (!inLibrary || busy) return;
+    const status = value === "automatic" ? null : value as LibraryReadingStatus;
+    setBusy(true);
+    try {
+      await setLibraryReadingStatus(manga.id, manga.sourceId, status);
+      setReadingStatusManual(status !== null);
+      if (status) setReadingStatus(status);
     } finally {
       setBusy(false);
     }
@@ -326,6 +321,25 @@ export function MangaDetail({
               {readStateLoaded && continueTo && latestChapter && latestChapter.id !== continueTo.id ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">Read latest</Link> : null}
               {!chapters.length && external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-5 py-3 text-sm">Read on {external.label} ↗</a> : null}
               <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? "Remove from library" : "Add to library"}</button>
+              {inLibrary ? (
+                <label className="grid gap-1 text-[11px] text-zinc-500">
+                  <span>My status</span>
+                  <select
+                    value={readingStatusManual ? readingStatus : "automatic"}
+                    disabled={busy}
+                    onChange={(event) => void changeReadingStatus(event.target.value)}
+                    className="field h-11 min-w-44 px-3 text-sm disabled:opacity-50"
+                    aria-label="My reading status"
+                  >
+                    <option value="automatic">Automatic</option>
+                    <option value="reading">Reading</option>
+                    <option value="completed">Completed</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="dropped">Dropped</option>
+                    <option value="plan_to_read">Plan to Read</option>
+                  </select>
+                </label>
+              ) : null}
             </div>
           </div>
         </div>

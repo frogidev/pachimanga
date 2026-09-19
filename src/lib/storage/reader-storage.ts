@@ -364,6 +364,49 @@ export async function clearAccountLibrary() {
   window.dispatchEvent(new CustomEvent('pachimanga:history-change'));
 }
 
+export async function getMangaProgress(mangaId: string): Promise<ReadingProgress[]> {
+  const auth = await requireSignedIn();
+  await bindCacheToUser(auth.user.id);
+  const local = (await idbGetAll<ReadingProgress>('progress')).filter((row) => row.mangaId === mangaId);
+
+  let data;
+  try {
+    data = await collectPagedRows(async (from, to) => {
+      const result = await auth.sb
+        .from('reading_progress')
+        .select('manga_id,chapter_id,page_index,scroll_progress,updated_at')
+        .eq('user_id', auth.user.id)
+        .eq('manga_id', mangaId)
+        .order('chapter_id', { ascending: true })
+        .range(from, to);
+      return { data: result.data || [], error: result.error };
+    });
+  } catch {
+    return local;
+  }
+
+  const byChapter = new Map(local.map((row) => [row.chapterId, row]));
+  const cacheWrites: Promise<void>[] = [];
+  for (const row of data) {
+    observeLogicalClock(auth.user.id, row.updated_at);
+    const remote: ReadingProgress = {
+      mangaId: row.manga_id,
+      chapterId: row.chapter_id,
+      pageIndex: row.page_index,
+      scrollPosition: 0,
+      percentage: Number(row.scroll_progress) * 100,
+      updatedAt: row.updated_at,
+    };
+    const newest = newestByUpdatedAt(byChapter.get(remote.chapterId), remote) || remote;
+    byChapter.set(remote.chapterId, newest);
+    if (newest === remote) {
+      cacheWrites.push(idbPut('progress', remote as unknown as Record<string, unknown>));
+    }
+  }
+  await Promise.all(cacheWrites);
+  return [...byChapter.values()].filter((row) => row.mangaId === mangaId);
+}
+
 export async function getProgress(chapterId: string) {
   const auth = await requireSignedIn();
   await bindCacheToUser(auth.user.id);

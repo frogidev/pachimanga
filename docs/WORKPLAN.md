@@ -102,7 +102,8 @@ Implemented and merged:
 - provider refresh coalescing, short freshness reuse, hard refresh timeout, and bounded parsed WeebCentral chapter caching that avoids Next.js >2 MB raw-response cache failures;
 - account-owned collections/tags, export/import round-trip restore, provider-result deduplication, richer reading statistics, logical-device clock hardening, owner-bound library mutation outbox, quota-aware/cancellable offline chapter saves, privacy-safe Web Vitals telemetry, and chapter publication dates;
 - warm-paper light theme across core surfaces including readable auth/autofill behavior;
-- display name/avatar identity surfaced in desktop/mobile shell navigation with immediate post-save refresh.
+- display name/avatar identity surfaced in desktop/mobile shell navigation with immediate post-save refresh;
+- post-release mobile-library feedback hardening: reachable mobile theme switching, a genuine list layout, unclipped/list-safe card actions with reading status moved to manga detail, factual Browse library badges, and manga-detail hydration of synced per-chapter progress.
 
 ## Production-data truthfulness contract
 
