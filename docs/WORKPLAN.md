@@ -10,7 +10,7 @@ Production URL: `https://pachimanga.frogilab.dev`
 
 ### Current execution state — 2026-09-19
 
-- GitHub Actions was observed available again on PR #82; Repository Hygiene, Web Quality, and Native Quality all completed successfully.
+- GitHub Actions is currently available: PR #83 completed Repository Hygiene, Web Quality, and Native Quality successfully for the v1.0.2 release/versioning batch.
 - Use the normal protected PR/check flow. If Actions capacity or quota becomes unavailable again, do not weaken protections or treat missing/skipped jobs as passing.
 - Batch repository changes before pushing and minimize unnecessary Vercel build churn.
 - Runtime changes still require exact-head Vercel evidence when practical and exact production verification after merge.
@@ -28,20 +28,22 @@ Release evidence:
 - PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully;
 - merged runtime `ba8083df5a51ea352f84aecceadae29be3e4983d` reached production deployment `dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc` in `READY` state with no alias error;
 - the inspected post-deploy Vercel `error`/`fatal` window was empty and anonymous root remained `private, no-store`;
-- the v1.0.2 release/versioning branch aligns project/native metadata, the visible shell version, and current-state documentation; its final protected merge/deployment evidence is maintained in `verification-release-2026-09-19.md`.
+- PR #83 aligned project/native metadata, the visible shell version, and current-state documentation on v1.0.2; all required hosted checks passed;
+- release runtime `2fae75f7ed35295bd906babcd26da2ad24d47f37` reached production deployment `dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ` in `READY` state with no alias error;
+- post-deploy anonymous root remained `private, no-store` and inspected Vercel runtime/error/fatal signals were clean.
 
 A fresh credential-free Production Smoke on the exact final v1.0.2 runtime remains a post-release confirmation item unless it is explicitly observed and recorded.
 
-## Current pre-versioning production baseline — 2026-09-19
+## Current v1.0.2 production runtime — 2026-09-19
 
-```text
-main/runtime: ba8083df5a51ea352f84aecceadae29be3e4983d
-production:   dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc
-state:        READY
-change:       PR #82 light-theme + reader Back-navigation hardening
-```
+\`\`\`text
+release/runtime: 2fae75f7ed35295bd906babcd26da2ad24d47f37
+production:      dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ
+state:           READY
+alias:           https://pachimanga.frogilab.dev
+\`\`\`
 
-This baseline is the fully verified product state immediately before the v1.0.2 version/documentation bump. The exact final v1.0.2 merge SHA and deployment supersede it in the current release verification document.
+The runtime-changing release-prep commit had a `READY` Vercel preview; later branch commits were documentation-only and were correctly ignored by the Vercel build policy. Exact CI/deployment evidence and residual manual gaps are recorded in `verification-release-2026-09-19.md`.
 
 ## Post-release operating priority
 

@@ -4,16 +4,18 @@ This document is the current release record for the authenticated PWA/web produc
 
 ## Release identity
 
-```text
+\`\`\`text
 release:              v1.0.2
-release-prep base:    ba8083df5a51ea352f84aecceadae29be3e4983d
-release-prep branch:  release/v1.0.2
-final main/runtime:   pending protected squash merge
-production deployment:pending final merge
+release PR:           #83
+release branch head:  b8864ddf6266151a47ae2e44f49343be81a8d678
+release main/runtime: 2fae75f7ed35295bd906babcd26da2ad24d47f37
+runtime-equivalent preview: dpl_3iT8XMyGRpsiUgr3WrNTAv4SuWix (READY)
+production deployment:dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ
+production state:     READY
 production alias:     https://pachimanga.frogilab.dev
-```
+\`\`\`
 
-The owner designated the current product line as v1.0.2. The final protected-merge SHA and exact production deployment are filled in after the release/versioning branch merges; they must not be guessed in advance.
+The owner designated the current product line as v1.0.2. PR #83 merged through the protected squash-merge path, and the exact merged runtime reached the production alias in `READY` state.
 
 No GitHub Release, version tag, native artifact, signing action, store submission, or production data/schema mutation is implied by the v1.0.2 designation.
 
@@ -36,7 +38,7 @@ The v1.0.2 release/versioning batch also:
 
 ## Repository and branch audit
 
-At release preparation time there were no open pull requests.
+At release preparation time there were no pre-existing open pull requests. PR #83 was the dedicated v1.0.2 release/versioning PR.
 
 The non-`main` branches present before this release-preparation branch all map to already-merged PRs and are cleanup candidates rather than pending work:
 
@@ -50,7 +52,8 @@ The non-`main` branches present before this release-preparation branch all map t
 - `fix/mobile-library-feedback` — PR #79;
 - `fix/mobile-library-layout-toggle` — PR #80;
 - `fix/mobile-library-controls` — PR #81;
-- `fix/light-theme-mobile-reader-navigation` — PR #82.
+- `fix/light-theme-mobile-reader-navigation` — PR #82;
+- `release/v1.0.2` — PR #83 (merged; cleanup candidate after release finalization).
 
 Because the repository uses squash merges, these old branch tips can still appear "ahead" or "diverged" from `main`; that does not mean their work is pending. Cleanup must be based on the merged PR state, not ancestry alone.
 
@@ -74,7 +77,19 @@ Observed for PR #82 / that runtime:
 - anonymous root resolved to the mandatory auth surface with `private, no-store`;
 - inspected Vercel runtime `error`/`fatal` window was empty.
 
-The release/versioning PR must independently pass its required checks before merge. Final v1.0.2 exact-main deployment evidence is recorded in this document after merge.
+PR #83 release/versioning evidence:
+
+- Repository Hygiene: success;
+- Web Quality: success, including unit tests, lint, typecheck, and production build;
+- Native Quality: success, including JavaScript checks, Rust shell check, and version consistency at `1.0.2`;
+- runtime-changing release-prep commit `001a6d0d8aa03ec5eab1c280d31fd4f1915f5b96` produced Vercel preview `dpl_3iT8XMyGRpsiUgr3WrNTAv4SuWix`, `READY`;
+- later release-branch commits were documentation-only, so their Vercel attempts were correctly canceled by the ignored-build policy without changing hosted runtime output;
+- protected squash merge produced runtime `2fae75f7ed35295bd906babcd26da2ad24d47f37`;
+- production deployment `dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ` reached `READY` with no alias error;
+- anonymous root returned the mandatory auth experience with `Cache-Control: private, no-store`;
+- inspected Vercel runtime errors and production `error`/`fatal` logs were empty in the post-deploy window.
+
+An exact-final-v1.0.2 credential-free Production Smoke was not executed in this agent session and remains explicitly outstanding rather than inferred from the checks above.
 
 ## Security and data boundaries
 
