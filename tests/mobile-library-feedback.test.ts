@@ -44,3 +44,16 @@ test('manga detail owns reading status and hydrates complete synced per-title pr
   assert.match(storage, /\.eq\('manga_id', mangaId\)/);
   assert.match(storage, /idbPut\('progress'/);
 });
+
+
+test('mobile library layout control sits next to the content it changes and persists immediately', () => {
+  const libraryHeading = library.indexOf('Your Library');
+  const mobileLayout = library.indexOf('aria-label="Library layout"', libraryHeading);
+  const cards = library.indexOf('variant={view === "compact" ? "compact" : "grid"}');
+  assert.ok(libraryHeading >= 0);
+  assert.ok(mobileLayout > libraryHeading);
+  assert.ok(cards > mobileLayout);
+  assert.match(library, /md:hidden[\s\S]*> Grid[\s\S]*> List/);
+  assert.match(library, /function changeView\(next: ViewMode\)[\s\S]*setView\(next\)[\s\S]*localStorage\.setItem\(LIBRARY_VIEW_KEY, next\)/);
+  assert.match(library, /hidden[\s\S]*md:flex[\s\S]*aria-label="Library layout"/);
+});
