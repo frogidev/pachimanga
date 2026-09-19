@@ -5,6 +5,7 @@ import type {
   ImportProgress,
   ImportReaderSettings,
   ImportResult,
+  ImportTrackerLink,
 } from './types';
 
 const MAX_JSON_RECORDS = 10_000;
@@ -152,6 +153,19 @@ function parsePachimangaExport(root: Record<string, unknown>): ImportResult | nu
     collectionMemberships.push({ collectionId, sourceId, mangaId });
   }
 
+  const trackerLinks: ImportTrackerLink[] = [];
+  const rawTrackerLinks = Array.isArray(root.trackerLinks) ? root.trackerLinks : [];
+  if (rawTrackerLinks.length > MAX_JSON_RECORDS * 4) throw new Error('Pachimanga export contains too many tracker links.');
+  for (const raw of rawTrackerLinks) {
+    const row = objectRecord(raw);
+    const provider = row?.provider === 'anilist' || row?.provider === 'myanimelist' ? row.provider : undefined;
+    const sourceId = optionalString(row?.source_id);
+    const mangaId = optionalString(row?.manga_id);
+    const mediaId = optionalString(row?.media_id);
+    const mediaTitle = optionalString(row?.media_title);
+    if (provider && sourceId && mangaId && mediaId && mediaTitle) trackerLinks.push({ provider, sourceId, mangaId, mediaId, mediaTitle });
+  }
+
   const readerRoot = objectRecord(root.readerSettings);
   const readerSettings = safeReaderSettings(readerRoot?.settings);
 
@@ -164,6 +178,7 @@ function parsePachimangaExport(root: Record<string, unknown>): ImportResult | nu
     readerSettings,
     collections,
     collectionMemberships,
+    trackerLinks,
   };
 }
 
