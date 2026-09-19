@@ -102,7 +102,7 @@ async function wcFetch(path: string, options: WcFetchOptions) {
     url = relayRequestUrl(options.operation, { query: options.query, id: options.id });
     headers.Authorization = `Bearer ${token}`;
   } else {
-    headers['User-Agent'] = 'Pachimanga/0.4 (+https://pachimanga.frogilab.dev)';
+    headers['User-Agent'] = 'Pachimanga/1.0.2 (+https://pachimanga.frogilab.dev)';
     if (options.referer) headers.Referer = options.referer;
     if (options.hx) {
       headers['HX-Request'] = 'true';
@@ -173,7 +173,7 @@ export async function probeWeebCentralServer(): Promise<{
     }
 
     const response = await fetchWithSourceRetry(BASE, {
-      headers: { 'User-Agent': 'Pachimanga/0.4 (+https://pachimanga.frogilab.dev)' },
+      headers: { 'User-Agent': 'Pachimanga/1.0.2 (+https://pachimanga.frogilab.dev)' },
       signal: controller.signal,
       cache: 'no-store',
     });
