@@ -20,8 +20,8 @@ test("uniquePageUrls dedupes and drops blanks, preserving order", () => {
   assert.deepEqual(urls, ["https://cdn.example/p1.jpg", "https://cdn.example/p2.jpg"]);
 });
 
-test("account-bound cache stores include progress and settings sync outboxes", () => {
-  assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox", "settingsOutbox", "libraryOutbox"]);
+test("account-bound cache stores include sync, offline metadata and tracker auth state", () => {
+  assert.deepEqual(ACCOUNT_BOUND_IDB_STORES, ["library", "progress", "history", "outbox", "settingsOutbox", "libraryOutbox", "offlineChapters", "trackerAuth"]);
 });
 
 test("clearing the library preserves reader settings sync state", () => {
