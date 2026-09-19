@@ -134,6 +134,14 @@ Newest timestamp wins locally; production database triggers reject older/equal t
 
 Reader settings use an account-specific local cache plus owner-bound outbox. Server freshness guards protect cross-device state from stale arrival order.
 
+### Source migration and duplicate consolidation
+
+Library titles can be deliberately moved between supported source identities. Migration is explicit and confirmation-gated. Trusted database code copies/merges the target library entry, collection membership, tracker links, reading progress, and history before deleting the old source identity. Chapter progress is mapped only where chapter number/title evidence is unambiguous; any unmapped progress/history aborts the transaction rather than discarding data.
+
+### External tracker boundary
+
+AniList and MyAnimeList are optional integrations. OAuth bearer/refresh tokens remain in account-bound browser IndexedDB and are cleared on account switch/sign-out; they are never stored in Supabase or included in account export. Supabase stores only owner-RLS-protected manga-to-tracker identifiers so title associations can restore across devices. Tracker controls remain unavailable when the corresponding public OAuth client configuration is absent.
+
 ### Visible sync state
 
 The shell/Settings expose `Synced`, `Syncing · N pending`, and offline/pending states based on the real owner-bound queues. Settings also exposes explicit `Sync now` and retry controls; these flush the same owner-bound queues rather than creating a separate synchronization path.
