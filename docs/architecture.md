@@ -224,7 +224,7 @@ Imported titles always resolve into the normal signed-in Library model; there is
 
 Vercel deploys hosted-runtime changes from `main`. `scripts/vercel-ignore-build.mjs` fails open to build when comparison SHAs are missing/unusable and skips only proven non-runtime changes.
 
-Current validation path is shown below. Through September 30, 2026, GitHub Actions are unavailable; during that window substitute trustworthy local verification for the unavailable hosted step without claiming Actions passed. Re-check Actions on or after October 1.
+GitHub Actions was observed available again on 2026-09-19. Use the normal protected hosted checks; if future quota/capacity prevents a run, keep the missing signal explicit and do not weaken gates.
 
 Current validation path is:
 
@@ -244,7 +244,7 @@ Do not interpret a docs/tests-only `main` commit without a new Vercel production
 
 ## Post-release validation backlog
 
-Autonomous hardening is merged into the v0.4.0 baseline. Remaining real-world evidence remains valuable after release:
+Autonomous hardening is merged into the v1.0.2 baseline. Remaining real-world evidence remains valuable after release:
 
 - registration, confirmation, recovery, logout/login, and Account A -> B -> A isolation;
 - two-session/two-device synchronization and clock-skew behavior;
