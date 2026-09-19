@@ -15,6 +15,15 @@ begin
  on conflict(user_id,source_id,manga_id) do update set title=excluded.title,cover_url=coalesce(excluded.cover_url,public.library_entries.cover_url),added_at=least(public.library_entries.added_at,excluded.added_at),reading_status=case when public.library_entries.reading_status_manual then public.library_entries.reading_status else excluded.reading_status end,reading_status_manual=public.library_entries.reading_status_manual or excluded.reading_status_manual,publication_status=excluded.publication_status,updated_at=now();
  insert into public.library_collection_items(user_id,collection_id,source_id,manga_id,added_at)
  select uid,collection_id,p_to_source_id,p_to_manga_id,added_at from public.library_collection_items where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id on conflict do nothing;
+ insert into public.tracker_links(user_id,source_id,manga_id,provider,media_id,media_title,updated_at)
+ select uid,p_to_source_id,p_to_manga_id,provider,media_id,media_title,updated_at
+ from public.tracker_links
+ where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id
+ on conflict(user_id,source_id,manga_id,provider) do update set
+   media_id=excluded.media_id,
+   media_title=excluded.media_title,
+   updated_at=excluded.updated_at
+ where excluded.updated_at>public.tracker_links.updated_at;
  select count(*) into total_progress from public.reading_progress where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
  select count(*) into mapped_progress from public.reading_progress
  where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id and p_chapter_map ? chapter_id;
