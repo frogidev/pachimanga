@@ -71,15 +71,15 @@ Released hosted line: v1.0.2.
 
 Exact merged SHA, production deployment ID/state, and release evidence are recorded in `verification-release-2026-09-19.md`.
 
-Exact-head PR #74 preview:
+Most recent runtime evidence before the v1.0.2 version/documentation bump:
 
 ```text
-deployment: dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ
-runtime:    e2f4b0a263ec79736be699ad704fe33b2211f1f1
-state:      READY
+runtime-equivalent PR #82 preview: dpl_7oAibFRWrAKg8E67ijgWCMs37g3Z (READY)
+merged runtime:                    ba8083df5a51ea352f84aecceadae29be3e4983d
+production:                        dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc (READY)
 ```
 
-The production build compiled successfully, completed TypeScript, generated 22/22 static pages, and reached `READY`. Post-deploy error/fatal inspection returned no matching entries.
+PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. Its final branch amendment changed regression-test matching only; the runtime-equivalent preview was already `READY`. The merged production deployment reached `READY` with no alias error, the inspected post-deploy error/fatal window was empty, and anonymous root remained `private, no-store`.
 
 ## Current validation mode
 
