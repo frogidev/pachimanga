@@ -94,6 +94,17 @@ async function loadCollections(sb: Awaited<ReturnType<typeof createClient>>, use
   return data || [];
 }
 
+async function loadTrackerLinks(sb: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const { data, error } = await sb
+    .from('tracker_links')
+    .select('provider,source_id,manga_id,media_id,media_title,updated_at')
+    .eq('user_id', userId)
+    .order('provider', { ascending: true });
+  if (error?.code === '42P01' || error?.code === 'PGRST205' || error?.message?.includes('tracker_links')) return [];
+  if (error) throw new Error('Could not export tracker links.');
+  return data || [];
+}
+
 async function loadCollectionItems(sb: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const rows: Array<Record<string, unknown>> = [];
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -122,12 +133,13 @@ export async function GET() {
   }
 
   try {
-    const [library, progress, history, collections, collectionItems, settingsResult] = await Promise.all([
+    const [library, progress, history, collections, collectionItems, trackerLinks, settingsResult] = await Promise.all([
       loadLibrary(sb, user.id),
       loadProgress(sb, user.id),
       loadHistory(sb, user.id),
       loadCollections(sb, user.id),
       loadCollectionItems(sb, user.id),
+      loadTrackerLinks(sb, user.id),
       sb.from('user_settings').select('settings,updated_at').eq('user_id', user.id).maybeSingle(),
     ]);
     if (settingsResult.error) throw new Error('Could not export reader settings.');
@@ -144,12 +156,14 @@ export async function GET() {
         history: history.length,
         collections: collections.length,
         collectionItems: collectionItems.length,
+        trackerLinks: trackerLinks.length,
       },
       library,
       progress,
       history,
       collections,
       collectionItems,
+      trackerLinks,
       readerSettings: {
         settings: safeReaderSettings(settingsResult.data?.settings),
         updatedAt: settingsResult.data?.updated_at || null,
