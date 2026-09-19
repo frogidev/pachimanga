@@ -1,5 +1,4 @@
 import type { Page } from "@/types/models";
-import { idbClear, idbDelete, idbGetAll, idbPut } from "@/lib/storage/idb";
 
 export const CHAPTER_CACHE = "pachimanga-chapters-v1";
 const CHAPTER_CACHE_OWNER_KEY = "pachimanga:chapter-cache-owner";
@@ -36,6 +35,7 @@ export async function bindChapterCacheOwner(userId: string): Promise<void> {
   if (current === userId) return;
   if (hasCacheApi()) {
     try { await caches.delete(CHAPTER_CACHE); } catch { /* restricted mode */ }
+    const { idbClear } = await import("@/lib/storage/idb");
     await idbClear("offlineChapters");
   }
   localStorage.setItem(CHAPTER_CACHE_OWNER_KEY, userId);
@@ -105,6 +105,7 @@ export async function listOfflineChapters(): Promise<OfflineChapterRecord[]> {
   if (typeof window === "undefined") return [];
   const owner = localStorage.getItem(CHAPTER_CACHE_OWNER_KEY);
   if (!owner) return [];
+  const { idbGetAll } = await import("@/lib/storage/idb");
   const rows = await idbGetAll<OfflineChapterRecord>("offlineChapters");
   return rows.filter((row) => row.userId === owner).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -114,15 +115,18 @@ export async function rememberOfflineChapter(input: Omit<OfflineChapterRecord, "
   const userId = localStorage.getItem(CHAPTER_CACHE_OWNER_KEY);
   if (!userId) return;
   const record: OfflineChapterRecord = { ...input, key: `${input.mangaId}:${input.chapterId}`, userId, updatedAt: new Date().toISOString() };
+  const { idbPut } = await import("@/lib/storage/idb");
   await idbPut("offlineChapters", record as unknown as Record<string, unknown>);
 }
 
 export async function forgetOfflineChapter(mangaId: string, chapterId: string) {
+  const { idbDelete } = await import("@/lib/storage/idb");
   await idbDelete("offlineChapters", `${mangaId}:${chapterId}`);
 }
 
 export async function removeOfflineChapter(record: OfflineChapterRecord) {
   await removeChapterPages(record.urls);
+  const { idbDelete } = await import("@/lib/storage/idb");
   await idbDelete("offlineChapters", record.key);
 }
 
@@ -134,6 +138,7 @@ export async function retryOfflineChapter(record: OfflineChapterRecord) {
 
 export async function clearChapterCache(): Promise<void> {
   if (typeof window !== "undefined") localStorage.removeItem(CHAPTER_CACHE_OWNER_KEY);
+  const { idbClear } = await import("@/lib/storage/idb");
   await idbClear("offlineChapters");
   if (!hasCacheApi()) return;
   try { await caches.delete(CHAPTER_CACHE); } catch { /* already gone */ }
