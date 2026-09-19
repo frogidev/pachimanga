@@ -19,7 +19,7 @@ test('reader chapter changes replace the current reader history entry', () => {
 test('mobile shell and reader keep safe-area aware chrome and usable touch targets', () => {
   assert.match(shell, /env\(safe-area-inset-top\)/);
   assert.match(shell, /env\(safe-area-inset-bottom\)/);
-  assert.match(shell, /aria-label="Go back"[\s\S]*size-10/);
-  assert.match(reader, /aria-label="Close reader"[\s\S]*size-10/);
+  assert.match(shell, /size-10[\s\S]*aria-label="Go back"/);
+  assert.match(reader, /size-10[\s\S]*aria-label="Close reader"/);
   assert.match(reader, /pb-\[calc\(\.75rem\+env\(safe-area-inset-bottom\)\)\]/);
 });
