@@ -32,5 +32,5 @@ begin
  delete from public.library_entries where user_id=uid and source_id=p_from_source_id and manga_id=p_from_manga_id;
  return jsonb_build_object('migratedProgress',migrated_progress,'unmappedProgress',greatest(0,total_progress-migrated_progress),'targetAlreadyExisted',target_exists);
 end;$$;
-revoke all on function public.migrate_my_library_source(text,text,text,text,text,text,text,jsonb) from public,anon;
+revoke all on function public.migrate_my_library_source(text,text,text,text,text,text,text,jsonb) from public, anon;
 grant execute on function public.migrate_my_library_source(text,text,text,text,text,text,text,jsonb) to authenticated;
