@@ -1,7 +1,21 @@
 import type { Page } from "@/types/models";
+import { idbClear, idbDelete, idbGetAll, idbPut } from "@/lib/storage/idb";
 
 export const CHAPTER_CACHE = "pachimanga-chapters-v1";
 const CHAPTER_CACHE_OWNER_KEY = "pachimanga:chapter-cache-owner";
+
+export type OfflineChapterRecord = {
+  key: string;
+  userId: string;
+  mangaId: string;
+  mangaTitle: string;
+  chapterId: string;
+  chapterTitle: string;
+  urls: string[];
+  savedCount: number;
+  total: number;
+  updatedAt: string;
+};
 
 function hasCacheApi() {
   return typeof window !== "undefined" && "caches" in window;
@@ -22,6 +36,7 @@ export async function bindChapterCacheOwner(userId: string): Promise<void> {
   if (current === userId) return;
   if (hasCacheApi()) {
     try { await caches.delete(CHAPTER_CACHE); } catch { /* restricted mode */ }
+    await idbClear("offlineChapters");
   }
   localStorage.setItem(CHAPTER_CACHE_OWNER_KEY, userId);
 }
@@ -86,8 +101,40 @@ export async function removeChapterPages(urls: string[]): Promise<void> {
   } catch { /* already unavailable */ }
 }
 
+export async function listOfflineChapters(): Promise<OfflineChapterRecord[]> {
+  if (typeof window === "undefined") return [];
+  const owner = localStorage.getItem(CHAPTER_CACHE_OWNER_KEY);
+  if (!owner) return [];
+  const rows = await idbGetAll<OfflineChapterRecord>("offlineChapters");
+  return rows.filter((row) => row.userId === owner).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export async function rememberOfflineChapter(input: Omit<OfflineChapterRecord, "key" | "userId" | "updatedAt">) {
+  if (typeof window === "undefined") return;
+  const userId = localStorage.getItem(CHAPTER_CACHE_OWNER_KEY);
+  if (!userId) return;
+  const record: OfflineChapterRecord = { ...input, key: `${input.mangaId}:${input.chapterId}`, userId, updatedAt: new Date().toISOString() };
+  await idbPut("offlineChapters", record as unknown as Record<string, unknown>);
+}
+
+export async function forgetOfflineChapter(mangaId: string, chapterId: string) {
+  await idbDelete("offlineChapters", `${mangaId}:${chapterId}`);
+}
+
+export async function removeOfflineChapter(record: OfflineChapterRecord) {
+  await removeChapterPages(record.urls);
+  await idbDelete("offlineChapters", record.key);
+}
+
+export async function retryOfflineChapter(record: OfflineChapterRecord) {
+  const result = await cacheChapterPages(record.urls);
+  await rememberOfflineChapter({ mangaId: record.mangaId, mangaTitle: record.mangaTitle, chapterId: record.chapterId, chapterTitle: record.chapterTitle, urls: record.urls, savedCount: result.saved, total: result.total });
+  return result;
+}
+
 export async function clearChapterCache(): Promise<void> {
   if (typeof window !== "undefined") localStorage.removeItem(CHAPTER_CACHE_OWNER_KEY);
+  await idbClear("offlineChapters");
   if (!hasCacheApi()) return;
   try { await caches.delete(CHAPTER_CACHE); } catch { /* already gone */ }
 }
