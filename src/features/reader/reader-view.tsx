@@ -41,6 +41,11 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const nextChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : undefined;
   const speed = useMemo(() => effectiveSpeed(settings.baseSpeedPxPerSecond, settings.autoScrollMultiplier), [settings]);
   const pause = useCallback(() => dispatch({ type: "pause" }), []);
+  const navigateChapter = useCallback((chapterId: string) => {
+    // Chapter hops stay within one reader history entry so browser/Android Back
+    // returns to the surface that opened the reader instead of replaying chapters.
+    router.replace(`${routeBasePath}/${chapterId}`);
+  }, [routeBasePath, router]);
   useAutoScroll({ playing: state.autoScrollPlaying && !reducedMotion, speedPxPerSecond: speed, onEnd: pause });
 
   const currentScrollPercentage = useCallback(() => {
@@ -178,13 +183,13 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       else if (event.key === "-" || event.key === "_") updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) });
       else if (event.key === "PageUp") { event.preventDefault(); scrollToPage(state.currentPageIndex - 1); }
       else if (event.key === "PageDown") { event.preventDefault(); scrollToPage(state.currentPageIndex + 1); }
-      else if (event.key === "ArrowLeft" && previousChapter) router.push(`${routeBasePath}/${previousChapter.id}`);
-      else if (event.key === "ArrowRight" && nextChapter) router.push(`${routeBasePath}/${nextChapter.id}`);
+      else if (event.key === "ArrowLeft" && previousChapter) navigateChapter(previousChapter.id);
+      else if (event.key === "ArrowRight" && nextChapter) navigateChapter(nextChapter.id);
       else if (event.key === "Escape" && document.fullscreenElement) void document.exitFullscreen();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [nextChapter, previousChapter, routeBasePath, router, scrollToPage, settings.autoScrollMultiplier, state.currentPageIndex, updateSettings]);
+  }, [navigateChapter, nextChapter, previousChapter, scrollToPage, settings.autoScrollMultiplier, state.currentPageIndex, updateSettings]);
 
   async function toggleFullscreen() {
     if (document.fullscreenElement) await document.exitFullscreen();
@@ -323,7 +328,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           </div>
           <label className="hidden max-w-56 sm:block">
             <span className="sr-only">Jump to chapter</span>
-            <select value={chapter.id} onChange={(event) => router.push(`${routeBasePath}/${event.target.value}`)} className="h-10 max-w-56 rounded-xl border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-300 outline-none focus:border-sky-300/60">
+            <select value={chapter.id} onChange={(event) => navigateChapter(event.target.value)} className="h-10 max-w-56 rounded-xl border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-300 outline-none focus:border-sky-300/60">
               {chapters.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
           </label>
@@ -354,9 +359,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               <button type="button" disabled={state.currentPageIndex >= pages.length - 1} onClick={() => scrollToPage(state.currentPageIndex + 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↓</button>
             </div>
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/8 pt-3 text-xs">
-              <button type="button" disabled={!previousChapter} onClick={() => previousChapter && router.push(`${routeBasePath}/${previousChapter.id}`)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous chapter</button>
+              <button type="button" disabled={!previousChapter} onClick={() => previousChapter && navigateChapter(previousChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous chapter</button>
               <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="hidden rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12 sm:block">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
-              <button type="button" disabled={!nextChapter} onClick={() => nextChapter && router.push(`${routeBasePath}/${nextChapter.id}`)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next chapter →</button>
+              <button type="button" disabled={!nextChapter} onClick={() => nextChapter && navigateChapter(nextChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next chapter →</button>
             </div>
           </div>
         </div>

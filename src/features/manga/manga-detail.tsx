@@ -296,7 +296,7 @@ export function MangaDetail({
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
       <Link href={backHref} className="inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-pink-300">← Library</Link>
 
-      <section className="mt-5 overflow-hidden rounded-[22px] border border-white/[.08] bg-gradient-to-br from-[#171520] to-[#0f0e15] p-4 shadow-[0_24px_70px_rgba(0,0,0,.2)] sm:p-6 lg:p-8">
+      <section className="manga-detail-hero mt-5 overflow-hidden rounded-[22px] p-4 sm:p-6 lg:p-8">
         <div className="grid gap-7 sm:grid-cols-[190px_1fr] lg:grid-cols-[230px_1fr] lg:gap-10">
           <div className="relative mx-auto aspect-[2/3] w-44 overflow-hidden rounded-[16px] bg-zinc-900 shadow-2xl shadow-black/35 ring-1 ring-white/10 sm:mx-0 sm:w-full">
 {manga.coverUrl ? (

@@ -6,6 +6,7 @@ import test from 'node:test';
 const ROOT = process.cwd();
 const css = readFileSync(join(ROOT, 'src/app/globals.css'), 'utf8');
 const artDirection = readFileSync(join(ROOT, 'docs/art-direction.md'), 'utf8');
+const mangaDetail = readFileSync(join(ROOT, 'src/features/manga/manga-detail.tsx'), 'utf8');
 
 test('light theme maps dark application surfaces to warm light surfaces', () => {
   assert.match(css, /html\[data-theme="light"\][\s\S]*bg-\[\#171723\]/);
@@ -35,4 +36,12 @@ test('light auth keeps hero copy readable and neutralizes browser autofill blue'
   assert.match(authPage, /auth-intro-note/);
   assert.match(css, /html\[data-theme="light"\] \.auth-intro-card/);
   assert.match(css, /input\.field:-webkit-autofill/);
+});
+
+
+test('manga detail hero has an explicit warm-paper light surface', () => {
+  assert.match(mangaDetail, /manga-detail-hero/);
+  assert.doesNotMatch(mangaDetail, /bg-gradient-to-br from-\[#171520\] to-\[#0f0e15\]/);
+  assert.match(css, /html\[data-theme="light"\] \.manga-detail-hero/);
+  assert.match(css, /linear-gradient\(145deg, #fffdfa, #f3ebe2\)/);
 });
