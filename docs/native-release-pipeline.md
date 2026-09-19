@@ -1,12 +1,12 @@
 # Native release pipeline
 
-Pachimanga's active released distribution path is the authenticated PWA v0.4.0. Native artifact workflows are retained for a separate platform phase and remain intentionally manual-only.
+Pachimanga's active released distribution path is the authenticated PWA v1.0.2. Native artifact workflows are retained for a separate platform phase and remain intentionally manual-only.
 
 This document describes the retained pipeline and the prerequisites for re-validating it later. It must not be read as authorization to publish native releases during the PWA phase.
 
 ## Current policy
 
-Even though PWA/web v0.4.0 is released, native distribution is not automatically authorized. Until the user explicitly starts the native phase:
+Even though PWA/web v1.0.2 is released, native distribution is not automatically authorized. Until the user explicitly starts the native phase:
 
 - `.github/workflows/android-apk.yml` is manual-only.
 - `.github/workflows/android-release.yml` is manual-only.

@@ -4,21 +4,20 @@ This runbook covers the released PWA/web production path. Native distribution re
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current operating mode — 2026-09-18
+## Current operating mode — 2026-09-19
 
-- release: v0.4.0;
-- production runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`; current `main` may be a documentation-only runtime-equivalent descendant;
-- production deployment: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
-- exact-head preview before merge: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;
-- operator reported final local tests/lint/typecheck/build passing;
-- production build compiled successfully and generated 22/22 static pages;
-- production `error`/`fatal` log inspection returned no matching entries;
-- GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1; absent Action runs are not treated as passes;
-- fresh exact-runtime Production Smoke remains a post-release confirmation when a network-capable environment is available.
+- release: v1.0.2;
+- production alias: `https://pachimanga.frogilab.dev`;
+- exact current release SHA/deployment and evidence: `verification-release-2026-09-19.md`;
+- GitHub Actions was observed available again on 2026-09-19; PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully;
+- native distribution remains separate and manual-only;
+- a fresh exact-v1.0.2 Production Smoke remains a post-release confirmation unless explicitly observed and recorded.
 
 Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around CI, preview, provider, or platform limitations.
 
 ## Feedback-driven runtime work
+
+GitHub Actions was observed available again on 2026-09-19; use the normal required Repository Hygiene/Web Quality/Native Quality checks. If quota/capacity becomes unavailable again, do not weaken protections and keep the missing hosted evidence explicit.
 
 Post-release runtime work should normally start from concrete user feedback. Prefer one focused branch per coherent feedback batch, reproduce the issue when practical, and minimize preview/deployment churn. Routine implementation decisions should be handled autonomously; escalate only ambiguous/destructive/security-sensitive/product-direction decisions.
 
@@ -29,7 +28,7 @@ When owner-side validation is needed, provide paste-ready PowerShell rooted at `
 For every `main` change that affects hosted runtime:
 
 1. run `npm ci` and `npm run verify` from an updated local clone or equivalent trusted environment;
-2. require the repository's Repository Hygiene and Web Quality checks when Actions capacity is available; during the documented September 2026 outage, use equivalent trustworthy local verification without claiming the hosted checks passed;
+2. require the repository's Repository Hygiene and Web Quality checks; if a future capacity/quota problem prevents them from running, keep that missing hosted evidence explicit rather than treating it as a pass;
 3. require a successful Vercel preview/build signal for runtime changes when the project can produce one;
 4. merge only after the branch/diff is reviewed and the repository's active merge rules permit it;
 5. confirm the exact intended runtime commit (or runtime-equivalent descendant) reaches a Vercel production deployment in `READY`;
@@ -57,7 +56,7 @@ Keep repository quality signals and platform capacity separate.
 - Preserve `npm run verify` as the local full gate.
 - Keep optional browser E2E separate from the merge-critical static gate unless the workplan explicitly promotes it.
 
-On or after October 1, re-check actual GitHub Actions availability. Once capacity is confirmed, restore normal hosted evidence for subsequent changes rather than retroactively relabeling outage-period local gates as Actions evidence.
+The earlier September 2026 Actions-capacity outage is historical. Do not retroactively relabel outage-period local gates as hosted Actions evidence.
 
 ## Vercel ignored-build policy
 
@@ -184,4 +183,4 @@ Operational implications of the merged performance hardening:
 - oversized WeebCentral chapter HTML is not written into Next.js Data Cache; parsed results use bounded short-lived process memory and the relay retains its own constrained cache;
 - manual per-title refresh remains forceable and does not bypass provider refusal/rate-limit behavior.
 
-Release operations remain PWA-only. Native signing/distribution remains blocked by the release-candidate gate.
+Release operations remain PWA-only for v1.0.2. Native signing/distribution remains blocked by the separate native release gate.

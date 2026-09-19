@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <AccountProfileBadge />
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-white/[.06] px-1 pt-2">
               <SyncStatusIndicator />
-              <span className="rounded-md bg-white/[.045] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">v0.4</span>
+              <span className="rounded-md bg-white/[.045] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">v1.0.2</span>
             </div>
           </div>
         </div>

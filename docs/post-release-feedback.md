@@ -1,6 +1,6 @@
 # Post-release user feedback workflow
 
-Pachimanga v0.4.0 is released. The default engineering mode is now iterative improvement driven by real user feedback.
+Pachimanga v1.0.2 is the current released line. The default engineering mode is now iterative improvement driven by real user feedback.
 
 ## Priority
 
@@ -28,20 +28,17 @@ When feedback is actionable and the safe implementation is clear, proceed autono
 
 Do not stop for confirmation on routine implementation details. Ask only when a decision is genuinely ambiguous, destructive, security-sensitive, requires credentials/secrets, changes product direction, changes production data/schema without prior authorization, or starts native/platform distribution.
 
-## GitHub Actions outage
+## GitHub Actions status
 
-GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1, 2026.
+The earlier September capacity outage is no longer the current state. On 2026-09-19, PR #82 successfully ran Repository Hygiene, Web Quality, and Native Quality.
 
-Until October 1:
+Use the normal required hosted checks. If Actions capacity/quota becomes unavailable again:
 
-- do not spend pushes attempting to obtain unavailable Actions evidence;
-- do not treat missing/skipped Actions as a pass;
+- do not treat missing/skipped Actions as passing;
 - do not weaken rulesets or quality/security checks as a workaround;
 - batch changes before pushing;
-- rely on trustworthy local verification plus Vercel exact-head build evidence for runtime work when available;
-- keep the missing hosted CI evidence explicit.
-
-On or after October 1, re-check actual Actions availability before assuming it has returned.
+- rely on trustworthy local verification plus exact-head Vercel build evidence for runtime work when available;
+- keep missing hosted CI evidence explicit.
 
 ## Local validation handoff
 

@@ -8,37 +8,30 @@ For a new development session:
 
 1. `../AGENTS.md`
 2. `WORKPLAN.md`
-3. `verification-release-2026-09-18.md`
-4. `post-release-feedback.md`
-5. `verification-2026-09-17.md`
-6. `START-HERE-NEW-CHAT.md`
-7. `architecture.md`
-8. `operations.md`
-9. `library-state.md`
-10. `reader-pwa-hardening.md`
-11. `browser-e2e-performance.md`
-12. `../supabase/README.md`
-13. `vercel-build-policy.md`
-14. `free-pwa-distribution.md`
-15. `art-direction.md`
-16. `hermes-local.md`
-17. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
+3. `verification-release-2026-09-19.md`
+4. `verification-release-2026-09-18.md` — historical v0.4.0 record
+5. `post-release-feedback.md`
+6. `verification-2026-09-17.md`
+7. `START-HERE-NEW-CHAT.md`
+8. `architecture.md`
+9. `operations.md`
+10. `library-state.md`
+11. `reader-pwa-hardening.md`
+12. `browser-e2e-performance.md`
+13. `../supabase/README.md`
+14. `vercel-build-policy.md`
+15. `free-pwa-distribution.md`
+16. `art-direction.md`
+17. `hermes-local.md`
+18. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
 
 Historical verification files remain historical evidence. Always prefer the latest dated/current-state document and verify live infrastructure before making time-sensitive claims.
 
-## Current snapshot — 2026-09-18
+## Current snapshot — 2026-09-19
 
-```text
-release:    v0.4.0
-release SHA:9e0cc7c379541db0d640ebe03383466c37d933ba
-production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
-state:      READY
-runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
-```
+Pachimanga v1.0.2 is the current PWA/web release line. It consolidates the v0.4.0 release baseline with the post-release production fixes through PR #82. Exact release SHA, Vercel deployment, CI evidence, and evidence limits are recorded in `verification-release-2026-09-19.md`.
 
-The owner designated v0.4.0 as the PWA/web release after the final local quality gate passed on the PR #74 branch. Exact-head Vercel preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`; PR #74 merged to `main`; the exact merged runtime reached production `READY`; and the inspected production `error`/`fatal` window was empty.
-
-Release functionality includes PR #72 integrity/scale/sync/library features, PR #73 light-theme polish, and PR #74 visible avatar/display-name account identity plus light-auth contrast/autofill fixes. Historical verification files remain unchanged; use `verification-release-2026-09-18.md` for the release record.
+GitHub Actions was observed healthy again on 2026-09-19: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. The prior September-capacity note is historical rather than an active operating constraint.
 
 Manual real-device/account/import matrices remain post-release validation backlog and must not be represented as already observed.
 
@@ -48,9 +41,9 @@ Manual real-device/account/import matrices remain post-release validation backlo
 | --- | --- | --- |
 | Engineering/security contract | `../AGENTS.md` | current code/live infrastructure |
 | Current priorities | `WORKPLAN.md` | live GitHub/Vercel/Supabase state |
-| Current evidence | `verification-release-2026-09-18.md` | live state + recorded evidence |
+| Current evidence | `verification-release-2026-09-19.md` | live state + recorded evidence |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | latest workplan/evidence |
-| Post-release feedback workflow | `post-release-feedback.md` | feedback intake, autonomous execution, CI outage, PowerShell handoff |
+| Post-release feedback workflow | `post-release-feedback.md` | feedback intake, autonomous execution, CI handling, PowerShell handoff |
 | Runtime architecture | `architecture.md` | `src/**`, `public/sw.js`, `relay/**`, `supabase/**` |
 | Library/progress semantics | `library-state.md` | storage/library code + Supabase schema |
 | Reader/PWA boundaries | `reader-pwa-hardening.md` | reader components + service worker/cache ownership |

@@ -2,9 +2,9 @@
 
 This is the canonical visual contract for production UI. Existing shared components and `src/app/globals.css` should implement this system. External concept images may inspire work but are not required source files and must not be treated as the only source of truth.
 
-## Release visual baseline — v0.4.0
+## Release visual baseline — v1.0.2
 
-The v0.4.0 production baseline includes the warm-paper light theme, explicit light-auth surfaces/autofill treatment, and visible signed-in avatar/display-name identity in desktop/mobile shell navigation. Future visual work should preserve both dark and light contracts rather than treating light mode as a utility inversion.
+The v1.0.2 production baseline includes the warm-paper light theme, explicit light-auth surfaces/autofill treatment, visible signed-in avatar/display-name identity, the mobile Library control cleanup, and the explicit light manga-detail hero correction. Future visual work should preserve both dark and light contracts rather than treating light mode as a utility inversion.
 
 Post-release visual work should be driven by concrete user feedback and screenshots. Fix readability, interaction, responsive, and theme regressions before introducing new visual systems. Group related low-risk polish into coherent batches to reduce deploy churn.
 

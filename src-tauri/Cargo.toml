@@ -1,6 +1,6 @@
 [package]
 name = "pachimanga-native"
-version = "0.4.0"
+version = "1.0.2"
 description = "Native shell for Pachimanga"
 authors = ["Frogidev"]
 edition = "2021"

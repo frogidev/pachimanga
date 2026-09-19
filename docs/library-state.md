@@ -1,6 +1,6 @@
 # Library state, progress, and chapter updates
 
-Release baseline: v0.4.0 production runtime `9e0cc7c379541db0d640ebe03383466c37d933ba` on Vercel deployment `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` (`READY`).
+Release baseline: v1.0.2. Exact release SHA and production deployment are recorded in `verification-release-2026-09-19.md`; the underlying library data model is carried forward from the v0.4.0 migration baseline.
 
 Pachimanga keeps provider publication state, personal reading state, chapter progress, and provider update baselines as separate concepts.
 
@@ -116,7 +116,7 @@ Library supports:
 
 ## User collections
 
-The v0.4.0 Library supports owner-scoped user collections. `library_collections` stores names and `library_collection_items` binds existing library rows into those collections using composite ownership foreign keys. Both tables have RLS enabled and authenticated owner policies. Deleting a collection removes only membership rows; deleting a library entry cascades its collection memberships.
+The v1.0.2 Library retains owner-scoped user collections. `library_collections` stores names and `library_collection_items` binds existing library rows into those collections using composite ownership foreign keys. Both tables have RLS enabled and authenticated owner policies. Deleting a collection removes only membership rows; deleting a library entry cascades its collection memberships.
 
 Collection state is synchronized with Supabase rather than becoming a separate anonymous/local library.
 
@@ -134,13 +134,13 @@ Refresh/provider failures do not fabricate chapters, erase the previous baseline
 
 Post-migration verification confirmed owner RLS/upsert constraints/grants remained intact, summary RPC `anon` execute was removed, performance advisor was clean, and leaked-password protection remained the accepted plan-limited warning.
 
-## v0.4.0 release verification — 2026-09-18
+## Historical v0.4.0 release verification — 2026-09-18
 
 The release runtime is `9e0cc7c379541db0d640ebe03383466c37d933ba` on production deployment `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` (`READY`). The exact-head preview reached `READY`, the operator reported unit tests/lint/typecheck/build passing, and the inspected production error/fatal window was empty.
 
 The merged baseline also includes owner-bound library add/remove outbox behavior, export/import collection round-trip handling, richer reading statistics, logical-device clock hardening, search deduplication, and chapter publication timestamps.
 
-Real Account A -> B -> A isolation, two-device synchronization/clock-skew behavior, live signed-in production data, installed-PWA behavior, reader-device checks, representative imports, and a fresh exact-runtime Production Smoke remain post-release validation evidence.
+Real Account A -> B -> A isolation, two-device synchronization/clock-skew behavior, live signed-in production data, installed-PWA behavior, reader-device checks, representative imports, and a fresh exact-runtime Production Smoke remain post-release validation evidence for the current v1.0.2 line.
 
 ## Earlier PR #68 library/read-state refinements — 2026-09-17
 

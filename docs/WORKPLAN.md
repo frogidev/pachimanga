@@ -4,64 +4,44 @@ This is the current operational backlog. Historical evidence lives in the dated 
 
 ## Delivery policy
 
-PWA/web v0.4.0 is released and remains the active delivery target. Native source stays compatible, but native packaging/signing/store distribution remains a separate manual-only phase that requires explicit user direction.
+PWA/web v1.0.2 is the current released line and remains the active delivery target. Native source stays compatible, but native packaging/signing/store distribution remains a separate manual-only phase that requires explicit user direction.
 
 Production URL: `https://pachimanga.frogilab.dev`
 
-### Temporary execution constraints — through September 30, 2026
+### Current execution state — 2026-09-19
 
-- GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. Do not spend pushes trying to obtain unavailable CI evidence and do not treat absent/skipped checks as a pass. Re-check actual availability on or after October 1.
-- Batch repository changes before pushing. Avoid commit-by-commit remote iteration.
-- Minimize Vercel builds: use at most one exact-head preview/build for a completed runtime batch when possible, then one production deployment after an allowed merge.
-- Keep the existing ruleset/check requirements intact; do not weaken repository protections as a workaround for quota limits.
-- Until Actions capacity returns, merge only with equivalent trustworthy local verification plus final Vercel build evidence when available, or leave the PR open with the missing gate explicit.
+- GitHub Actions was observed available again on PR #82; Repository Hygiene, Web Quality, and Native Quality all completed successfully.
+- Use the normal protected PR/check flow. If Actions capacity or quota becomes unavailable again, do not weaken protections or treat missing/skipped jobs as passing.
+- Batch repository changes before pushing and minimize unnecessary Vercel build churn.
+- Runtime changes still require exact-head Vercel evidence when practical and exact production verification after merge.
 
-## Current release state — 2026-09-18
+## Current release state — 2026-09-19
 
-```text
-release:    v0.4.0
-release SHA:9e0cc7c379541db0d640ebe03383466c37d933ba
-production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
-state:      READY
-runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
-```
+Pachimanga v1.0.2 is the current PWA/web release line. Exact release SHA, production deployment, CI evidence, and residual validation limits are maintained in `verification-release-2026-09-19.md`.
 
 Release evidence:
 
-- owner explicitly designated this state as the PWA/web v0.4.0 release;
-- PR #72 merged the integrity/scale/sync/library batch and its production Supabase migration is applied;
-- PR #73 merged the warm-paper light-theme polish;
-- PR #74 merged visible avatar/display-name account identity plus the light-auth contrast/autofill fix;
-- operator reported the final local unit tests, lint, typecheck, and production build passing on PR #74 head `e2f4b0a263ec79736be699ad704fe33b2211f1f1`;
-- exact-head preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`;
-- exact merged runtime deployed as `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
-- Vercel build compiled successfully, TypeScript completed, and 22/22 static pages generated;
-- production `error`/`fatal` inspection for the release deployment returned no matching logs in the inspected window;
-- GitHub Actions capacity remains unavailable for the remainder of September 2026 and is not being misrepresented as a passing signal.
+- the v0.4.0 release remains preserved as historical evidence in `verification-release-2026-09-18.md`;
+- PR #77 merged Web Vitals attribution hardening;
+- PRs #79–#81 merged the mobile Library/theme/list/control feedback fixes;
+- PR #82 merged the light manga-detail correction and reader browser-history/Back-navigation fix;
+- PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully;
+- merged runtime `ba8083df5a51ea352f84aecceadae29be3e4983d` reached production deployment `dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc` in `READY` state with no alias error;
+- the inspected post-deploy Vercel `error`/`fatal` window was empty and anonymous root remained `private, no-store`;
+- the v1.0.2 release/versioning branch aligns project/native metadata, the visible shell version, and current-state documentation; its final protected merge/deployment evidence is maintained in `verification-release-2026-09-19.md`.
 
-A fresh credential-free Production Smoke on this exact release runtime was not observed by the agent session and remains a post-release confirmation item.
+A fresh credential-free Production Smoke on the exact final v1.0.2 runtime remains a post-release confirmation item unless it is explicitly observed and recorded.
 
-See `verification-release-2026-09-18.md`.
-
-## Current post-release runtime — 2026-09-19
+## Current pre-versioning production baseline — 2026-09-19
 
 ```text
-main/runtime: 58b6df6bfc76400081ae38ef381d26558a875ac9
-production:   dpl_6LUeSkd1vdjRtVKXbj99Kwk78Wjt
+main/runtime: ba8083df5a51ea352f84aecceadae29be3e4983d
+production:   dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc
 state:        READY
-change:       PR #77 Web Vitals route-attribution fix
+change:       PR #82 light-theme + reader Back-navigation hardening
 ```
 
-Post-release verification for this runtime:
-
-- PR #77 required `hygiene` and `quality` checks completed successfully; the quality job ran unit tests, lint, typecheck, and production build successfully.
-- The runtime-equivalent preview `dpl_6LWEmHiv9VAABjTKvHYc2DKaZN5s` reached `READY`; the final PR amendment changed only regression-test matching, so its Vercel attempt was canceled without changing hosted runtime code.
-- Production deployment `dpl_6LUeSkd1vdjRtVKXbj99Kwk78Wjt` reached `READY` at merged SHA `58b6df6bfc76400081ae38ef381d26558a875ac9`; Vercel compiled successfully, completed TypeScript, and generated 22/22 static pages.
-- Post-deploy Vercel error/fatal inspection returned no matching runtime errors in the inspected window.
-- On 2026-09-19, the operator ran `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from an updated local `main`; result: pass, 12 protected routes and 4 PWA icons checked.
-- The successful PR #77 Actions runs are recorded as evidence for that PR only and do not change the standing September capacity policy; continue to avoid retry churn and do not assume normal Actions capacity before the October 1 re-check.
-
-The original v0.4.0 release SHA remains historical release evidence. The post-release smoke above validates the current production runtime; it does not retroactively claim a fresh smoke against the old release deployment.
+This baseline is the fully verified product state immediately before the v1.0.2 version/documentation bump. The exact final v1.0.2 merge SHA and deployment supersede it in the current release verification document.
 
 ## Post-release operating priority
 
@@ -124,7 +104,7 @@ Required behavior:
 
 ## Post-release manual validation backlog
 
-The v0.4.0 release decision does not fabricate these observations. They remain recommended post-release validation/regression evidence using real identities/devices.
+The v1.0.2 release decision does not fabricate these observations. They remain recommended post-release validation/regression evidence using real identities/devices.
 
 ### Authentication/account isolation
 
@@ -215,7 +195,7 @@ The optional `ops/browser-e2e.mjs` may be used only where Playwright + Chromium 
 
 ## Release decision and residual evidence
 
-Pachimanga v0.4.0 is considered released on the PWA/web path as of 2026-09-18 by explicit owner decision.
+Pachimanga v1.0.2 is the current released PWA/web line as of 2026-09-19 by explicit owner decision.
 
 Verified/implemented release facts:
 
@@ -253,7 +233,7 @@ Still deferred or externally blocked:
 
 ## Exact next task
 
-Treat v0.4.0 as the production baseline. Apply real user feedback as focused post-release improvements. Do not expand features merely to accumulate work.
+Treat v1.0.2 as the production baseline. Apply real user feedback as focused post-release improvements. Do not expand features merely to accumulate work.
 
 Next work should be one of:
 

@@ -1,5 +1,7 @@
 # Pachimanga v0.4.0 release verification — 2026-09-18
 
+> Historical release record. This file preserves the evidence for v0.4.0 as observed on 2026-09-18. The current release line is v1.0.2; see `verification-release-2026-09-19.md`. Evidence below is intentionally not rewritten to imply later checks occurred on the older runtime.
+
 This document records the PWA/web v0.4.0 release decision and the evidence actually observed. It intentionally distinguishes verified facts from manual evidence that remains outstanding.
 
 ## Release identity
