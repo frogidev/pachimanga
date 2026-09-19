@@ -72,6 +72,8 @@ Primary code areas:
 
 Intentionally anonymous application surfaces are limited to auth flows and `/offline`. Protected application navigation without a valid session resolves to the authentication experience. Session-bearing responses are expected to remain private/non-shared-cacheable.
 
+Global web response headers also deny framing/object embedding, constrain form submission to the same origin, and advertise HTTPS-only transport with HSTS. Broader script/style/worker CSP restrictions require browser/import verification before enforcement because OCR and SQL-WASM import paths load worker/WASM assets at runtime.
+
 ## Supabase data model
 
 Account-owned synchronized tables:
