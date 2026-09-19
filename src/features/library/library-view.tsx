@@ -348,7 +348,7 @@ export function LibraryView() {
             <kbd className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-white/[.08] bg-white/[.035] px-2 py-1 font-sans text-[10px] text-zinc-500 sm:inline-flex">Ctrl K</kbd>
           </label>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
             <label className="sr-only" htmlFor="library-sort">Sort library</label>
             <select
               id="library-sort"
@@ -362,14 +362,14 @@ export function LibraryView() {
               <option value="added">Recently Added</option>
               <option value="title">Title A–Z</option>
             </select>
-            <div className="hidden rounded-[12px] border border-white/[.08] bg-[#12121b] p-1 md:flex" aria-label="Library layout">
+            <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1" aria-label="Library layout">
               <button type="button" onClick={() => changeView("grid")} aria-label="Grid view" aria-pressed={view === "grid"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><GridIcon /></button>
               <button type="button" onClick={() => changeView("compact")} aria-label="List view" aria-pressed={view === "compact"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><ListIcon /></button>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-4 hidden gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex">
           {filters.map((item) => (
             <button
               key={item}
@@ -385,7 +385,7 @@ export function LibraryView() {
           ))}
         </div>
 
-        <section className="mt-3 rounded-2xl border border-white/[.07] bg-[#111019] p-3" aria-label="Library collections">
+        <section className="mt-3 hidden rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:block" aria-label="Library collections">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
@@ -432,7 +432,7 @@ export function LibraryView() {
                 <p className="pixel-kicker text-[9px] text-sky-300">Pick up where you left off</p>
                 <h2 id="continue-reading-heading" className="mt-1 text-lg font-semibold text-zinc-100">Continue Reading</h2>
               </div>
-              <button type="button" onClick={() => setSort("lastRead")} className="text-xs text-zinc-500 transition hover:text-zinc-200">Sort by last read</button>
+              <span className="text-xs text-zinc-500">Recent activity</span>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               {continueReading.map(({ entry, manga: title }) => {
@@ -472,25 +472,55 @@ export function LibraryView() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3 md:hidden" aria-label="Library layout">
-          <span className="text-xs font-medium text-zinc-500">Layout</span>
-          <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1">
-            <button
-              type="button"
-              onClick={() => changeView("grid")}
-              aria-pressed={view === "grid"}
-              className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
-            >
-              <GridIcon /> Grid
-            </button>
-            <button
-              type="button"
-              onClick={() => changeView("compact")}
-              aria-pressed={view === "compact"}
-              className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
-            >
-              <ListIcon /> List
-            </button>
+        <div className="mt-3 grid gap-3 rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:hidden" aria-label="Mobile library controls">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="grid min-w-0 gap-1 text-[10px] font-medium uppercase tracking-[.08em] text-zinc-500" htmlFor="library-mobile-sort">
+              Sort
+              <select
+                id="library-mobile-sort"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SortMode)}
+                className="field h-11 min-w-0 w-full px-3 text-xs normal-case tracking-normal"
+              >
+                <option value="recent">Recently Updated</option>
+                <option value="lastRead">Last Read</option>
+                <option value="progress">Progress</option>
+                <option value="added">Recently Added</option>
+                <option value="title">Title A–Z</option>
+              </select>
+            </label>
+            <label className="grid min-w-0 gap-1 text-[10px] font-medium uppercase tracking-[.08em] text-zinc-500" htmlFor="library-mobile-filter">
+              Status
+              <select
+                id="library-mobile-filter"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value as FilterMode)}
+                className="field h-11 min-w-0 w-full px-3 text-xs normal-case tracking-normal"
+              >
+                {filters.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center justify-between gap-3" aria-label="Library layout">
+            <span className="text-xs font-medium text-zinc-500">Layout</span>
+            <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1">
+              <button
+                type="button"
+                onClick={() => changeView("grid")}
+                aria-pressed={view === "grid"}
+                className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
+              >
+                <GridIcon /> Grid
+              </button>
+              <button
+                type="button"
+                onClick={() => changeView("compact")}
+                aria-pressed={view === "compact"}
+                className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
+              >
+                <ListIcon /> List
+              </button>
+            </div>
           </div>
         </div>
 
