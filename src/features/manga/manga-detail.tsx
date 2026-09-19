@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SourceMigrationPanel } from "@/components/source-migration-panel";
+import { AniListTrackingPanel } from "@/components/anilist-tracking-panel";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getMangaProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
@@ -103,6 +104,10 @@ export function MangaDetail({
   const latestChapter = useMemo(() => latestReadableChapter(chapters), [chapters]);
   const readCount = useMemo(
     () => chapters.filter((chapter) => (chapterProgress[chapter.id] ?? 0) >= 99).length,
+    [chapters, chapterProgress],
+  );
+  const trackingChapter = useMemo(
+    () => summarizeReadState(chapters, chapterProgress).lastChapterRead,
     [chapters, chapterProgress],
   );
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
@@ -352,6 +357,7 @@ export function MangaDetail({
                 </label>
               ) : null}
             </div>
+            {inLibrary ? <AniListTrackingPanel manga={manga} progress={trackingChapter} status={readingStatus} /> : null}
             {inLibrary && manga.sourceId !== "import" ? (
               <SourceMigrationPanel
                 manga={manga}
