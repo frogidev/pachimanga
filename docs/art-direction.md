@@ -114,10 +114,11 @@ Rules:
 
 - Welcome/brand section can use the warm room/mascot visual language.
 - Search remains prominent and keyboard friendly.
-- Status filters use consistent pills.
+- Status filters use consistent pills on larger screens; on phones, sorting and status filtering are compact labeled selectors placed with the "Your Library" content they affect.
 - Grid manga cards keep a 2:3 cover ratio, clear title/status/progress hierarchy, and predictable action placement.
 - Library list/compact view is a real horizontal row layout rather than a denser grid of the same hero cards.
 - Personal reading-status editing belongs on manga detail; card overflow menus stay limited to list-level organization/removal actions.
+- Collection management is a larger-screen Library tool and is hidden from the phone layout to keep mobile controls focused on search, sort, status, and layout.
 - Empty library state should guide the user toward Browse/Import rather than showing fake manga.
 
 ### Browse

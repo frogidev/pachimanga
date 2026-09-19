@@ -57,3 +57,23 @@ test('mobile library layout control sits next to the content it changes and pers
   assert.match(library, /function changeView\(next: ViewMode\)[\s\S]*setView\(next\)[\s\S]*localStorage\.setItem\(LIBRARY_VIEW_KEY, next\)/);
   assert.match(library, /hidden[\s\S]*md:flex[\s\S]*aria-label="Library layout"/);
 });
+
+
+test('mobile sort and status controls are scoped to Your Library instead of looking page-global', () => {
+  const libraryHeading = library.indexOf('Your Library');
+  const mobileControls = library.indexOf('aria-label="Mobile library controls"', libraryHeading);
+  const cards = library.indexOf('variant={view === "compact" ? "compact" : "grid"}');
+  assert.ok(libraryHeading >= 0);
+  assert.ok(mobileControls > libraryHeading);
+  assert.ok(cards > mobileControls);
+  assert.match(library, /id="library-mobile-sort"[\s\S]*onChange=\{\(event\) => setSort/);
+  assert.match(library, /id="library-mobile-filter"[\s\S]*onChange=\{\(event\) => setFilter/);
+  assert.match(library, /Status[\s\S]*filters\.map/);
+});
+
+test('mobile hides collection management and desktop-only filter chrome', () => {
+  assert.match(library, /hidden[\s\S]*md:block" aria-label="Library collections"/);
+  assert.match(library, /mt-4 hidden gap-2[\s\S]*md:flex/);
+  assert.doesNotMatch(library, /onClick=\{\(\) => setSort\("lastRead"\)\}/);
+  assert.match(library, /Recent activity/);
+});

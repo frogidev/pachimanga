@@ -104,7 +104,8 @@ Implemented and merged:
 - warm-paper light theme across core surfaces including readable auth/autofill behavior;
 - display name/avatar identity surfaced in desktop/mobile shell navigation with immediate post-save refresh;
 - post-release mobile-library feedback hardening: reachable mobile theme switching, a genuine list layout, unclipped/list-safe card actions with reading status moved to manga detail, factual Browse library badges, and manga-detail hydration of synced per-chapter progress;
-- mobile layout-toggle follow-up: the Grid/List control is scoped next to the "Your Library" content it changes on phones, with visible labels and immediate preference persistence instead of appearing inert above the unrelated Continue Reading section.
+- mobile layout-toggle follow-up: the Grid/List control is scoped next to the "Your Library" content it changes on phones, with visible labels and immediate preference persistence instead of appearing inert above the unrelated Continue Reading section;
+- mobile library-control follow-up: sort/status controls now live with "Your Library" on phones, status uses a compact selector instead of an off-screen horizontal pill rail, collection management is hidden on phone widths, and Continue Reading no longer exposes a sort action that actually targeted the lower Library list.
 
 ## Production-data truthfulness contract
 
