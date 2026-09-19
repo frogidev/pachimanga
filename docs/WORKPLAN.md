@@ -36,12 +36,12 @@ A fresh credential-free Production Smoke on the exact final v1.0.2 runtime remai
 
 ## Current v1.0.2 production runtime — 2026-09-19
 
-\`\`\`text
+```text
 release/runtime: 2fae75f7ed35295bd906babcd26da2ad24d47f37
 production:      dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ
 state:           READY
 alias:           https://pachimanga.frogilab.dev
-\`\`\`
+```
 
 The runtime-changing release-prep commit had a `READY` Vercel preview; later branch commits were documentation-only and were correctly ignored by the Vercel build policy. Exact CI/deployment evidence and residual manual gaps are recorded in `verification-release-2026-09-19.md`.
 

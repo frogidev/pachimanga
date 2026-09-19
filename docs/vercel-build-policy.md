@@ -73,18 +73,18 @@ Exact merged SHA, production deployment ID/state, and release evidence are recor
 
 v1.0.2 release evidence:
 
-\`\`\`text
+```text
 runtime-changing release-prep commit: 001a6d0d8aa03ec5eab1c280d31fd4f1915f5b96
 runtime-equivalent preview:            dpl_3iT8XMyGRpsiUgr3WrNTAv4SuWix (READY)
 release runtime:                       2fae75f7ed35295bd906babcd26da2ad24d47f37
 production:                            dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ (READY)
-\`\`\`
+```
 
 PR #83 completed Repository Hygiene, Web Quality, and Native Quality successfully. Later release-branch commits changed documentation only, so Vercel correctly canceled those redundant builds through the ignored-build step. The protected squash merge deployed the exact v1.0.2 runtime to production; the deployment reached `READY` with no alias error, anonymous root remained `private, no-store`, and inspected post-deploy runtime/error/fatal signals were clean.
 
 ## Current validation mode
 
-Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions was observed available again on 2026-09-19, including successful Repository Hygiene, Web Quality, and Native Quality on PR #82. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
+Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions was observed available again on 2026-09-19, including successful Repository Hygiene, Web Quality, and Native Quality on the v1.0.2 release PR #83. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
 
 1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
 2. local `npm ci` + `npm run verify` when available;

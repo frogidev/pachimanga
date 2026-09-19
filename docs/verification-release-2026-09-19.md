@@ -4,7 +4,7 @@ This document is the current release record for the authenticated PWA/web produc
 
 ## Release identity
 
-\`\`\`text
+```text
 release:              v1.0.2
 release PR:           #83
 release branch head:  b8864ddf6266151a47ae2e44f49343be81a8d678
@@ -13,7 +13,7 @@ runtime-equivalent preview: dpl_3iT8XMyGRpsiUgr3WrNTAv4SuWix (READY)
 production deployment:dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ
 production state:     READY
 production alias:     https://pachimanga.frogilab.dev
-\`\`\`
+```
 
 The owner designated the current product line as v1.0.2. PR #83 merged through the protected squash-merge path, and the exact merged runtime reached the production alias in `READY` state.
 
