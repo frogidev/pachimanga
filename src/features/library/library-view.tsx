@@ -106,9 +106,10 @@ export function LibraryView() {
   const searchRef = useRef<HTMLInputElement>(null);
   const sourceRefreshRunning = useRef(false);
 
-  useEffect(() => {
-    try { localStorage.setItem(LIBRARY_VIEW_KEY, view); } catch { /* optional preference */ }
-  }, [view]);
+  function changeView(next: ViewMode) {
+    setView(next);
+    try { localStorage.setItem(LIBRARY_VIEW_KEY, next); } catch { /* optional preference */ }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -361,9 +362,9 @@ export function LibraryView() {
               <option value="added">Recently Added</option>
               <option value="title">Title A–Z</option>
             </select>
-            <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1">
-              <button onClick={() => setView("grid")} aria-label="Grid view" aria-pressed={view === "grid"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><GridIcon /></button>
-              <button onClick={() => setView("compact")} aria-label="Compact view" aria-pressed={view === "compact"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><ListIcon /></button>
+            <div className="hidden rounded-[12px] border border-white/[.08] bg-[#12121b] p-1 md:flex" aria-label="Library layout">
+              <button type="button" onClick={() => changeView("grid")} aria-label="Grid view" aria-pressed={view === "grid"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><GridIcon /></button>
+              <button type="button" onClick={() => changeView("compact")} aria-label="List view" aria-pressed={view === "compact"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><ListIcon /></button>
             </div>
           </div>
         </div>
@@ -463,11 +464,33 @@ export function LibraryView() {
             </div>
           </div>
           <div className="flex items-center gap-3 pb-1">
-            {checkingUpdates ? <span className="text-xs text-zinc-600">Checking updates…</span> : null}
+            {checkingUpdates ? <span className="hidden text-xs text-zinc-600 sm:inline">Checking updates…</span> : null}
             {unmatchedImports.length ? (
-              <button type="button" onClick={() => void purgeUnmatchedImports()} className="text-xs text-zinc-500 transition hover:text-red-300">Clear {unmatchedImports.length} unmatched import{unmatchedImports.length === 1 ? "" : "s"}</button>
+              <button type="button" onClick={() => void purgeUnmatchedImports()} className="hidden text-xs text-zinc-500 transition hover:text-red-300 sm:inline">Clear {unmatchedImports.length} unmatched import{unmatchedImports.length === 1 ? "" : "s"}</button>
             ) : null}
             <span className="text-xs text-zinc-500">{manga.length} title{manga.length === 1 ? "" : "s"}</span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3 md:hidden" aria-label="Library layout">
+          <span className="text-xs font-medium text-zinc-500">Layout</span>
+          <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1">
+            <button
+              type="button"
+              onClick={() => changeView("grid")}
+              aria-pressed={view === "grid"}
+              className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
+            >
+              <GridIcon /> Grid
+            </button>
+            <button
+              type="button"
+              onClick={() => changeView("compact")}
+              aria-pressed={view === "compact"}
+              className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
+            >
+              <ListIcon /> List
+            </button>
           </div>
         </div>
 
