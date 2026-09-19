@@ -112,7 +112,7 @@ async function mdFetch<T>(path: string, revalidate = 300): Promise<T> {
     const response = await fetchWithSourceRetry(`${API}${path}`, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'Pachimanga/0.4 (+https://pachimanga.frogilab.dev)',
+        'User-Agent': 'Pachimanga/1.0.2 (+https://pachimanga.frogilab.dev)',
       },
       signal: controller.signal,
       next: { revalidate },
