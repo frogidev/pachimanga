@@ -93,7 +93,7 @@ function refreshSyncSnapshot() {
   if (refreshPromise) return refreshPromise;
   refreshPromise = readSyncSnapshot()
     .then((next) => {
-      const pending = next.pendingProgress + next.pendingSettings;
+      const pending = next.pendingLibrary + next.pendingProgress + next.pendingSettings;
       if (next.online && previousPending != null && previousPending > 0 && pending === 0) {
         const now = new Date().toISOString();
         writeLastSyncedAt(now);
@@ -223,7 +223,7 @@ export function SyncStatusPanel() {
       ? `${snapshot.pendingLibrary} library, ${snapshot.pendingProgress} reading and ${snapshot.pendingSettings} settings change${pending === 1 ? '' : 's'} still pending.`
       : relative
         ? `No pending changes. Last queue flush completed ${relative}.`
-        : 'No pending reading-progress or settings changes.';
+        : 'No pending library, reading-progress or settings changes.';
 
   async function runSync(label: string) {
     if (!snapshot.online || action.kind === 'running') return;
