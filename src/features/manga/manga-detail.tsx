@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SourceMigrationPanel } from "@/components/source-migration-panel";
 import { AniListTrackingPanel } from "@/components/anilist-tracking-panel";
+import { MyAnimeListTrackingPanel } from "@/components/myanimelist-tracking-panel";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getMangaProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
@@ -357,7 +358,7 @@ export function MangaDetail({
                 </label>
               ) : null}
             </div>
-            {inLibrary ? <AniListTrackingPanel manga={manga} progress={trackingChapter} status={readingStatus} /> : null}
+            {inLibrary ? <><AniListTrackingPanel manga={manga} progress={trackingChapter} status={readingStatus} /><MyAnimeListTrackingPanel manga={manga} progress={trackingChapter} status={readingStatus} /></> : null}
             {inLibrary && manga.sourceId !== "import" ? (
               <SourceMigrationPanel
                 manga={manga}
