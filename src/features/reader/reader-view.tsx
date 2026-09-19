@@ -8,7 +8,7 @@ import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
 import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
-import { effectiveReaderSettings } from "@/features/reader/presets";
+import { effectiveReaderSettings, setTitleReaderPreset } from "@/features/reader/presets";
 import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
@@ -173,8 +173,14 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   }, [pause, state.autoScrollPlaying]);
 
   const updateSettings = useCallback((patch: Partial<ReaderSettings>) => {
-    saveReaderSettings({ ...getReaderSettingsSnapshot(), ...patch });
-  }, []);
+    let current = getReaderSettingsSnapshot();
+    if (patch.fitMode || patch.preloadPages) current = setTitleReaderPreset(current, manga.id, null);
+    saveReaderSettings({ ...current, ...patch });
+  }, [manga.id]);
+
+  const applyTitlePreset = useCallback((preset: "manga" | "webtoon" | null) => {
+    saveReaderSettings(setTitleReaderPreset(getReaderSettingsSnapshot(), manga.id, preset));
+  }, [manga.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -370,7 +376,12 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
               <button type="button" disabled={state.currentPageIndex >= pages.length - 1} onClick={() => scrollToPage(state.currentPageIndex + 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↓</button>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/8 pt-3 text-xs">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/8 pt-3 text-xs">
+              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "manga"} onClick={() => applyTitlePreset("manga")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Manga preset</button>
+              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "webtoon"} onClick={() => applyTitlePreset("webtoon")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Webtoon preset</button>
+              {storedSettings.titlePresets?.[manga.id] ? <button type="button" onClick={() => applyTitlePreset(null)} className="rounded-xl px-3 py-2 text-zinc-500 hover:bg-white/8 hover:text-white">Account default</button> : null}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2 text-xs">
               <button type="button" disabled={!previousChapter} onClick={() => previousChapter && navigateChapter(previousChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous chapter</button>
               <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="hidden rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12 sm:block">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
               <button type="button" disabled={!nextChapter} onClick={() => nextChapter && navigateChapter(nextChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next chapter →</button>
