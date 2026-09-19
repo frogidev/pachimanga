@@ -9,6 +9,9 @@ type ReaderSettingsExport = {
   fitMode?: 'width' | 'screen';
   theme?: 'dark' | 'light';
   keepScreenAwake?: boolean;
+  preloadPages?: 1 | 2 | 3 | 4;
+  defaultPreset?: 'manga' | 'webtoon';
+  titlePresets?: Record<string, 'manga' | 'webtoon'>;
 };
 
 function safeReaderSettings(value: unknown): ReaderSettingsExport {
@@ -20,6 +23,11 @@ function safeReaderSettings(value: unknown): ReaderSettingsExport {
   if (input.fitMode === 'width' || input.fitMode === 'screen') output.fitMode = input.fitMode;
   if (input.theme === 'dark' || input.theme === 'light') output.theme = input.theme;
   if (typeof input.keepScreenAwake === 'boolean') output.keepScreenAwake = input.keepScreenAwake;
+  if ([1, 2, 3, 4].includes(Number(input.preloadPages))) output.preloadPages = Number(input.preloadPages) as 1 | 2 | 3 | 4;
+  if (input.defaultPreset === 'manga' || input.defaultPreset === 'webtoon') output.defaultPreset = input.defaultPreset;
+  if (input.titlePresets && typeof input.titlePresets === 'object' && !Array.isArray(input.titlePresets)) {
+    output.titlePresets = Object.fromEntries(Object.entries(input.titlePresets as Record<string, unknown>).filter(([id, preset]) => id.length <= 160 && (preset === 'manga' || preset === 'webtoon')).slice(-200)) as Record<string, 'manga' | 'webtoon'>;
+  }
   return output;
 }
 
@@ -127,8 +135,16 @@ export async function GET() {
     const exportedAt = new Date().toISOString();
     const body = {
       format: 'pachimanga-account-export',
-      version: 1,
+      version: 2,
+      appVersion: '1.0.2',
       exportedAt,
+      recordCounts: {
+        library: library.length,
+        progress: progress.length,
+        history: history.length,
+        collections: collections.length,
+        collectionItems: collectionItems.length,
+      },
       library,
       progress,
       history,
