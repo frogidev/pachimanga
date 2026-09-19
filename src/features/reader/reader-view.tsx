@@ -8,6 +8,7 @@ import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
 import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
+import { effectiveReaderSettings } from "@/features/reader/presets";
 import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
@@ -18,7 +19,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 }) {
   const router = useRouter();
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
-  const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
+  const storedSettings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
+  const settings = useMemo(() => effectiveReaderSettings(storedSettings, manga.id), [manga.id, storedSettings]);
   const reducedMotion = useReducedMotion();
   const wakeLock = useScreenWakeLock(Boolean(settings.keepScreenAwake));
   const [loadedChapterId, setLoadedChapterId] = useState<string | null>(null);
@@ -142,10 +144,10 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   }, [hydrated, persistCurrentProgress, state.currentPageIndex, updateProgressIndicator]);
 
   useEffect(() => {
-    const upcoming = getPreloadWindow(pages, state.currentPageIndex, 2);
+    const upcoming = getPreloadWindow(pages, state.currentPageIndex, settings.preloadPages || 2);
     const preloads = upcoming.map((page) => { const image = new window.Image(); image.decoding = "async"; image.src = page.imageUrl; return image; });
     return () => { preloads.forEach((image) => { image.src = ""; }); };
-  }, [pages, state.currentPageIndex]);
+  }, [pages, settings.preloadPages, state.currentPageIndex]);
 
   useEffect(() => {
     if (!state.autoScrollPlaying || !state.controlsVisible) return;
@@ -217,11 +219,12 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     setOfflineBusy(true);
     setOfflineError(null);
     try {
-      const { cacheChapterPages, removeChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
+      const { cacheChapterPages, forgetOfflineChapter, rememberOfflineChapter, removeChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
       const urls = uniquePageUrls(pages);
       const fullySaved = Boolean(offlineState && offlineState.total > 0 && offlineState.saved >= offlineState.total);
       if (fullySaved) {
         await removeChapterPages(urls);
+        await forgetOfflineChapter(manga.id, chapter.id);
         setOfflineState({ saved: 0, total: urls.length });
       } else {
         const result = await cacheChapterPages(
@@ -230,6 +233,15 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           { signal: controller.signal },
         );
         setOfflineState({ saved: result.saved, total: result.total });
+        await rememberOfflineChapter({
+          mangaId: manga.id,
+          mangaTitle: manga.title,
+          chapterId: chapter.id,
+          chapterTitle: chapter.title,
+          urls,
+          savedCount: result.saved,
+          total: result.total,
+        });
         if (result.failed) setOfflineError(`${result.failed} page${result.failed === 1 ? "" : "s"} could not be cached.`);
       }
       window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
