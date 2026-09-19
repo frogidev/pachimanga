@@ -15,7 +15,7 @@ Before changing repository/deployment state:
 2. Resolve current `main` HEAD.
 3. List open PRs relevant to the work.
 4. Inspect active work branch and compare it to `main`.
-5. Inspect relevant GitHub Actions status/logs when capacity is available; through September 30, 2026, record unavailable Actions explicitly instead of retrying pushes.
+5. Inspect relevant GitHub Actions status/logs. Actions was observed available again on 2026-09-19; if capacity becomes unavailable later, record that explicitly instead of retrying pushes.
 6. Inspect latest Vercel production deployment for runtime work.
 7. Confirm whether the user requested code only, merge, deployment, or production mutation. Do not broaden authority silently.
 
@@ -29,9 +29,11 @@ Before changing repository/deployment state:
 - Review changed filenames/diff before merge, even if CI is green.
 - Keep native release workflows manual-only during the PWA phase.
 
-## Temporary Actions outage
+## GitHub Actions availability
 
-GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. During this window, do not weaken rulesets, do not report missing checks as passing, and do not create push churn attempting to obtain unavailable jobs. Use trustworthy local gates plus exact-head Vercel build evidence for runtime changes when practical. Re-check real availability on or after October 1.
+GitHub Actions was observed available again on 2026-09-19: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. Use the normal required checks.
+
+If capacity/quota becomes unavailable again, do not weaken rulesets, do not report missing checks as passing, and do not create push churn attempting to obtain unavailable jobs. Use trustworthy local gates plus exact-head Vercel build evidence for runtime changes when practical and keep the missing hosted evidence explicit.
 
 ## CI failure protocol
 

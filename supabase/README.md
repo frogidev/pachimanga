@@ -4,7 +4,7 @@ Pachimanga production uses Supabase project `gwpgaojsemcfikgynxwv`. The active m
 
 ## Production migration history
 
-Verified against production through the v0.4.0 release on 2026-09-18:
+The production schema/RLS baseline verified for v0.4.0 remains the active data model for v1.0.2. The v1.0.2 release/versioning batch does not add or mutate production schema. The following remains verified:
 
 | Version | Name | Purpose |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ The current client complements the database guards with owner-bound local retry 
 
 Library add/remove uses an owner-bound IndexedDB `libraryOutbox`; pending mutations are reconciled with remote snapshots so reconnect cannot visually undo unsynced local intent. Library reading status and provider-update metadata are stored in the same owner-RLS-protected `library_entries` row. Pending progress outbox writes suppress automatic status persistence from a potentially stale aggregate until the queue has flushed.
 
-Client timestamps remain part of the ordering model, with logical-device clock hardening in the v0.4.0 client. Real two-device/near-simultaneous behavior remains post-release validation evidence.
+Client timestamps remain part of the ordering model, with logical-device clock hardening retained in the v1.0.2 client. Real two-device/near-simultaneous behavior remains post-release validation evidence.
 
 ## Repository layout
 
@@ -124,14 +124,14 @@ Before a production push, review pending migrations and SQL. Production mutation
 
 ## Current advisor state
 
-As of the 2026-09-18 post-migration/release check:
+As of the 2026-09-18 post-migration check, carried forward unchanged for v1.0.2:
 
 - security advisor: known leaked-password-protection warning remains;
 - performance advisor: the new collection lookup index was reported unused while the new collection tables had no rows.
 
 The leaked-password-protection warning is accepted/documented under the current plan rather than treated as evidence that owner RLS or account isolation is absent. An unused-index advisory immediately after adding empty tables is tracked as usage evidence, not a reason to remove the ownership lookup index without workload data.
 
-## v0.4.0 release data-model note
+## v1.0.2 release data-model note
 
 Production migration `20260918010000_pwa_collections_profile_and_clear_rpc.sql` is applied. `profiles` is the canonical personalization row for `display_name` and `avatar_url`; Auth metadata remains a compatibility mirror. Collections are owner-RLS protected, and `clear_my_library()` is `SECURITY INVOKER`, authenticated-only, and operates on the current `auth.uid()`.
 

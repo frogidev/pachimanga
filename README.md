@@ -2,33 +2,23 @@
 
 **Your manga. Everywhere.**
 
-Pachimanga is a private, account-based manga reader built with Next.js 16 and Supabase. PWA/web v0.4.0 is the released production product. Native distribution remains a separate manual phase and is not automatically enabled by the web release.
+Pachimanga is a private, account-based manga reader built with Next.js 16 and Supabase. PWA/web v1.0.2 is the current released production line. Native distribution remains a separate manual phase and is not automatically enabled by the web release.
 
 Production: `https://pachimanga.frogilab.dev`
 
-## Release state — 2026-09-18
+## Release state — 2026-09-19
 
-Pachimanga v0.4.0 is released on the authenticated PWA/web production path.
+Pachimanga v1.0.2 is the current authenticated PWA/web release line.
 
-```text
-release:    v0.4.0
-release SHA:9e0cc7c379541db0d640ebe03383466c37d933ba
-production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
-state:      READY
-runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
-```
+The v1.0.2 designation consolidates the v0.4.0 production baseline with the subsequent Web Vitals attribution fix, mobile-library feedback fixes, mobile control/layout fixes, and the light-theme + reader Back-navigation hardening through PR #82. Exact release SHA/deployment evidence is maintained in `docs/verification-release-2026-09-19.md`; the older v0.4.0 record remains historical evidence in `docs/verification-release-2026-09-18.md`.
 
-The release includes the consolidated PWA integrity/scale work from PR #72, light-theme polish from PR #73, and visible account identity plus auth light-theme fixes from PR #74. The final PR #74 exact-head preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`; the merged production deployment reached `READY` and Vercel returned no `error`/`fatal` runtime logs in the inspected post-deploy window.
-
-The operator reported the final local `npm test`, lint, typecheck, and production build gate passing before merge. GitHub Actions capacity remains unavailable for the rest of September 2026, so missing hosted Action runs are not represented as passing evidence.
-
-See `docs/verification-release-2026-09-18.md` for the release record and explicit evidence limits.
+GitHub Actions is currently available again: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully on 2026-09-19.
 
 ## Post-release development
 
 Pachimanga is now in a feedback-driven improvement phase. Concrete user reports, screenshots, and reproducible friction should be treated as the primary product input. Clear and safe fixes should be handled autonomously in focused batches, with regression coverage and concise handoff.
 
-GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. Until then, use trustworthy local verification plus Vercel exact-head build evidence for runtime changes when available; never treat missing Actions as a pass or weaken protections to work around the outage.
+GitHub Actions was observed available again on 2026-09-19. Use the normal required hosted checks; if quota/capacity becomes unavailable again, keep the missing signal explicit and never weaken protections to work around it.
 
 When local validation is needed, owner-facing instructions should be paste-ready PowerShell rooted at `F:\LF\pachimanga`.
 
@@ -88,7 +78,7 @@ See `docs/architecture.md`, `docs/library-state.md`, `docs/reader-pwa-hardening.
 
 ## Post-release validation backlog
 
-The owner designated v0.4.0 as released on 2026-09-18. That release decision does not fabricate manual evidence that was not collected. The following remain useful post-release validation targets and regression checks:
+The owner designated v1.0.2 as the current release line on 2026-09-19. That release decision does not fabricate manual evidence that was not collected. The following remain useful post-release validation targets and regression checks:
 
 - fresh registration/email confirmation/recovery flows across real mail delivery;
 - same-browser Account A -> B -> A isolation;
@@ -97,7 +87,7 @@ The owner designated v0.4.0 as released on 2026-09-18. That release decision doe
 - service-worker upgrade from an older installed version;
 - physical-device conventional and long-strip reader testing;
 - representative OCR/`.tachibk`/`.proto.gz`/`.tmb` imports using disposable samples;
-- a fresh credential-free Production Smoke against the exact v0.4.0 production runtime when a network-capable environment is available.
+- a fresh credential-free Production Smoke against the exact v1.0.2 production runtime when a network-capable environment is available.
 
 These are post-release evidence/backlog items, not claims that the checks already passed.
 
@@ -173,16 +163,17 @@ Read new-session guidance in this order:
 
 1. `AGENTS.md`
 2. `docs/WORKPLAN.md`
-3. `docs/verification-release-2026-09-18.md`
-4. `docs/post-release-feedback.md`
-5. `docs/verification-2026-09-17.md`
-6. `docs/START-HERE-NEW-CHAT.md`
-7. `docs/architecture.md`
-8. `docs/operations.md`
-9. `docs/library-state.md`
-10. `docs/reader-pwa-hardening.md`
-11. `docs/browser-e2e-performance.md`
-12. `supabase/README.md`
+3. `docs/verification-release-2026-09-19.md`
+4. `docs/verification-release-2026-09-18.md` — historical v0.4.0 record
+5. `docs/post-release-feedback.md`
+6. `docs/verification-2026-09-17.md`
+7. `docs/START-HERE-NEW-CHAT.md`
+8. `docs/architecture.md`
+9. `docs/operations.md`
+10. `docs/library-state.md`
+11. `docs/reader-pwa-hardening.md`
+12. `docs/browser-e2e-performance.md`
+13. `supabase/README.md`
 
 Documentation index: `docs/README.md`.
 

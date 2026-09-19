@@ -65,17 +65,11 @@ state:      READY
 
 The policy has remained in effect through later runtime deployments.
 
-## Current production state — 2026-09-18
+## Current production state — 2026-09-19
 
-Released hosted runtime:
+Released hosted line: v1.0.2.
 
-```text
-release:    v0.4.0
-deployment: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
-runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
-state:      READY
-alias:      https://pachimanga.frogilab.dev
-```
+Exact merged SHA, production deployment ID/state, and release evidence are recorded in `verification-release-2026-09-19.md`.
 
 Exact-head PR #74 preview:
 
@@ -89,7 +83,7 @@ The production build compiled successfully, completed TypeScript, generated 22/2
 
 ## Current validation mode
 
-Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1, so v0.4.0 used operator-reported equivalent local verification plus exact-head Vercel evidence without representing absent Actions as passed. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
+Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions was observed available again on 2026-09-19, including successful Repository Hygiene, Web Quality, and Native Quality on PR #82. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
 
 1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
 2. local `npm ci` + `npm run verify` when available;

@@ -1,21 +1,14 @@
 # Pachimanga architecture
 
-Pachimanga is a private, account-based manga reader. PWA/web v0.4.0 is the released production target. Native source is retained for compatibility; native distribution remains a separate manual phase requiring explicit user direction.
+Pachimanga is a private, account-based manga reader. PWA/web v1.0.2 is the released production target. Native source is retained for compatibility; native distribution remains a separate manual phase requiring explicit user direction.
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current release runtime — 2026-09-18
+## Current release runtime — 2026-09-19
 
-- release: v0.4.0;
-- release runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`; current `main` may be a documentation-only runtime-equivalent descendant;
-- Vercel production: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
-- production alias: `https://pachimanga.frogilab.dev`;
-- exact-head PR #74 preview: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;
-- operator reported final local tests/lint/typecheck/build passing;
-- Vercel production build compiled and generated 22/22 static pages;
-- inspected production `error`/`fatal` logs contained no matching entries.
+Pachimanga v1.0.2 is the current PWA/web release line. The exact merged SHA, production deployment ID, CI evidence, and residual manual-validation limits are recorded in `verification-release-2026-09-19.md`.
 
-The owner designated this runtime as v0.4.0. Remaining real-device/account/import matrices are post-release evidence, not retroactively completed checks.
+The v1.0.2 line preserves the v0.4.0 architecture and includes subsequent Web Vitals attribution hardening, mobile-library behavior fixes, light-theme manga-detail correction, and reader browser-history/back-navigation hardening through PR #82.
 
 Post-release engineering is feedback-driven: user-reported defects and friction should improve the existing PWA architecture without weakening the boundaries below. See `post-release-feedback.md`.
 
@@ -280,9 +273,9 @@ Runtime changes additionally require Vercel preview/build evidence, production `
 
 Schema/auth changes additionally require migration/RLS/grant/advisor review.
 
-## Current PWA release architecture — 2026-09-18
+## Current PWA release architecture — v1.0.2 / 2026-09-19
 
-The v0.4.0 release includes the earlier PR #68 consolidation plus PR #72/#73/#74:
+The v1.0.2 architecture carries forward the PR #68 and PR #72/#73/#74 consolidation and adds the post-release fixes through PR #82:
 
 - account profile/security controls live inside `/settings`; protected `/account` redirects to `/settings#account`;
 - display name/avatar are stored canonically in `profiles`, mirrored to Auth metadata for compatibility, and surfaced in desktop/mobile shell identity UI;
@@ -314,4 +307,4 @@ The same migration adds `profiles.avatar_url` so `profiles` becomes the canonica
 
 The destructive “clear entire library” path prefers the authenticated `clear_my_library()` RPC so library, progress, and history deletes occur in one database transaction. Runtime code retains a compatibility fallback for older/non-production environments where the migration is not present; production has the migration applied.
 
-The v0.4.0 client also includes an owner-bound IndexedDB `libraryOutbox` for library add/remove operations. Remote snapshots are reconciled with pending mutations so reconnect or a truncated/older remote view cannot visually undo an unsynced local mutation.
+The v1.0.2 client retains the owner-bound IndexedDB `libraryOutbox` for library add/remove operations. Remote snapshots are reconciled with pending mutations so reconnect or a truncated/older remote view cannot visually undo an unsynced local mutation.

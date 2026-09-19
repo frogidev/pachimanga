@@ -4,27 +4,20 @@ This is the current operational backlog. Historical evidence lives in the dated 
 
 ## Delivery policy
 
-PWA/web v0.4.0 is released and remains the active delivery target. Native source stays compatible, but native packaging/signing/store distribution remains a separate manual-only phase that requires explicit user direction.
+PWA/web v1.0.2 is the current released line and remains the active delivery target. Native source stays compatible, but native packaging/signing/store distribution remains a separate manual-only phase that requires explicit user direction.
 
 Production URL: `https://pachimanga.frogilab.dev`
 
-### Temporary execution constraints — through September 30, 2026
+### Current execution state — 2026-09-19
 
-- GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. Do not spend pushes trying to obtain unavailable CI evidence and do not treat absent/skipped checks as a pass. Re-check actual availability on or after October 1.
-- Batch repository changes before pushing. Avoid commit-by-commit remote iteration.
-- Minimize Vercel builds: use at most one exact-head preview/build for a completed runtime batch when possible, then one production deployment after an allowed merge.
-- Keep the existing ruleset/check requirements intact; do not weaken repository protections as a workaround for quota limits.
-- Until Actions capacity returns, merge only with equivalent trustworthy local verification plus final Vercel build evidence when available, or leave the PR open with the missing gate explicit.
+- GitHub Actions was observed available again on PR #82; Repository Hygiene, Web Quality, and Native Quality all completed successfully.
+- Use the normal protected PR/check flow. If Actions capacity or quota becomes unavailable again, do not weaken protections or treat missing/skipped jobs as passing.
+- Batch repository changes before pushing and minimize unnecessary Vercel build churn.
+- Runtime changes still require exact-head Vercel evidence when practical and exact production verification after merge.
 
-## Current release state — 2026-09-18
+## Current release state — 2026-09-19
 
-```text
-release:    v0.4.0
-release SHA:9e0cc7c379541db0d640ebe03383466c37d933ba
-production: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
-state:      READY
-runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
-```
+Pachimanga v1.0.2 is the current PWA/web release line. Exact release SHA, production deployment, CI evidence, and residual validation limits are maintained in `verification-release-2026-09-19.md`.
 
 Release evidence:
 
@@ -61,7 +54,7 @@ Post-release verification for this runtime:
 - On 2026-09-19, the operator ran `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from an updated local `main`; result: pass, 12 protected routes and 4 PWA icons checked.
 - The successful PR #77 Actions runs are recorded as evidence for that PR only and do not change the standing September capacity policy; continue to avoid retry churn and do not assume normal Actions capacity before the October 1 re-check.
 
-The original v0.4.0 release SHA remains historical release evidence. The post-release smoke above validates the current production runtime; it does not retroactively claim a fresh smoke against the old release deployment.
+The original v0.4.0 release SHA remains historical evidence in `verification-release-2026-09-18.md`. v1.0.2 is the current release line; do not rewrite the earlier evidence as though later checks occurred on that older runtime.
 
 ## Post-release operating priority
 
@@ -124,7 +117,7 @@ Required behavior:
 
 ## Post-release manual validation backlog
 
-The v0.4.0 release decision does not fabricate these observations. They remain recommended post-release validation/regression evidence using real identities/devices.
+The v1.0.2 release decision does not fabricate these observations. They remain recommended post-release validation/regression evidence using real identities/devices.
 
 ### Authentication/account isolation
 
@@ -215,7 +208,7 @@ The optional `ops/browser-e2e.mjs` may be used only where Playwright + Chromium 
 
 ## Release decision and residual evidence
 
-Pachimanga v0.4.0 is considered released on the PWA/web path as of 2026-09-18 by explicit owner decision.
+Pachimanga v1.0.2 is the current released PWA/web line as of 2026-09-19 by explicit owner decision.
 
 Verified/implemented release facts:
 
@@ -253,7 +246,7 @@ Still deferred or externally blocked:
 
 ## Exact next task
 
-Treat v0.4.0 as the production baseline. Apply real user feedback as focused post-release improvements. Do not expand features merely to accumulate work.
+Treat v1.0.2 as the production baseline. Apply real user feedback as focused post-release improvements. Do not expand features merely to accumulate work.
 
 Next work should be one of:
 

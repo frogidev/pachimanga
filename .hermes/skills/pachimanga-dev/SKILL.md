@@ -25,7 +25,7 @@ description: Strict implementation workflow for frogidev/pachimanga. Use for fea
 - Keep PWA/web as the active delivery target.
 - Post-release, prioritize concrete user feedback and improvements to existing flows over speculative expansion.
 - When the fix is clear and safe, proceed autonomously instead of asking for routine implementation choices.
-- GitHub Actions capacity is unavailable through September 30, 2026; do not burn pushes chasing unavailable CI and do not treat missing checks as passing.
+- GitHub Actions was observed available again on 2026-09-19. Use the normal required checks; if capacity/quota becomes unavailable again, do not burn pushes chasing unavailable CI and do not treat missing checks as passing.
 - Native platform packaging/distribution is out of scope unless explicitly requested or the workplan final phase is active.
 
 ## Non-negotiable invariants

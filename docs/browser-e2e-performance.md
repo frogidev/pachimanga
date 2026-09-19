@@ -4,7 +4,7 @@ Pachimanga separates deterministic repository quality checks from optional brows
 
 ## Current operating mode
 
-PWA/web v0.4.0 is released. Repository Hygiene and Web Quality remain the normal required checks, but GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1. During the outage, use trustworthy local tests/lint/typecheck/build plus exact-head Vercel build evidence where relevant; absent Actions are not represented as passing. Re-check actual Actions availability on or after October 1.
+PWA/web v1.0.2 is the current release line. Repository Hygiene and Web Quality remain normal required checks. GitHub Actions was observed available again on 2026-09-19: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. If capacity/quota becomes unavailable again, keep missing hosted evidence explicit and use trustworthy local verification plus exact-head Vercel evidence where relevant.
 
 `ops/browser-e2e.mjs` remains optional evidence for environments where Playwright and Chromium are already available. Pachimanga does not install Playwright as a normal project dependency and does not download browser binaries during standard install/build/deploy.
 
@@ -36,7 +36,7 @@ The deterministic suite now protects these properties:
 
 These changes were motivated by local development evidence showing repeated `/api/library/refresh` requests around 500–1000 ms, several provider stalls lasting roughly 110–140 seconds, and WeebCentral chapter payloads around 2.96 MB exceeding the Next.js Data Cache item limit.
 
-## v0.4.0 release verification — 2026-09-18
+## Historical v0.4.0 release verification — 2026-09-18
 
 ```text
 release runtime: 9e0cc7c379541db0d640ebe03383466c37d933ba
@@ -47,7 +47,11 @@ preview:      dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ (READY)
 
 The operator reported the final local unit tests, lint, typecheck, and production build passing. Vercel independently compiled the production build, completed TypeScript, generated 22/22 static pages, and deployed successfully. Production error/fatal inspection was empty in the inspected window.
 
-GitHub Actions capacity was unavailable and is not claimed as passing release evidence.
+GitHub Actions capacity was unavailable for that historical v0.4.0 release and is not claimed as passing evidence for that older release. Actions later recovered and were observed green on PR #82.
+
+## v1.0.2 current release note — 2026-09-19
+
+Current release identity and verification are recorded in `verification-release-2026-09-19.md`. v1.0.2 keeps the same browser/performance contracts and includes the post-release Web Vitals attribution fix plus mobile/theme/reader-navigation hardening through PR #82.
 
 ## Feedback-driven measurement
 

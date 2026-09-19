@@ -4,9 +4,9 @@ This runbook covers the released PWA/web production path. Native distribution re
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current operating mode — 2026-09-18
+## Current operating mode — 2026-09-19
 
-- release: v0.4.0;
+- release: v1.0.2;
 - production runtime: `9e0cc7c379541db0d640ebe03383466c37d933ba`; current `main` may be a documentation-only runtime-equivalent descendant;
 - production deployment: `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5`, `READY`;
 - exact-head preview before merge: `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ`, `READY`;
@@ -14,11 +14,13 @@ Production UI: `https://pachimanga.frogilab.dev`
 - production build compiled successfully and generated 22/22 static pages;
 - production `error`/`fatal` log inspection returned no matching entries;
 - GitHub Actions capacity is unavailable through September 30, 2026 and is expected to return October 1; absent Action runs are not treated as passes;
-- fresh exact-runtime Production Smoke remains a post-release confirmation when a network-capable environment is available.
+- exact v1.0.2 release identity is recorded in `verification-release-2026-09-19.md`; fresh exact-runtime Production Smoke remains a post-release confirmation when it has not yet been observed.
 
 Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around CI, preview, provider, or platform limitations.
 
 ## Feedback-driven runtime work
+
+GitHub Actions was observed available again on 2026-09-19; use the normal required Repository Hygiene/Web Quality/Native Quality checks. If quota/capacity becomes unavailable again, do not weaken protections and keep the missing hosted evidence explicit.
 
 Post-release runtime work should normally start from concrete user feedback. Prefer one focused branch per coherent feedback batch, reproduce the issue when practical, and minimize preview/deployment churn. Routine implementation decisions should be handled autonomously; escalate only ambiguous/destructive/security-sensitive/product-direction decisions.
 
@@ -184,4 +186,4 @@ Operational implications of the merged performance hardening:
 - oversized WeebCentral chapter HTML is not written into Next.js Data Cache; parsed results use bounded short-lived process memory and the relay retains its own constrained cache;
 - manual per-title refresh remains forceable and does not bypass provider refusal/rate-limit behavior.
 
-Release operations remain PWA-only. Native signing/distribution remains blocked by the release-candidate gate.
+Release operations remain PWA-only for v1.0.2. Native signing/distribution remains blocked by the separate native release gate.

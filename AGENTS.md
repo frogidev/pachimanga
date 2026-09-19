@@ -8,7 +8,7 @@ Before substantive work, read:
 
 1. `AGENTS.md` — this file.
 2. `docs/WORKPLAN.md` — current priorities and acceptance criteria.
-3. `docs/verification-release-2026-09-18.md` — latest release evidence and explicit gaps.
+3. `docs/verification-release-2026-09-19.md` — current v1.0.2 release evidence and explicit gaps.
 4. `docs/post-release-feedback.md` — default post-release feedback/improvement workflow.
 5. `docs/architecture.md` — runtime and security boundaries.
 6. The relevant project-local skill in `.hermes/skills/`.
@@ -38,7 +38,7 @@ Do not weaken these requirements to make a feature easier.
 
 ## Active delivery policy
 
-PWA/web v0.4.0 is the released production product as of 2026-09-18. Vercel production from `main` remains the active delivery path.
+PWA/web v1.0.2 is the current released production line as of 2026-09-19. It includes the v0.4.0 baseline plus the validated post-release reliability, mobile-library, light-theme, and reader-navigation fixes through PR #82. Vercel production from `main` remains the active delivery path.
 
 Native source remains maintained for compatibility, but native packaging/signing/store distribution is a separate manually gated phase. The PWA release does not by itself authorize native distribution.
 
@@ -91,9 +91,11 @@ Do not:
 
 A narrow, documented lint exception is acceptable only when the code is intentional, the rule is a false positive for that exact pattern, and the exception is scoped to the smallest possible file/rule surface.
 
-## Temporary CI constraint — through 2026-09-30
+## GitHub Actions status — recovered 2026-09-19
 
-GitHub Actions capacity is unavailable through September 30 and is expected to return October 1. Until then, do not waste pushes chasing unavailable Actions, do not treat missing/skipped jobs as passing, and do not weaken repository protections. Use trustworthy local verification plus exact-head Vercel build evidence for runtime work when available. Re-check actual Actions availability on or after October 1 before assuming normal CI has returned.
+The earlier September Actions-capacity outage is no longer the current state. PR #82 successfully ran Repository Hygiene, Web Quality, and Native Quality on 2026-09-19.
+
+Use the normal required hosted checks again. If GitHub Actions capacity or quota becomes unavailable later, do not weaken repository protections or treat missing/skipped jobs as passing; use trustworthy local verification plus exact-head Vercel evidence where appropriate and record the missing hosted signal explicitly.
 
 ## Communication and local-test handoff
 

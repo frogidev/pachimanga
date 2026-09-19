@@ -8,21 +8,13 @@ Production:
 https://pachimanga.frogilab.dev
 ```
 
-PWA/web v0.4.0 is released. Native distribution remains a separate manual phase and requires explicit user direction plus native security/signing/device validation.
+PWA/web v1.0.2 is the current release line. Native distribution remains a separate manual phase and requires explicit user direction plus native security/signing/device validation.
 
-## Current production evidence — 2026-09-18
+## Current production evidence — 2026-09-19
 
-```text
-release:    v0.4.0
-deployment: dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5
-runtime:    9e0cc7c379541db0d640ebe03383466c37d933ba
-state:      READY
-alias:      https://pachimanga.frogilab.dev
-```
+Pachimanga v1.0.2 is the current PWA/web release line. Exact release SHA, Vercel production deployment, CI evidence, and evidence limits are maintained in `verification-release-2026-09-19.md`.
 
-Exact-head preview `dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ` reached `READY`. The operator reported final local tests/lint/typecheck/build passing. Production error/fatal inspection returned no matching entries in the inspected window.
-
-A fresh exact-runtime credential-free Production Smoke remains a post-release confirmation item.
+A fresh exact-runtime credential-free Production Smoke remains a post-release confirmation item when it has not yet been observed for the final v1.0.2 deployment.
 
 ## Access model
 

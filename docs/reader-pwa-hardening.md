@@ -2,11 +2,11 @@
 
 This document records the current reader/PWA behavior after library sync scaling, explicit service-worker update handling, and account-bound offline chapter downloads.
 
-## Current implementation state — v0.4.0 / 2026-09-18
+## Current implementation state — v1.0.2 / 2026-09-19
 
-The reader/offline hardening is part of released production runtime `9e0cc7c379541db0d640ebe03383466c37d933ba`, deployed as `dpl_5gKj1F7r4a5EwqxF97j52PUNCoL5` (`READY`).
+The reader/offline hardening is part of the v1.0.2 released line. Exact release SHA and production deployment are recorded in `verification-release-2026-09-19.md`.
 
-The final release branch local tests/lint/typecheck/build were reported passing by the operator; exact-head Vercel preview reached `READY`; the merged production build compiled successfully; and the inspected production error/fatal window was empty.
+The v1.0.2 line includes the post-release reader history fix from PR #82: in-reader chapter changes replace the current history entry so browser/Android Back exits toward the surface that opened the reader instead of replaying chapter hops. PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully; exact v1.0.2 release evidence is kept in the current release verification document.
 
 Physical installed-device validation remains outstanding as post-release evidence and must not be inferred from automated/local checks.
 
