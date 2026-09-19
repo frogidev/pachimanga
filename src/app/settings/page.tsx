@@ -5,6 +5,7 @@ import { AccountDataExport } from '@/components/account-data-export';
 import { AccountSettings } from '@/components/account-settings';
 import { PageHeading } from '@/components/page-heading';
 import { OfflineDownloadManager } from '@/components/offline-download-manager';
+import { TrackingIntegrations } from '@/components/tracking-integrations';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
 import { SignOutSettings } from '@/components/sign-out-settings';
@@ -112,6 +113,7 @@ export default function SettingsPage() {
         <SyncStatusPanel />
         <PwaDeviceStatus />
         <OfflineDownloadManager />
+        <TrackingIntegrations />
         <AccountDataExport />
         <SettingsDiagnostics />
         <SignOutSettings />
