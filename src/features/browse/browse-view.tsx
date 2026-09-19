@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PageHeading } from "@/components/page-heading";
 import {
@@ -9,7 +9,8 @@ import {
   probeNativeWeebCentral,
   searchNativeWeebCentral,
 } from "@/lib/native/tauri-bridge";
-import type { Manga } from "@/types/models";
+import { getLibraryEntries } from "@/lib/storage/reader-storage";
+import type { LibraryEntry, Manga } from "@/types/models";
 
 const WEB_STATUS = "Search live WeebCentral and MangaDex results with duplicate titles collapsed.";
 const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device, with MangaDex fallback.";
@@ -48,6 +49,26 @@ export function BrowseView() {
   const [searchState, setSearchState] = useState<SearchState>("idle");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [libraryEntries, setLibraryEntries] = useState<LibraryEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refreshLibrary = () => {
+      void getLibraryEntries()
+        .then((entries) => {
+          if (!cancelled) setLibraryEntries(entries);
+        })
+        .catch(() => {
+          if (!cancelled) setLibraryEntries([]);
+        });
+    };
+    refreshLibrary();
+    window.addEventListener("pachimanga:library-change", refreshLibrary);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("pachimanga:library-change", refreshLibrary);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,6 +240,10 @@ export function BrowseView() {
 
   const q = query.trim();
   const hasQuery = Boolean(q);
+  const libraryByKey = useMemo(
+    () => new Map(libraryEntries.map((entry) => [`${entry.sourceId}\u0000${entry.mangaId}`, entry])),
+    [libraryEntries],
+  );
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
@@ -267,13 +292,20 @@ export function BrowseView() {
 
       {results.length ? (
         <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {results.map((manga) => (
-            <MangaCard
-              key={`${manga.sourceId}-${manga.id}`}
-              manga={manga}
-              href={runtime === "native" && manga.sourceId === "weebcentral" ? `/native/manga/${manga.id}` : undefined}
-            />
-          ))}
+          {results.map((manga) => {
+            const libraryEntry = libraryByKey.get(`${manga.sourceId}\u0000${manga.id}`);
+            return (
+              <MangaCard
+                key={`${manga.sourceId}-${manga.id}`}
+                manga={manga}
+                href={runtime === "native" && manga.sourceId === "weebcentral" ? `/native/manga/${manga.id}` : undefined}
+                inLibrary={Boolean(libraryEntry)}
+                progress={libraryEntry?.progress}
+                lastChapterRead={libraryEntry?.lastChapterRead}
+                readingStatus={libraryEntry?.readingStatus}
+              />
+            );
+          })}
         </div>
       ) : searchState === "searching" && hasQuery ? (
         <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-sm text-zinc-400" role="status" aria-live="polite">

@@ -11,7 +11,6 @@ import { isTauriNative } from "@/lib/native/tauri-bridge";
 import {
   acknowledgeLibraryUpdates,
   getLibraryDashboardEntries,
-  setLibraryReadingStatus,
 } from "@/lib/storage/library-dashboard";
 import {
   createLibraryCollection,
@@ -236,14 +235,6 @@ export function LibraryView() {
       await removeLibraryEntry(entry.mangaId);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not remove this title.");
-    }
-  }
-
-  async function changeStatus(entry: LibraryEntry, status: LibraryReadingStatus | null) {
-    try {
-      await setLibraryReadingStatus(entry.mangaId, entry.sourceId, status);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not update the reading status.");
     }
   }
 
@@ -488,7 +479,9 @@ export function LibraryView() {
           </div>
         ) : manga.length ? (
           <>
-            <div className={`mt-4 grid gap-x-3 gap-y-5 sm:gap-x-4 ${view === "compact" ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-8" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
+            <div className={view === "compact"
+              ? "mt-4 grid grid-cols-1 gap-2"
+              : "mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}>
               {visibleManga.map(({ manga: title, entry }) => (
                 <MangaCard
                   key={`${entry.sourceId}-${title.id}`}
@@ -498,10 +491,10 @@ export function LibraryView() {
                   onRemove={() => void removeEntry(entry, title.title)}
                   lastChapterRead={entry.lastChapterRead}
                   readingStatus={entry.readingStatus}
-                  readingStatusManual={entry.readingStatusManual}
                   newChapterCount={entry.newChapterCount}
-                  onStatusChange={(status) => void changeStatus(entry, status)}
                   onOpen={() => acknowledgeUpdates(entry)}
+                  inLibrary
+                  variant={view === "compact" ? "compact" : "grid"}
                   collections={collections}
                   collectionIds={collectionIdsFor(entry)}
                   onCollectionToggle={(collectionId, member) => void toggleCollection(entry, collectionId, member)}
