@@ -43,6 +43,26 @@ A fresh credential-free Production Smoke on this exact release runtime was not o
 
 See `verification-release-2026-09-18.md`.
 
+## Current post-release runtime — 2026-09-19
+
+```text
+main/runtime: 58b6df6bfc76400081ae38ef381d26558a875ac9
+production:   dpl_6LUeSkd1vdjRtVKXbj99Kwk78Wjt
+state:        READY
+change:       PR #77 Web Vitals route-attribution fix
+```
+
+Post-release verification for this runtime:
+
+- PR #77 required `hygiene` and `quality` checks completed successfully; the quality job ran unit tests, lint, typecheck, and production build successfully.
+- The runtime-equivalent preview `dpl_6LWEmHiv9VAABjTKvHYc2DKaZN5s` reached `READY`; the final PR amendment changed only regression-test matching, so its Vercel attempt was canceled without changing hosted runtime code.
+- Production deployment `dpl_6LUeSkd1vdjRtVKXbj99Kwk78Wjt` reached `READY` at merged SHA `58b6df6bfc76400081ae38ef381d26558a875ac9`; Vercel compiled successfully, completed TypeScript, and generated 22/22 static pages.
+- Post-deploy Vercel error/fatal inspection returned no matching runtime errors in the inspected window.
+- On 2026-09-19, the operator ran `node ops/production-smoke.mjs` against `https://pachimanga.frogilab.dev` from an updated local `main`; result: pass, 12 protected routes and 4 PWA icons checked.
+- The successful PR #77 Actions runs are recorded as evidence for that PR only and do not change the standing September capacity policy; continue to avoid retry churn and do not assume normal Actions capacity before the October 1 re-check.
+
+The original v0.4.0 release SHA remains historical release evidence. The post-release smoke above validates the current production runtime; it does not retroactively claim a fresh smoke against the old release deployment.
+
 ## Post-release operating priority
 
 Real user feedback is now the primary source of improvements. Prioritize reproducible defects, confusing/high-friction flows, performance/reliability problems, accessibility issues, and responsive/theme regressions before speculative feature expansion.
