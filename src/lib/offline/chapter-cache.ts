@@ -35,9 +35,9 @@ export async function bindChapterCacheOwner(userId: string): Promise<void> {
   if (current === userId) return;
   if (hasCacheApi()) {
     try { await caches.delete(CHAPTER_CACHE); } catch { /* restricted mode */ }
-    const { idbClear } = await import("@/lib/storage/idb");
-    await idbClear("offlineChapters");
   }
+  const { idbClear } = await import("@/lib/storage/idb");
+  await idbClear("offlineChapters");
   localStorage.setItem(CHAPTER_CACHE_OWNER_KEY, userId);
 }
 
