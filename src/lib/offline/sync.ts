@@ -1,7 +1,7 @@
 /** Pure offline-sync helpers (no browser or Supabase imports, unit-testable). */
 
 /** IndexedDB stores that contain authenticated account-owned state. */
-export const ACCOUNT_BOUND_IDB_STORES = ["library", "progress", "history", "outbox", "settingsOutbox", "libraryOutbox"] as const;
+export const ACCOUNT_BOUND_IDB_STORES = ["library", "progress", "history", "outbox", "settingsOutbox", "libraryOutbox", "offlineChapters"] as const;
 
 /** Stores cleared by the user-facing "clear library" action. Reader settings are intentionally preserved. */
 export const LIBRARY_CONTENT_IDB_STORES = ["library", "progress", "history", "outbox", "libraryOutbox"] as const;
