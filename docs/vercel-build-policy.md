@@ -71,19 +71,20 @@ Released hosted line: v1.0.2.
 
 Exact merged SHA, production deployment ID/state, and release evidence are recorded in `verification-release-2026-09-19.md`.
 
-Most recent runtime evidence before the v1.0.2 version/documentation bump:
+v1.0.2 release evidence:
 
 ```text
-runtime-equivalent PR #82 preview: dpl_7oAibFRWrAKg8E67ijgWCMs37g3Z (READY)
-merged runtime:                    ba8083df5a51ea352f84aecceadae29be3e4983d
-production:                        dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc (READY)
+runtime-changing release-prep commit: 001a6d0d8aa03ec5eab1c280d31fd4f1915f5b96
+runtime-equivalent preview:            dpl_3iT8XMyGRpsiUgr3WrNTAv4SuWix (READY)
+release runtime:                       2fae75f7ed35295bd906babcd26da2ad24d47f37
+production:                            dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ (READY)
 ```
 
-PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. Its final branch amendment changed regression-test matching only; the runtime-equivalent preview was already `READY`. The merged production deployment reached `READY` with no alias error, the inspected post-deploy error/fatal window was empty, and anonymous root remained `private, no-store`.
+PR #83 completed Repository Hygiene, Web Quality, and Native Quality successfully. Later release-branch commits changed documentation only, so Vercel correctly canceled those redundant builds through the ignored-build step. The protected squash merge deployed the exact v1.0.2 runtime to production; the deployment reached `READY` with no alias error, anonymous root remained `private, no-store`, and inspected post-deploy runtime/error/fatal signals were clean.
 
 ## Current validation mode
 
-Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions was observed available again on 2026-09-19, including successful Repository Hygiene, Web Quality, and Native Quality on PR #82. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
+Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions was observed available again on 2026-09-19, including successful Repository Hygiene, Web Quality, and Native Quality on the v1.0.2 release PR #83. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
 
 1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
 2. local `npm ci` + `npm run verify` when available;
@@ -102,4 +103,4 @@ A Vercel build-rate-limit status is not a successful preview and must not be rel
 - Environment variable changes are outside Git diff detection; redeploy intentionally after runtime environment changes.
 - Supabase migrations and relay deployment are separate operational paths unless hosted runtime code also changes.
 - Missing/unusable comparison history must fail open to **build**.
-- Release-ready claims require the intended runtime commit (or runtime-equivalent descendant) to reach `READY` and pass production smoke.
+- Normal release-readiness evidence includes the intended runtime commit (or runtime-equivalent descendant) reaching `READY` plus Production Smoke. If the owner explicitly designates a release while exact-final smoke remains outstanding, record that residual gap explicitly rather than implying it passed.
