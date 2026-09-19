@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SourceMigrationPanel } from "@/components/source-migration-panel";
+import { readViewState, writeViewState } from "@/lib/ui/view-state";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getMangaProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import { normalizeLibraryReadingStatus, type LibraryReadingStatus } from "@/lib/library/library-state";
@@ -174,6 +175,15 @@ export function MangaDetail({
   }, [manga.id, manga.sourceId, chapters]);
 
   useEffect(() => { setPage(0); }, [manga.id]);
+
+  useEffect(() => {
+    const key = `manga:${manga.sourceId}:${manga.id}`;
+    const saved = readViewState(key, {});
+    requestAnimationFrame(() => window.scrollTo({ top: saved.scrollY, behavior: "auto" }));
+    const persist = () => writeViewState(key, {}, window.scrollY);
+    window.addEventListener("pagehide", persist);
+    return () => { persist(); window.removeEventListener("pagehide", persist); };
+  }, [manga.id, manga.sourceId]);
 
   async function toggleLibrary() {
     setBusy(true);
