@@ -45,6 +45,7 @@ Current controls/performance behavior:
 - Page Up/Page Down page navigation;
 - Left/Right chapter navigation;
 - chapter selector on larger layouts;
+- in-reader chapter changes replace the current reader history entry, preventing browser/Android Back from walking through every chapter hop before leaving the reader;
 - asynchronous image decode and bounded preload/lazy behavior;
 - `content-visibility: auto` plus intrinsic-size reservation for distant pages;
 - elapsed-time auto-scroll with background-stall cap;
@@ -63,6 +64,7 @@ Unsupported browsers degrade normally.
 - shell respects safe-area insets;
 - non-root application routes expose back navigation;
 - standalone windows fall back to Library if no usable prior history exists;
+- reader chapter navigation does not accumulate one browser-history entry per chapter, so Back returns toward the surface that opened the reader;
 - new service workers wait instead of replacing an active reading session;
 - app presents `Update & reload`;
 - only explicit user action activates the waiting worker;

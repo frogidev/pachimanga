@@ -130,6 +130,7 @@ Rules:
 ### Manga detail
 
 - Cover + metadata + primary reading/library actions form the first hierarchy.
+- The hero surface must be explicitly themed in both dark and warm-paper light modes; dark gradient utilities must not remain behind light-mode text.
 - Chapter lists prioritize chapter title/read state over decoration.
 - Read/unread/bulk controls require clear affordance and disabled/progress states.
 
