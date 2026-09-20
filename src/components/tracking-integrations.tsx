@@ -6,8 +6,7 @@ import { disconnectMyAnimeList,getMyAnimeListToken,isMyAnimeListConfigured,myAni
 export function TrackingIntegrations(){
  const[connected,setConnected]=useState(false);const[malConnected,setMalConnected]=useState(false);const[ready,setReady]=useState(false);const[message,setMessage]=useState("");
  const configured=isAniListConfigured();const malConfigured=isMyAnimeListConfigured();
- async function refresh(){try{const [ani,mal]=await Promise.all([configured?getAniListToken():Promise.resolve(null),malConfigured?getMyAnimeListToken():Promise.resolve(null)]);setConnected(Boolean(ani));setMalConnected(Boolean(mal))}catch{setConnected(false);setMalConnected(false)}finally{setReady(true)}}
- useEffect(()=>{void refresh()},[]);
+ useEffect(()=>{let cancelled=false;void Promise.all([configured?getAniListToken():Promise.resolve(null),malConfigured?getMyAnimeListToken():Promise.resolve(null)]).then(([ani,mal])=>{if(cancelled)return;setConnected(Boolean(ani));setMalConnected(Boolean(mal))}).catch(()=>{if(cancelled)return;setConnected(false);setMalConnected(false)}).finally(()=>{if(!cancelled)setReady(true)});return()=>{cancelled=true}},[configured,malConfigured]);
  async function disconnect(){await disconnectAniList();setConnected(false);setMessage("AniList disconnected on this device.")}
  function connect(){const url=aniListAuthorizeUrl();if(url)window.location.assign(url)}
  async function disconnectMal(){await disconnectMyAnimeList();setMalConnected(false);setMessage("MyAnimeList disconnected on this device.")}
