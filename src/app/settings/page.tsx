@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { AccountDataExport } from '@/components/account-data-export';
 import { AccountSettings } from '@/components/account-settings';
 import { PageHeading } from '@/components/page-heading';
+import { OfflineDownloadManager } from '@/components/offline-download-manager';
+import { TrackingIntegrations } from '@/components/tracking-integrations';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
 import { SignOutSettings } from '@/components/sign-out-settings';
@@ -11,6 +13,7 @@ import { SyncStatusPanel } from '@/components/sync-status';
 import { ThemeQuickToggle } from '@/components/theme-quick-toggle';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
+import { READER_PRESETS } from '@/features/reader/presets';
 
 export default function SettingsPage() {
   const [s, setS] = useState<ReaderSettings>(DEFAULT_READER_SETTINGS);
@@ -58,6 +61,25 @@ export default function SettingsPage() {
             <span className="rounded-full bg-pink-400/10 px-2.5 py-1 font-mono text-[9px] text-pink-300">{s.baseSpeedPxPerSecond}px/s</span>
           </div>
 
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm text-zinc-400">
+              Default reading preset
+              <select className="field h-11 px-3 text-sm" value={s.defaultPreset || 'webtoon'} onChange={(event) => {
+                const preset = event.target.value === 'manga' ? 'manga' : 'webtoon';
+                patch({ defaultPreset: preset, ...READER_PRESETS[preset] });
+              }}>
+                <option value="manga">Manga · fit screen</option>
+                <option value="webtoon">Webtoon · fit width</option>
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm text-zinc-400">
+              Pages to preload
+              <select className="field h-11 px-3 text-sm" value={s.preloadPages || 3} onChange={(event) => patch({ preloadPages: Number(event.target.value) as 1 | 2 | 3 | 4 })}>
+                {[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+          </div>
+
           <label className="mt-6 block text-sm text-zinc-400">
             Base auto-scroll speed
             <input
@@ -90,6 +112,8 @@ export default function SettingsPage() {
 
         <SyncStatusPanel />
         <PwaDeviceStatus />
+        <OfflineDownloadManager />
+        <TrackingIntegrations />
         <AccountDataExport />
         <SettingsDiagnostics />
         <SignOutSettings />

@@ -35,12 +35,23 @@ export type ImportCollectionMembership = {
   mangaId: string;
 };
 
+export type ImportTrackerLink = {
+  provider: 'anilist' | 'myanimelist';
+  sourceId: string;
+  mangaId: string;
+  mediaId: string;
+  mediaTitle: string;
+};
+
 export type ImportReaderSettings = {
   autoScrollMultiplier?: number;
   baseSpeedPxPerSecond?: number;
   fitMode?: 'width' | 'screen';
   theme?: 'dark' | 'light';
   keepScreenAwake?: boolean;
+  preloadPages?: 1 | 2 | 3 | 4;
+  defaultPreset?: 'manga' | 'webtoon';
+  titlePresets?: Record<string, 'manga' | 'webtoon'>;
 };
 
 export type ImportResult = {
@@ -51,4 +62,5 @@ export type ImportResult = {
   readerSettings?: ImportReaderSettings;
   collections?: ImportCollection[];
   collectionMemberships?: ImportCollectionMembership[];
+  trackerLinks?: ImportTrackerLink[];
 };

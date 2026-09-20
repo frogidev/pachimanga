@@ -11,6 +11,7 @@ import {
 } from "@/lib/native/tauri-bridge";
 import { getLibraryEntries } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
+import { readViewState, writeViewState } from "@/lib/ui/view-state";
 
 const WEB_STATUS = "Search live WeebCentral and MangaDex results with duplicate titles collapsed.";
 const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device, with MangaDex fallback.";
@@ -50,6 +51,25 @@ export function BrowseView() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [libraryEntries, setLibraryEntries] = useState<LibraryEntry[]>([]);
+  const [viewStateRestored, setViewStateRestored] = useState(false);
+
+  useEffect(() => {
+    const saved = readViewState("browse", { query: "" });
+    const frame = requestAnimationFrame(() => {
+      setQuery(saved.value.query || "");
+      window.scrollTo({ top: saved.scrollY, behavior: "auto" });
+      setViewStateRestored(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!viewStateRestored) return;
+    const save = () => writeViewState("browse", { query }, window.scrollY);
+    writeViewState("browse", { query }, window.scrollY);
+    window.addEventListener("pagehide", save);
+    return () => { save(); window.removeEventListener("pagehide", save); };
+  }, [query, viewStateRestored]);
 
   useEffect(() => {
     let cancelled = false;

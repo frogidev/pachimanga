@@ -72,6 +72,8 @@ Primary code areas:
 
 Intentionally anonymous application surfaces are limited to auth flows and `/offline`. Protected application navigation without a valid session resolves to the authentication experience. Session-bearing responses are expected to remain private/non-shared-cacheable.
 
+Global web response headers also deny framing/object embedding, constrain form submission to the same origin, and advertise HTTPS-only transport with HSTS. Broader script/style/worker CSP restrictions require browser/import verification before enforcement because OCR and SQL-WASM import paths load worker/WASM assets at runtime.
+
 ## Supabase data model
 
 Account-owned synchronized tables:
@@ -131,6 +133,14 @@ Newest timestamp wins locally; production database triggers reject older/equal t
 ### Reader settings
 
 Reader settings use an account-specific local cache plus owner-bound outbox. Server freshness guards protect cross-device state from stale arrival order.
+
+### Source migration and duplicate consolidation
+
+Library titles can be deliberately moved between supported source identities. Migration is explicit and confirmation-gated. Trusted database code copies/merges the target library entry, collection membership, tracker links, reading progress, and history before deleting the old source identity. Chapter progress is mapped only where chapter number/title evidence is unambiguous; any unmapped progress/history aborts the transaction rather than discarding data.
+
+### External tracker boundary
+
+AniList and MyAnimeList are optional integrations. OAuth bearer/refresh tokens remain in account-bound browser IndexedDB and are cleared on account switch/sign-out; they are never stored in Supabase or included in account export. Supabase stores only owner-RLS-protected manga-to-tracker identifiers so title associations can restore across devices. Tracker controls remain unavailable when the corresponding public OAuth client configuration is absent.
 
 ### Visible sync state
 

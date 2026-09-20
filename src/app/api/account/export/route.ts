@@ -9,6 +9,9 @@ type ReaderSettingsExport = {
   fitMode?: 'width' | 'screen';
   theme?: 'dark' | 'light';
   keepScreenAwake?: boolean;
+  preloadPages?: 1 | 2 | 3 | 4;
+  defaultPreset?: 'manga' | 'webtoon';
+  titlePresets?: Record<string, 'manga' | 'webtoon'>;
 };
 
 function safeReaderSettings(value: unknown): ReaderSettingsExport {
@@ -20,6 +23,11 @@ function safeReaderSettings(value: unknown): ReaderSettingsExport {
   if (input.fitMode === 'width' || input.fitMode === 'screen') output.fitMode = input.fitMode;
   if (input.theme === 'dark' || input.theme === 'light') output.theme = input.theme;
   if (typeof input.keepScreenAwake === 'boolean') output.keepScreenAwake = input.keepScreenAwake;
+  if ([1, 2, 3, 4].includes(Number(input.preloadPages))) output.preloadPages = Number(input.preloadPages) as 1 | 2 | 3 | 4;
+  if (input.defaultPreset === 'manga' || input.defaultPreset === 'webtoon') output.defaultPreset = input.defaultPreset;
+  if (input.titlePresets && typeof input.titlePresets === 'object' && !Array.isArray(input.titlePresets)) {
+    output.titlePresets = Object.fromEntries(Object.entries(input.titlePresets as Record<string, unknown>).filter(([id, preset]) => id.length <= 160 && (preset === 'manga' || preset === 'webtoon')).slice(-200)) as Record<string, 'manga' | 'webtoon'>;
+  }
   return output;
 }
 
@@ -86,6 +94,17 @@ async function loadCollections(sb: Awaited<ReturnType<typeof createClient>>, use
   return data || [];
 }
 
+async function loadTrackerLinks(sb: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const { data, error } = await sb
+    .from('tracker_links')
+    .select('provider,source_id,manga_id,media_id,media_title,updated_at')
+    .eq('user_id', userId)
+    .order('provider', { ascending: true });
+  if (error?.code === '42P01' || error?.code === 'PGRST205' || error?.message?.includes('tracker_links')) return [];
+  if (error) throw new Error('Could not export tracker links.');
+  return data || [];
+}
+
 async function loadCollectionItems(sb: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const rows: Array<Record<string, unknown>> = [];
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -114,12 +133,13 @@ export async function GET() {
   }
 
   try {
-    const [library, progress, history, collections, collectionItems, settingsResult] = await Promise.all([
+    const [library, progress, history, collections, collectionItems, trackerLinks, settingsResult] = await Promise.all([
       loadLibrary(sb, user.id),
       loadProgress(sb, user.id),
       loadHistory(sb, user.id),
       loadCollections(sb, user.id),
       loadCollectionItems(sb, user.id),
+      loadTrackerLinks(sb, user.id),
       sb.from('user_settings').select('settings,updated_at').eq('user_id', user.id).maybeSingle(),
     ]);
     if (settingsResult.error) throw new Error('Could not export reader settings.');
@@ -127,13 +147,23 @@ export async function GET() {
     const exportedAt = new Date().toISOString();
     const body = {
       format: 'pachimanga-account-export',
-      version: 1,
+      version: 2,
+      appVersion: '1.0.2',
       exportedAt,
+      recordCounts: {
+        library: library.length,
+        progress: progress.length,
+        history: history.length,
+        collections: collections.length,
+        collectionItems: collectionItems.length,
+        trackerLinks: trackerLinks.length,
+      },
       library,
       progress,
       history,
       collections,
       collectionItems,
+      trackerLinks,
       readerSettings: {
         settings: safeReaderSettings(settingsResult.data?.settings),
         updatedAt: settingsResult.data?.updated_at || null,

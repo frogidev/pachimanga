@@ -5,6 +5,7 @@ import type {
   ImportProgress,
   ImportReaderSettings,
   ImportResult,
+  ImportTrackerLink,
 } from './types';
 
 const MAX_JSON_RECORDS = 10_000;
@@ -42,12 +43,17 @@ function safeReaderSettings(value: unknown): ImportReaderSettings | undefined {
   if (input.fitMode === 'width' || input.fitMode === 'screen') output.fitMode = input.fitMode;
   if (input.theme === 'dark' || input.theme === 'light') output.theme = input.theme;
   if (typeof input.keepScreenAwake === 'boolean') output.keepScreenAwake = input.keepScreenAwake;
+  if ([1, 2, 3, 4].includes(Number(input.preloadPages))) output.preloadPages = Number(input.preloadPages) as 1 | 2 | 3 | 4;
+  if (input.defaultPreset === 'manga' || input.defaultPreset === 'webtoon') output.defaultPreset = input.defaultPreset;
+  if (input.titlePresets && typeof input.titlePresets === 'object' && !Array.isArray(input.titlePresets)) {
+    output.titlePresets = Object.fromEntries(Object.entries(input.titlePresets as Record<string, unknown>).filter(([id, preset]) => id.length <= 160 && (preset === 'manga' || preset === 'webtoon')).slice(-200)) as Record<string, 'manga' | 'webtoon'>;
+  }
   return Object.keys(output).length ? output : undefined;
 }
 
 function parsePachimangaExport(root: Record<string, unknown>): ImportResult | null {
   if (root.format !== 'pachimanga-account-export') return null;
-  if (root.version !== 1) throw new Error('Unsupported Pachimanga export version.');
+  if (root.version !== 1 && root.version !== 2) throw new Error('Unsupported Pachimanga export version.');
 
   const library = Array.isArray(root.library) ? root.library : [];
   if (library.length > MAX_JSON_RECORDS) {
@@ -147,6 +153,19 @@ function parsePachimangaExport(root: Record<string, unknown>): ImportResult | nu
     collectionMemberships.push({ collectionId, sourceId, mangaId });
   }
 
+  const trackerLinks: ImportTrackerLink[] = [];
+  const rawTrackerLinks = Array.isArray(root.trackerLinks) ? root.trackerLinks : [];
+  if (rawTrackerLinks.length > MAX_JSON_RECORDS * 4) throw new Error('Pachimanga export contains too many tracker links.');
+  for (const raw of rawTrackerLinks) {
+    const row = objectRecord(raw);
+    const provider = row?.provider === 'anilist' || row?.provider === 'myanimelist' ? row.provider : undefined;
+    const sourceId = optionalString(row?.source_id);
+    const mangaId = optionalString(row?.manga_id);
+    const mediaId = optionalString(row?.media_id);
+    const mediaTitle = optionalString(row?.media_title);
+    if (provider && sourceId && mangaId && mediaId && mediaTitle) trackerLinks.push({ provider, sourceId, mangaId, mediaId, mediaTitle });
+  }
+
   const readerRoot = objectRecord(root.readerSettings);
   const readerSettings = safeReaderSettings(readerRoot?.settings);
 
@@ -159,6 +178,7 @@ function parsePachimangaExport(root: Record<string, unknown>): ImportResult | nu
     readerSettings,
     collections,
     collectionMemberships,
+    trackerLinks,
   };
 }
 

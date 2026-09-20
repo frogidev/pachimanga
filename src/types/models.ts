@@ -77,4 +77,7 @@ export interface ReaderSettings {
   fitMode: "width" | "screen";
   theme: "dark" | "light";
   keepScreenAwake?: boolean;
+  preloadPages?: 1 | 2 | 3 | 4;
+  defaultPreset?: "manga" | "webtoon";
+  titlePresets?: Record<string, "manga" | "webtoon">;
 }

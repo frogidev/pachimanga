@@ -8,6 +8,8 @@ import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
 import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
+import { preserveCompletedPercentage, shouldCloseReaderAfterCompletion } from "@/features/reader/completion";
+import { effectiveReaderSettings, setTitleReaderPreset } from "@/features/reader/presets";
 import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
@@ -18,7 +20,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 }) {
   const router = useRouter();
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
-  const settings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
+  const storedSettings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
+  const settings = useMemo(() => effectiveReaderSettings(storedSettings, manga.id), [manga.id, storedSettings]);
   const reducedMotion = useReducedMotion();
   const wakeLock = useScreenWakeLock(Boolean(settings.keepScreenAwake));
   const [loadedChapterId, setLoadedChapterId] = useState<string | null>(null);
@@ -33,6 +36,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const touchStartY = useRef<number | null>(null);
   const progressBarRef = useRef<HTMLDivElement | null>(null);
   const offlineAbortRef = useRef<AbortController | null>(null);
+  const completionLockedRef = useRef(false);
+  const wasCompleteOnOpenRef = useRef(false);
+  const closingRef = useRef(false);
 
   const hydrated = loadedChapterId === chapter.id;
   const resumeProgress = resumeState?.chapterId === chapter.id ? resumeState.progress : null;
@@ -65,7 +71,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 
   const persistCurrentProgress = useCallback(() => {
     if (!hydrated) return;
-    const percentage = currentScrollPercentage();
+    const observed = currentScrollPercentage();
+    const percentage = preserveCompletedPercentage(completionLockedRef.current ? 100 : 0, observed);
+    if (percentage >= 99) completionLockedRef.current = true;
     void saveProgress({ mangaId: manga.id, chapterId: chapter.id, pageIndex: state.currentPageIndex, scrollPosition: window.scrollY, percentage, updatedAt: new Date().toISOString() });
   }, [chapter.id, currentScrollPercentage, hydrated, manga.id, state.currentPageIndex]);
 
@@ -83,12 +91,19 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     void getProgress(chapter.id)
       .then((progress) => {
         if (cancelled) return;
+        const completed = Number(progress?.percentage || 0) >= 99;
+        completionLockedRef.current = completed;
+        wasCompleteOnOpenRef.current = completed;
+        closingRef.current = false;
         setResumeState({ chapterId: chapter.id, progress: progress ?? null });
         dispatch({ type: "page", index: progress?.pageIndex ?? 0 });
         setLoadedChapterId(chapter.id);
       })
       .catch(() => {
         if (cancelled) return;
+        completionLockedRef.current = false;
+        wasCompleteOnOpenRef.current = false;
+        closingRef.current = false;
         setResumeState({ chapterId: chapter.id, progress: null });
         dispatch({ type: "page", index: 0 });
         setLoadedChapterId(chapter.id);
@@ -122,11 +137,34 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (scrollFrame.current) return;
       scrollFrame.current = requestAnimationFrame(() => {
         scrollFrame.current = undefined;
-        updateProgressIndicator();
+        const observed = updateProgressIndicator();
         const element = document.elementFromPoint(window.innerWidth / 2, Math.min(window.innerHeight * 0.55, window.innerHeight - 1));
         const pageElement = element?.closest<HTMLElement>("[data-page-index]");
         const index = Number(pageElement?.dataset.pageIndex ?? state.currentPageIndex);
         if (Number.isFinite(index) && index !== state.currentPageIndex) dispatch({ type: "page", index });
+
+        if (observed >= 99) completionLockedRef.current = true;
+        if (shouldCloseReaderAfterCompletion({
+          wasCompleteOnOpen: wasCompleteOnOpenRef.current,
+          isLastAvailableChapter: !nextChapter,
+          observedPercentage: observed,
+          alreadyClosing: closingRef.current,
+        })) {
+          closingRef.current = true;
+          if (saveTimer.current) window.clearTimeout(saveTimer.current);
+          void saveProgress({
+            mangaId: manga.id,
+            chapterId: chapter.id,
+            pageIndex: Number.isFinite(index) ? index : state.currentPageIndex,
+            scrollPosition: window.scrollY,
+            percentage: 100,
+            updatedAt: new Date().toISOString(),
+          }).finally(() => {
+            router.replace(`${mangaBasePath}/${manga.id}`);
+          });
+          return;
+        }
+
         if (saveTimer.current) window.clearTimeout(saveTimer.current);
         saveTimer.current = window.setTimeout(persistCurrentProgress, 500);
       });
@@ -139,13 +177,13 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       persistCurrentProgress();
     };
-  }, [hydrated, persistCurrentProgress, state.currentPageIndex, updateProgressIndicator]);
+  }, [chapter.id, hydrated, manga.id, mangaBasePath, nextChapter, persistCurrentProgress, router, state.currentPageIndex, updateProgressIndicator]);
 
   useEffect(() => {
-    const upcoming = getPreloadWindow(pages, state.currentPageIndex, 2);
+    const upcoming = getPreloadWindow(pages, state.currentPageIndex, settings.preloadPages || 2);
     const preloads = upcoming.map((page) => { const image = new window.Image(); image.decoding = "async"; image.src = page.imageUrl; return image; });
     return () => { preloads.forEach((image) => { image.src = ""; }); };
-  }, [pages, state.currentPageIndex]);
+  }, [pages, settings.preloadPages, state.currentPageIndex]);
 
   useEffect(() => {
     if (!state.autoScrollPlaying || !state.controlsVisible) return;
@@ -171,8 +209,14 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   }, [pause, state.autoScrollPlaying]);
 
   const updateSettings = useCallback((patch: Partial<ReaderSettings>) => {
-    saveReaderSettings({ ...getReaderSettingsSnapshot(), ...patch });
-  }, []);
+    let current = getReaderSettingsSnapshot();
+    if (patch.fitMode || patch.preloadPages) current = setTitleReaderPreset(current, manga.id, null);
+    saveReaderSettings({ ...current, ...patch });
+  }, [manga.id]);
+
+  const applyTitlePreset = useCallback((preset: "manga" | "webtoon" | null) => {
+    saveReaderSettings(setTitleReaderPreset(getReaderSettingsSnapshot(), manga.id, preset));
+  }, [manga.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -217,11 +261,12 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     setOfflineBusy(true);
     setOfflineError(null);
     try {
-      const { cacheChapterPages, removeChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
+      const { cacheChapterPages, forgetOfflineChapter, rememberOfflineChapter, removeChapterPages, uniquePageUrls } = await import("@/lib/offline/chapter-cache");
       const urls = uniquePageUrls(pages);
       const fullySaved = Boolean(offlineState && offlineState.total > 0 && offlineState.saved >= offlineState.total);
       if (fullySaved) {
         await removeChapterPages(urls);
+        await forgetOfflineChapter(manga.id, chapter.id);
         setOfflineState({ saved: 0, total: urls.length });
       } else {
         const result = await cacheChapterPages(
@@ -230,6 +275,15 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           { signal: controller.signal },
         );
         setOfflineState({ saved: result.saved, total: result.total });
+        await rememberOfflineChapter({
+          mangaId: manga.id,
+          mangaTitle: manga.title,
+          chapterId: chapter.id,
+          chapterTitle: chapter.title,
+          urls,
+          savedCount: result.saved,
+          total: result.total,
+        });
         if (result.failed) setOfflineError(`${result.failed} page${result.failed === 1 ? "" : "s"} could not be cached.`);
       }
       window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
@@ -358,7 +412,12 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
               <button type="button" disabled={state.currentPageIndex >= pages.length - 1} onClick={() => scrollToPage(state.currentPageIndex + 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↓</button>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/8 pt-3 text-xs">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/8 pt-3 text-xs">
+              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "manga"} onClick={() => applyTitlePreset("manga")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Manga preset</button>
+              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "webtoon"} onClick={() => applyTitlePreset("webtoon")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Webtoon preset</button>
+              {storedSettings.titlePresets?.[manga.id] ? <button type="button" onClick={() => applyTitlePreset(null)} className="rounded-xl px-3 py-2 text-zinc-500 hover:bg-white/8 hover:text-white">Account default</button> : null}
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2 text-xs">
               <button type="button" disabled={!previousChapter} onClick={() => previousChapter && navigateChapter(previousChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous chapter</button>
               <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="hidden rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12 sm:block">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
               <button type="button" disabled={!nextChapter} onClick={() => nextChapter && navigateChapter(nextChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next chapter →</button>

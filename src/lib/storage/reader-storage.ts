@@ -18,6 +18,9 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   baseSpeedPxPerSecond: 120,
   fitMode: 'width',
   theme: 'dark',
+  preloadPages: 3,
+  defaultPreset: 'webtoon',
+  titlePresets: {},
 };
 
 const CACHE_OWNER_KEY = 'pachimanga:cache-owner';
@@ -622,7 +625,21 @@ function readerSettingsKey() {
 function normalizeReaderSettings(value: unknown): ReaderSettings | null {
   if (!value || typeof value !== 'object' || !('reader' in value)) return null;
   const reader = (value as { reader?: Partial<ReaderSettings> }).reader;
-  return reader ? { ...DEFAULT_READER_SETTINGS, ...reader } : null;
+  if (!reader) return null;
+  const rawTitlePresets = reader.titlePresets && typeof reader.titlePresets === 'object' ? reader.titlePresets : {};
+  const titlePresets = Object.fromEntries(
+    Object.entries(rawTitlePresets)
+      .filter(([id, preset]) => id.length <= 160 && (preset === 'manga' || preset === 'webtoon'))
+      .slice(-200),
+  ) as ReaderSettings['titlePresets'];
+  const preload = Number(reader.preloadPages);
+  return {
+    ...DEFAULT_READER_SETTINGS,
+    ...reader,
+    preloadPages: preload === 1 || preload === 2 || preload === 3 || preload === 4 ? preload : DEFAULT_READER_SETTINGS.preloadPages,
+    defaultPreset: reader.defaultPreset === 'manga' ? 'manga' : 'webtoon',
+    titlePresets,
+  };
 }
 
 export function getReaderSettings(): ReaderSettings {

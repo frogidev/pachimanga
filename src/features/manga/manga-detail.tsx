@@ -2,12 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { SourceMigrationPanel } from "@/components/source-migration-panel";
+import { AniListTrackingPanel } from "@/components/anilist-tracking-panel";
+import { MyAnimeListTrackingPanel } from "@/components/myanimelist-tracking-panel";
+import { readViewState, writeViewState } from "@/lib/ui/view-state";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addLibraryEntry, clearProgress, getHistory, getLibraryEntries, getMangaProgress, removeLibraryEntry, saveProgress, setEntryProgress } from "@/lib/storage/reader-storage";
 import { normalizeLibraryReadingStatus, type LibraryReadingStatus } from "@/lib/library/library-state";
 import { setLibraryReadingStatus } from "@/lib/storage/library-dashboard";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
-import { firstReadableChapter, latestReadableChapter } from "./read-target";
+import { allReadableChaptersComplete, firstReadableChapter, latestReadableChapter, nextUnreadReadableChapter } from "./read-target";
 
 type ExternalReadLink = { label: string; url: string };
 
@@ -91,8 +96,10 @@ export function MangaDetail({
   const [bulk, setBulk] = useState<{ done: number; total: number; label: string } | null>(null);
   const bulkCancel = useRef(false);
   const [continueTo, setContinueTo] = useState<{ id: string; title: string } | null>(null);
+  const [caughtUp, setCaughtUp] = useState(false);
   const [readStateLoaded, setReadStateLoaded] = useState(false);
   const PAGE_SIZE = 50;
+  const router = useRouter();
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(chapters.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -101,6 +108,10 @@ export function MangaDetail({
   const latestChapter = useMemo(() => latestReadableChapter(chapters), [chapters]);
   const readCount = useMemo(
     () => chapters.filter((chapter) => (chapterProgress[chapter.id] ?? 0) >= 99).length,
+    [chapters, chapterProgress],
+  );
+  const trackingChapter = useMemo(
+    () => summarizeReadState(chapters, chapterProgress).lastChapterRead,
     [chapters, chapterProgress],
   );
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
@@ -118,7 +129,7 @@ export function MangaDetail({
       setReadingStatusManual(Boolean(entry?.readingStatusManual));
     });
     return () => { cancelled = true; };
-  }, [manga.id]);
+  }, [manga.id, manga.sourceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,16 +163,21 @@ export function MangaDetail({
         setChapterProgress(map);
 
         const latestHistory = history.find((entry) => entry.mangaId === manga.id);
+        const partialProgress = mangaProgress.filter((row) => Number(row.percentage || 0) > 0 && Number(row.percentage || 0) < 99);
         let resumeProgress = latestHistory
-          ? mangaProgress.find((row) => row.chapterId === latestHistory.chapterId) || null
+          ? partialProgress.find((row) => row.chapterId === latestHistory.chapterId) || null
           : null;
-        resumeProgress ||= newestProgress(mangaProgress);
+        resumeProgress ||= newestProgress(partialProgress);
         if (cancelled) return;
 
-        const chapter = resumeProgress
-          ? chapters.find((item) => item.id === resumeProgress.chapterId)
-          : legacyResume;
+        const partialChapter = resumeProgress
+          ? chapters.find((item) => item.id === resumeProgress.chapterId) || null
+          : null;
+        const hasStarted = mangaProgress.length > 0 || legacyLastChapter > 0;
+        const unreadChapter = hasStarted ? nextUnreadReadableChapter(chapters, map) : null;
+        const chapter = partialChapter || unreadChapter || (!hasStarted ? legacyResume : null);
         setContinueTo(chapter ? { id: chapter.id, title: chapter.title } : null);
+        setCaughtUp(hasStarted && allReadableChaptersComplete(chapters, map));
       } catch {
         if (!cancelled) setContinueTo(null);
         // Read state is best-effort; chapters remain readable without it.
@@ -173,6 +189,15 @@ export function MangaDetail({
   }, [manga.id, manga.sourceId, chapters]);
 
   useEffect(() => { setPage(0); }, [manga.id]);
+
+  useEffect(() => {
+    const key = `manga:${manga.sourceId}:${manga.id}`;
+    const saved = readViewState(key, {});
+    requestAnimationFrame(() => window.scrollTo({ top: saved.scrollY, behavior: "auto" }));
+    const persist = () => writeViewState(key, {}, window.scrollY);
+    window.addEventListener("pagehide", persist);
+    return () => { persist(); window.removeEventListener("pagehide", persist); };
+  }, [manga.id, manga.sourceId]);
 
   async function toggleLibrary() {
     setBusy(true);
@@ -223,6 +248,9 @@ export function MangaDetail({
       const map = { ...chapterProgress, [chapter.id]: next };
       setChapterProgress(map);
       const summary = summarizeReadState(chapters, map);
+      const unread = nextUnreadReadableChapter(chapters, map);
+      setContinueTo(unread ? { id: unread.id, title: unread.title } : null);
+      setCaughtUp(allReadableChaptersComplete(chapters, map));
       await setEntryProgress(manga.id, { progress: summary.progress, lastChapterRead: summary.lastChapterRead }).catch(() => {});
     } finally {
       setBusyChapter(null);
@@ -258,7 +286,11 @@ export function MangaDetail({
         setBulk({ done, total: targets.length, label });
         setChapterProgress((map) => ({ ...map, [chapter.id]: read ? 100 : 0 }));
       }
-      const summary = summarizeReadState(chapters, { ...base, ...acc });
+      const nextMap = { ...base, ...acc };
+      const summary = summarizeReadState(chapters, nextMap);
+      const unread = nextUnreadReadableChapter(chapters, nextMap);
+      setContinueTo(read && unread ? { id: unread.id, title: unread.title } : null);
+      setCaughtUp(read && allReadableChaptersComplete(chapters, nextMap));
       await setEntryProgress(manga.id, { progress: summary.progress, lastChapterRead: summary.lastChapterRead }).catch(() => {});
     } finally {
       setBulk(null);
@@ -317,8 +349,10 @@ export function MangaDetail({
             <div className="mt-6 flex flex-wrap gap-3">
               {!readStateLoaded && chapters.length ? <span role="status" className="button-primary px-5 py-3 text-sm opacity-60">Loading reading position…</span> : null}
               {readStateLoaded && continueTo ? <Link href={chapterHref(continueTo.id)} className="button-primary px-5 py-3 text-sm">Continue · {continueTo.title}</Link> : null}
-              {readStateLoaded && !continueTo && firstChapter ? <Link href={chapterHref(firstChapter.id)} className="button-primary px-5 py-3 text-sm">Start reading · {firstChapter.title}</Link> : null}
+              {readStateLoaded && !continueTo && !caughtUp && firstChapter ? <Link href={chapterHref(firstChapter.id)} className="button-primary px-5 py-3 text-sm">Start reading · {firstChapter.title}</Link> : null}
+              {readStateLoaded && caughtUp ? <span className="inline-flex items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[.06] px-5 py-3 text-sm font-medium text-emerald-200">Caught up · waiting for new chapters</span> : null}
               {readStateLoaded && continueTo && latestChapter && latestChapter.id !== continueTo.id ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">Read latest</Link> : null}
+              {readStateLoaded && caughtUp && latestChapter ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">Reread latest</Link> : null}
               {!chapters.length && external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-5 py-3 text-sm">Read on {external.label} ↗</a> : null}
               <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? "Remove from library" : "Add to library"}</button>
               {inLibrary ? (
@@ -341,6 +375,14 @@ export function MangaDetail({
                 </label>
               ) : null}
             </div>
+            {inLibrary ? <><AniListTrackingPanel manga={manga} progress={trackingChapter} status={readingStatus} /><MyAnimeListTrackingPanel manga={manga} progress={trackingChapter} status={readingStatus} /></> : null}
+            {inLibrary && manga.sourceId !== "import" ? (
+              <SourceMigrationPanel
+                manga={manga}
+                chapters={chapters}
+                onMigrated={(target) => { router.push(`/manga/${target.id}`); }}
+              />
+            ) : null}
           </div>
         </div>
       </section>

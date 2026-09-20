@@ -36,3 +36,18 @@ export function latestReadableChapter(chapters: Chapter[]): Chapter | null {
 
   return latest ?? chapters[0] ?? null;
 }
+
+export function nextUnreadReadableChapter(
+  chapters: Chapter[],
+  progressByChapter: Record<string, number>,
+): Chapter | null {
+  const unread = chapters.filter((chapter) => Number(progressByChapter[chapter.id] ?? 0) < 99);
+  return firstReadableChapter(unread);
+}
+
+export function allReadableChaptersComplete(
+  chapters: Chapter[],
+  progressByChapter: Record<string, number>,
+) {
+  return chapters.length > 0 && chapters.every((chapter) => Number(progressByChapter[chapter.id] ?? 0) >= 99);
+}

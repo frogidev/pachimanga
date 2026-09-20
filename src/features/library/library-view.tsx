@@ -22,6 +22,7 @@ import {
 } from "@/lib/storage/library-collections";
 import { removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
+import { readViewState, writeViewState } from "@/lib/ui/view-state";
 
 type SortMode = "recent" | "lastRead" | "progress" | "added" | "title";
 type FilterMode = "All" | "Unread Updates" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Plan to Read";
@@ -103,6 +104,7 @@ export function LibraryView() {
   const [collectionFilter, setCollectionFilter] = useState<string>("all");
   const [newCollectionName, setNewCollectionName] = useState("");
   const [collectionBusy, setCollectionBusy] = useState(false);
+  const [viewStateRestored, setViewStateRestored] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const sourceRefreshRunning = useRef(false);
 
@@ -110,6 +112,41 @@ export function LibraryView() {
     setView(next);
     try { localStorage.setItem(LIBRARY_VIEW_KEY, next); } catch { /* optional preference */ }
   }
+
+  useEffect(() => {
+    const saved = readViewState("library", {
+      query: "",
+      sort: "recent" as SortMode,
+      filter: "All" as FilterMode,
+      view: initialLibraryView(),
+      collectionFilter: "all",
+    });
+    const frame = requestAnimationFrame(() => {
+      setQuery(saved.value.query || "");
+      setSort(saved.value.sort || "recent");
+      setFilter(saved.value.filter || "All");
+      setView(saved.value.view === "compact" ? "compact" : "grid");
+      setCollectionFilter(saved.value.collectionFilter || "all");
+      window.scrollTo({ top: saved.scrollY, behavior: "auto" });
+      setViewStateRestored(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!viewStateRestored) return;
+    const value = { query, sort, filter, view, collectionFilter };
+    const save = () => writeViewState("library", value, window.scrollY);
+    writeViewState("library", value, window.scrollY);
+    window.addEventListener("pagehide", save);
+    return () => { save(); window.removeEventListener("pagehide", save); };
+  }, [collectionFilter, filter, query, sort, view, viewStateRestored]);
+
+  useEffect(() => {
+    if (!ready || collectionFilter === "all" || collections.some((collection) => collection.id === collectionFilter)) return;
+    const timer = window.setTimeout(() => setCollectionFilter("all"), 0);
+    return () => window.clearTimeout(timer);
+  }, [collectionFilter, collections, ready]);
 
   useEffect(() => {
     let cancelled = false;

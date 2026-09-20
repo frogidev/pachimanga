@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { firstReadableChapter, latestReadableChapter } from '../src/features/manga/read-target.ts';
+import { allReadableChaptersComplete, firstReadableChapter, latestReadableChapter, nextUnreadReadableChapter } from '../src/features/manga/read-target.ts';
 import type { Chapter } from '../src/types/models.ts';
 
 function chapter(id: string, chapterNumber: number, title = `Episode ${chapterNumber}`): Chapter {
@@ -42,4 +42,21 @@ test('unnumbered provider lists fall back to oldest-last/newest-first ordering',
 test('empty chapter lists have no reading target', () => {
   assert.equal(firstReadableChapter([]), null);
   assert.equal(latestReadableChapter([]), null);
+});
+
+
+test('next unread target advances to newly available chapters instead of restarting at chapter one', () => {
+  const chapters = [chapter('c4', 4), chapter('c3', 3), chapter('c2', 2), chapter('c1', 1)];
+  const progress = { c1: 100, c2: 100, c3: 100 };
+
+  assert.equal(nextUnreadReadableChapter(chapters, progress)?.id, 'c4');
+  assert.equal(allReadableChaptersComplete(chapters, progress), false);
+});
+
+test('fully read manga have no unread target and remain caught up', () => {
+  const chapters = [chapter('c3', 3), chapter('c2', 2), chapter('c1', 1)];
+  const progress = { c1: 100, c2: 100, c3: 100 };
+
+  assert.equal(nextUnreadReadableChapter(chapters, progress), null);
+  assert.equal(allReadableChaptersComplete(chapters, progress), true);
 });

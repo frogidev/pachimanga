@@ -11,6 +11,7 @@ import type {
   ImportManga,
   ImportProgress,
   ImportReaderSettings,
+  ImportTrackerLink,
 } from '@/lib/imports/types';
 import { addLibraryEntry, clearAccountLibrary, getLibraryEntries, saveProgress, saveReaderSettings, setEntryProgress } from '@/lib/storage/reader-storage';
 import { setLibraryReadingStatus } from '@/lib/storage/library-dashboard';
@@ -20,6 +21,7 @@ import {
   setLibraryCollectionMembership,
 } from '@/lib/storage/library-collections';
 import type { Manga } from '@/types/models';
+import { saveTrackerLink } from '@/lib/tracking/tracker-links';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
 const REVIEW_PAGE_SIZE = 50;
@@ -155,6 +157,7 @@ export function ImportPanel() {
   const [restoredReaderSettings, setRestoredReaderSettings] = useState<ImportReaderSettings | null>(null);
   const [restoredCollections, setRestoredCollections] = useState<ImportCollection[]>([]);
   const [restoredCollectionMemberships, setRestoredCollectionMemberships] = useState<ImportCollectionMembership[]>([]);
+  const [restoredTrackerLinks, setRestoredTrackerLinks] = useState<ImportTrackerLink[]>([]);
 
   function refreshLibraryCount() {
     void Promise.resolve()
@@ -177,6 +180,7 @@ export function ImportPanel() {
       setRestoredReaderSettings(null);
       setRestoredCollections([]);
       setRestoredCollectionMemberships([]);
+      setRestoredTrackerLinks([]);
       setImportedCount(null);
       await refreshLibraryCount();
       setStatus('Library cleared. Re-import any time from a backup file.');
@@ -199,6 +203,7 @@ export function ImportPanel() {
       setRestoredReaderSettings(out.readerSettings || null);
       setRestoredCollections(out.collections || []);
       setRestoredCollectionMemberships(out.collectionMemberships || []);
+      setRestoredTrackerLinks(out.trackerLinks || []);
       setWarnings(out.warnings);
       const auto = linked.filter((item) => item.match?.sourceId === 'weebcentral').length;
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
@@ -220,6 +225,7 @@ export function ImportPanel() {
       setRestoredReaderSettings(null);
       setRestoredCollections([]);
       setRestoredCollectionMemberships([]);
+      setRestoredTrackerLinks([]);
       setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'OCR failed');
@@ -365,6 +371,9 @@ export function ImportPanel() {
           fitMode: restoredReaderSettings.fitMode ?? 'width',
           theme: restoredReaderSettings.theme ?? 'dark',
           keepScreenAwake: restoredReaderSettings.keepScreenAwake,
+          preloadPages: restoredReaderSettings.preloadPages ?? 3,
+          defaultPreset: restoredReaderSettings.defaultPreset ?? 'webtoon',
+          titlePresets: restoredReaderSettings.titlePresets ?? {},
         });
       }
 
@@ -408,12 +417,34 @@ export function ImportPanel() {
         }
       }
 
+      let restoredTrackerCount = 0;
+      for (const link of restoredTrackerLinks) {
+        if (!savedMangaIds.has(link.mangaId)) continue;
+        try {
+          await saveTrackerLink({
+            provider: link.provider,
+            sourceId: link.sourceId,
+            mangaId: link.mangaId,
+            mediaId: link.mediaId,
+            mediaTitle: link.mediaTitle,
+          });
+          restoredTrackerCount += 1;
+        } catch (error) {
+          setWarnings((current) => [
+            ...current,
+            error instanceof Error
+              ? `Library titles restored, but tracker link "${link.mediaTitle}" could not be restored: ${error.message}`
+              : `Library titles restored, but tracker link "${link.mediaTitle}" could not be restored.`,
+          ]);
+        }
+      }
+
       const done = chosen.length - failed.length;
       setImportedCount(done);
       setStatus(
         failed.length
           ? `Imported ${done} of ${chosen.length} titles (${withProgress} with progress). Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
-          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''}${restoredMembershipCount ? ` Restored ${restoredMembershipCount} collection membership${restoredMembershipCount === 1 ? '' : 's'}.` : ''} Unmatched titles remain marked as imported until you match them to a source.`
+          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''}${restoredMembershipCount ? ` Restored ${restoredMembershipCount} collection membership${restoredMembershipCount === 1 ? '' : 's'}.` : ''}${restoredTrackerCount ? ` Restored ${restoredTrackerCount} tracker link${restoredTrackerCount === 1 ? '' : 's'}.` : ''} Unmatched titles remain marked as imported until you match them to a source.`
       );
     } finally {
       setImporting(false);

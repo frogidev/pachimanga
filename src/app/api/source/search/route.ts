@@ -1,3 +1,5 @@
+import { createClient } from '@/lib/supabase/server';
+import { withProviderConcurrency } from '@/lib/source/provider-limiter';
 import { NextResponse } from 'next/server';
 import { mergeProviderSearchResults } from '@/lib/source/search-dedupe';
 import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
@@ -9,6 +11,11 @@ import {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get('q')?.trim() || '';
+  const includeDuplicates = url.searchParams.get('includeDuplicates') === '1';
+  if (query.length > 100) return NextResponse.json({ items: [], source: null, sources: [], error: 'Search query is too long.' }, { status: 400 });
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return NextResponse.json({ items: [], source: null, sources: [], error: 'Authentication required.' }, { status: 401 });
   const skipWeebCentral = url.searchParams.get('skipWeebCentral') === '1';
   const transport = getWeebCentralTransport();
   if (!query) return NextResponse.json({ items: [], source: null, sources: [], transport });
@@ -18,7 +25,7 @@ export async function GET(request: Request) {
 
   if (!skipWeebCentral) {
     try {
-      const items = await weebCentralSource.search(query);
+      const items = await withProviderConcurrency(`${user.id}:weebcentral`, () => weebCentralSource.search(query));
       if (items.length) groups.push({ source: 'WeebCentral', items });
     } catch (error) {
       sourceErrors.push(error instanceof Error ? error.message : 'WeebCentral unavailable');
@@ -26,13 +33,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const items = await mangaDexSource.search(query);
+    const items = await withProviderConcurrency(`${user.id}:mangadex`, () => mangaDexSource.search(query));
     if (items.length) groups.push({ source: 'MangaDex', items });
   } catch (error) {
     sourceErrors.push(error instanceof Error ? error.message : 'MangaDex unavailable');
   }
 
-  const items = mergeProviderSearchResults(groups.map((group) => group.items));
+  const items = includeDuplicates ? groups.flatMap((group) => group.items) : mergeProviderSearchResults(groups.map((group) => group.items));
   const sources = groups.map((group) => group.source);
   if (items.length) {
     return NextResponse.json({

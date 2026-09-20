@@ -88,7 +88,8 @@ Implemented and merged:
 - post-release mobile-library feedback hardening: reachable mobile theme switching, a genuine list layout, unclipped/list-safe card actions with reading status moved to manga detail, factual Browse library badges, and manga-detail hydration of synced per-chapter progress;
 - mobile layout-toggle follow-up: the Grid/List control is scoped next to the "Your Library" content it changes on phones, with visible labels and immediate preference persistence instead of appearing inert above the unrelated Continue Reading section;
 - mobile library-control follow-up: sort/status controls now live with "Your Library" on phones, status uses a compact selector instead of an off-screen horizontal pill rail, collection management is hidden on phone widths, and Continue Reading no longer exposes a sort action that actually targeted the lower Library list;
-- post-release mobile/theme audit follow-up: manga detail uses an explicit warm-paper hero surface in light mode, and intra-reader chapter changes replace rather than push browser history so Android/browser Back does not replay chapter hops.
+- post-release mobile/theme audit follow-up: manga detail uses an explicit warm-paper hero surface in light mode, and intra-reader chapter changes replace rather than push browser history so Android/browser Back does not replay chapter hops;
+- post-release parity batch: explicit fail-closed source migration/duplicate consolidation, account-scoped Library/Browse/manga-detail state retention, per-title manga/webtoon reader presets and configurable preload depth, account-bound offline chapter management, bounded provider concurrency, optional AniList/MyAnimeList tracking with device-local OAuth tokens, and backward-compatible versioned account backup/restore including non-secret tracker links.
 
 ## Production-data truthfulness contract
 
