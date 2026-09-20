@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SourceMigrationPanel } from "@/components/source-migration-panel";
 import { AniListTrackingPanel } from "@/components/anilist-tracking-panel";
 import { MyAnimeListTrackingPanel } from "@/components/myanimelist-tracking-panel";
@@ -97,6 +98,7 @@ export function MangaDetail({
   const [continueTo, setContinueTo] = useState<{ id: string; title: string } | null>(null);
   const [readStateLoaded, setReadStateLoaded] = useState(false);
   const PAGE_SIZE = 50;
+  const router = useRouter();
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(chapters.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -126,7 +128,7 @@ export function MangaDetail({
       setReadingStatusManual(Boolean(entry?.readingStatusManual));
     });
     return () => { cancelled = true; };
-  }, [manga.id]);
+  }, [manga.id, manga.sourceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -363,7 +365,7 @@ export function MangaDetail({
               <SourceMigrationPanel
                 manga={manga}
                 chapters={chapters}
-                onMigrated={(target) => { window.location.assign(`/manga/${target.id}`); }}
+                onMigrated={(target) => { router.push(`/manga/${target.id}`); }}
               />
             ) : null}
           </div>
