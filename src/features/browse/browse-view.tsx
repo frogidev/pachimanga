@@ -55,9 +55,12 @@ export function BrowseView() {
 
   useEffect(() => {
     const saved = readViewState("browse", { query: "" });
-    setQuery(saved.value.query || "");
-    requestAnimationFrame(() => window.scrollTo({ top: saved.scrollY, behavior: "auto" }));
-    setViewStateRestored(true);
+    const frame = requestAnimationFrame(() => {
+      setQuery(saved.value.query || "");
+      window.scrollTo({ top: saved.scrollY, behavior: "auto" });
+      setViewStateRestored(true);
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
