@@ -60,3 +60,8 @@ test("reader only auto-closes when the last chapter becomes complete in this ses
     alreadyClosing: false,
   }), false);
 });
+
+
+test("completed chapters reopen from the top for rereading", () => {
+  assert.equal(readerResumeScrollTop({ scrollPosition: 9000, percentage: 100 }, 10_000, 1000), 0);
+});
