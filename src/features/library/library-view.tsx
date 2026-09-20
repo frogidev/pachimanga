@@ -143,9 +143,9 @@ export function LibraryView() {
   }, [collectionFilter, filter, query, sort, view, viewStateRestored]);
 
   useEffect(() => {
-    if (ready && collectionFilter !== "all" && !collections.some((collection) => collection.id === collectionFilter)) {
-      setCollectionFilter("all");
-    }
+    if (!ready || collectionFilter === "all" || collections.some((collection) => collection.id === collectionFilter)) return;
+    const timer = window.setTimeout(() => setCollectionFilter("all"), 0);
+    return () => window.clearTimeout(timer);
   }, [collectionFilter, collections, ready]);
 
   useEffect(() => {
