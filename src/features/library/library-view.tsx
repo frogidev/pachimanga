@@ -121,13 +121,16 @@ export function LibraryView() {
       view: initialLibraryView(),
       collectionFilter: "all",
     });
-    setQuery(saved.value.query || "");
-    setSort(saved.value.sort || "recent");
-    setFilter(saved.value.filter || "All");
-    setView(saved.value.view === "compact" ? "compact" : "grid");
-    setCollectionFilter(saved.value.collectionFilter || "all");
-    requestAnimationFrame(() => window.scrollTo({ top: saved.scrollY, behavior: "auto" }));
-    setViewStateRestored(true);
+    const frame = requestAnimationFrame(() => {
+      setQuery(saved.value.query || "");
+      setSort(saved.value.sort || "recent");
+      setFilter(saved.value.filter || "All");
+      setView(saved.value.view === "compact" ? "compact" : "grid");
+      setCollectionFilter(saved.value.collectionFilter || "all");
+      window.scrollTo({ top: saved.scrollY, behavior: "auto" });
+      setViewStateRestored(true);
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
