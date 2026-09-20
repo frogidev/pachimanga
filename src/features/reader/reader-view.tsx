@@ -8,6 +8,7 @@ import { effectiveSpeed, nextMultiplier } from "@/features/reader/auto-scroll";
 import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
+import { preserveCompletedPercentage, shouldCloseReaderAfterCompletion } from "@/features/reader/completion";
 import { effectiveReaderSettings, setTitleReaderPreset } from "@/features/reader/presets";
 import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
@@ -35,6 +36,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const touchStartY = useRef<number | null>(null);
   const progressBarRef = useRef<HTMLDivElement | null>(null);
   const offlineAbortRef = useRef<AbortController | null>(null);
+  const completionLockedRef = useRef(false);
+  const wasCompleteOnOpenRef = useRef(false);
+  const closingRef = useRef(false);
 
   const hydrated = loadedChapterId === chapter.id;
   const resumeProgress = resumeState?.chapterId === chapter.id ? resumeState.progress : null;
@@ -67,7 +71,9 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 
   const persistCurrentProgress = useCallback(() => {
     if (!hydrated) return;
-    const percentage = currentScrollPercentage();
+    const observed = currentScrollPercentage();
+    const percentage = preserveCompletedPercentage(completionLockedRef.current ? 100 : 0, observed);
+    if (percentage >= 99) completionLockedRef.current = true;
     void saveProgress({ mangaId: manga.id, chapterId: chapter.id, pageIndex: state.currentPageIndex, scrollPosition: window.scrollY, percentage, updatedAt: new Date().toISOString() });
   }, [chapter.id, currentScrollPercentage, hydrated, manga.id, state.currentPageIndex]);
 
@@ -85,12 +91,19 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     void getProgress(chapter.id)
       .then((progress) => {
         if (cancelled) return;
+        const completed = Number(progress?.percentage || 0) >= 99;
+        completionLockedRef.current = completed;
+        wasCompleteOnOpenRef.current = completed;
+        closingRef.current = false;
         setResumeState({ chapterId: chapter.id, progress: progress ?? null });
         dispatch({ type: "page", index: progress?.pageIndex ?? 0 });
         setLoadedChapterId(chapter.id);
       })
       .catch(() => {
         if (cancelled) return;
+        completionLockedRef.current = false;
+        wasCompleteOnOpenRef.current = false;
+        closingRef.current = false;
         setResumeState({ chapterId: chapter.id, progress: null });
         dispatch({ type: "page", index: 0 });
         setLoadedChapterId(chapter.id);
@@ -124,11 +137,34 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (scrollFrame.current) return;
       scrollFrame.current = requestAnimationFrame(() => {
         scrollFrame.current = undefined;
-        updateProgressIndicator();
+        const observed = updateProgressIndicator();
         const element = document.elementFromPoint(window.innerWidth / 2, Math.min(window.innerHeight * 0.55, window.innerHeight - 1));
         const pageElement = element?.closest<HTMLElement>("[data-page-index]");
         const index = Number(pageElement?.dataset.pageIndex ?? state.currentPageIndex);
         if (Number.isFinite(index) && index !== state.currentPageIndex) dispatch({ type: "page", index });
+
+        if (observed >= 99) completionLockedRef.current = true;
+        if (shouldCloseReaderAfterCompletion({
+          wasCompleteOnOpen: wasCompleteOnOpenRef.current,
+          isLastAvailableChapter: !nextChapter,
+          observedPercentage: observed,
+          alreadyClosing: closingRef.current,
+        })) {
+          closingRef.current = true;
+          if (saveTimer.current) window.clearTimeout(saveTimer.current);
+          void saveProgress({
+            mangaId: manga.id,
+            chapterId: chapter.id,
+            pageIndex: Number.isFinite(index) ? index : state.currentPageIndex,
+            scrollPosition: window.scrollY,
+            percentage: 100,
+            updatedAt: new Date().toISOString(),
+          }).finally(() => {
+            router.replace(`${mangaBasePath}/${manga.id}`);
+          });
+          return;
+        }
+
         if (saveTimer.current) window.clearTimeout(saveTimer.current);
         saveTimer.current = window.setTimeout(persistCurrentProgress, 500);
       });
@@ -141,7 +177,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       persistCurrentProgress();
     };
-  }, [hydrated, persistCurrentProgress, state.currentPageIndex, updateProgressIndicator]);
+  }, [chapter.id, hydrated, manga.id, mangaBasePath, nextChapter, persistCurrentProgress, router, state.currentPageIndex, updateProgressIndicator]);
 
   useEffect(() => {
     const upcoming = getPreloadWindow(pages, state.currentPageIndex, settings.preloadPages || 2);
