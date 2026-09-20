@@ -46,12 +46,15 @@ export function readerResumeScrollTop(
 ) {
   if (!progress) return 0;
   const maxScroll = Math.max(0, scrollHeight - viewportHeight);
+  const percentage = Number(progress.percentage);
+  // Completed chapters reopen from the top for an intentional reread while
+  // preserving their completed state in storage.
+  if (Number.isFinite(percentage) && percentage >= 99) return 0;
   const pixels = Number(progress.scrollPosition);
   if (Number.isFinite(pixels) && pixels > 0) {
     return Math.min(maxScroll, Math.max(0, pixels));
   }
 
-  const percentage = Number(progress.percentage);
   if (!Number.isFinite(percentage)) return 0;
   const clamped = Math.max(0, Math.min(100, percentage));
   return (clamped / 100) * maxScroll;
