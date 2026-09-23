@@ -15,7 +15,7 @@ Before changing repository/deployment state:
 2. Resolve current `main` HEAD.
 3. List open PRs relevant to the work.
 4. Inspect active work branch and compare it to `main`.
-5. Inspect relevant GitHub Actions status/logs. Actions was observed available again on 2026-09-19; if capacity becomes unavailable later, record that explicitly instead of retrying pushes.
+5. Inspect relevant GitHub Actions status/logs. PR #85 completed Repository Hygiene, Web Quality, and Native Quality before merge; if Actions capacity becomes unavailable later, record that explicitly instead of retrying pushes.
 6. Inspect latest Vercel production deployment for runtime work.
 7. Confirm whether the user requested code only, merge, deployment, or production mutation. Do not broaden authority silently.
 
@@ -31,7 +31,7 @@ Before changing repository/deployment state:
 
 ## GitHub Actions availability
 
-GitHub Actions was observed available again on 2026-09-19: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. Use the normal required checks.
+GitHub Actions is currently available; PR #85 completed Repository Hygiene, Web Quality, and Native Quality successfully. Use the normal required checks.
 
 If capacity/quota becomes unavailable again, do not weaken rulesets, do not report missing checks as passing, and do not create push churn attempting to obtain unavailable jobs. Use trustworthy local gates plus exact-head Vercel build evidence for runtime changes when practical and keep the missing hosted evidence explicit.
 
