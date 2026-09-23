@@ -8,7 +8,7 @@ Before substantive work, read:
 
 1. `AGENTS.md` — this file.
 2. `docs/WORKPLAN.md` — current priorities and acceptance criteria.
-3. `docs/verification-release-2026-09-19.md` — current v1.0.2 release evidence and explicit gaps.
+3. `docs/verification-release-2026-09-20.md` — current post-PR85 production evidence and explicit gaps.
 4. `docs/post-release-feedback.md` — default post-release feedback/improvement workflow.
 5. `docs/architecture.md` — runtime and security boundaries.
 6. The relevant project-local skill in `.hermes/skills/`.
@@ -38,7 +38,7 @@ Do not weaken these requirements to make a feature easier.
 
 ## Active delivery policy
 
-PWA/web v1.0.2 is the current released production line as of 2026-09-19. It includes the v0.4.0 baseline plus the validated post-release reliability, mobile-library, light-theme, and reader-navigation fixes through PR #82. Vercel production from `main` remains the active delivery path.
+PWA/web v1.0.2 remains the current released production line. The production baseline now includes the validated post-release parity/reader batch through PR #85, merged on 2026-09-20. Vercel production from `main` remains the active delivery path.
 
 Native source remains maintained for compatibility, but native packaging/signing/store distribution is a separate manually gated phase. The PWA release does not by itself authorize native distribution.
 
@@ -200,13 +200,16 @@ Protected routes must not rely on client-side hiding alone.
 
 ## Data ownership and sync invariants
 
-Synchronized tables currently include:
+Synchronized/account-owned tables currently include:
 
 - `profiles`
 - `library_entries`
 - `reading_progress`
 - `reading_history`
 - `user_settings`
+- `library_collections`
+- `library_collection_items`
+- `tracker_links`
 
 All account-owned access must stay scoped to the authenticated user in both application queries and RLS policies.
 
