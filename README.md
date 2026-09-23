@@ -18,7 +18,7 @@ PR #85 completed Repository Hygiene, Web Quality, Native Quality, and Vercel pre
 
 Pachimanga is now in a feedback-driven improvement phase. Concrete user reports, screenshots, and reproducible friction should be treated as the primary product input. Clear and safe fixes should be handled autonomously in focused batches, with regression coverage and concise handoff.
 
-GitHub Actions was observed available again on 2026-09-19. Use the normal required hosted checks; if quota/capacity becomes unavailable again, keep the missing signal explicit and never weaken protections to work around it.
+GitHub Actions is available and PR #85 completed the normal required hosted checks. If quota/capacity becomes unavailable again, keep the missing signal explicit and never weaken protections to work around it.
 
 When local validation is needed, owner-facing instructions should be paste-ready PowerShell rooted at `F:\LF\pachimanga`.
 
@@ -88,7 +88,7 @@ The owner designated v1.0.2 as the current release line on 2026-09-19. That rele
 - service-worker upgrade from an older installed version;
 - physical-device conventional and long-strip reader testing;
 - representative OCR/`.tachibk`/`.proto.gz`/`.tmb` imports using disposable samples;
-- a fresh credential-free Production Smoke against the exact v1.0.2 production runtime when a network-capable environment is available.
+- repeat Production Smoke after future runtime-impacting merges; the repository owner reported the post-PR85 production smoke passed.
 
 These are post-release evidence/backlog items, not claims that the checks already passed.
 
