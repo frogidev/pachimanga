@@ -42,7 +42,6 @@ Current controls/performance behavior:
 
 - per-title Manga/Webtoon presets plus account defaults;
 - configurable bounded preload depth;
-
 - imperative top-edge progress bar;
 - previous/next page controls and mobile tap zones;
 - Page Up/Page Down page navigation;
