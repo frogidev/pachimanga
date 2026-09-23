@@ -20,7 +20,7 @@ The production schema/RLS baseline verified for v0.4.0 remains the active data m
 | `20260917030319` | `restrict_library_progress_summary_rpc` | Reasserts authenticated-only execute grants for the summary RPC in canonical production history. |
 | `20260918010000` | `pwa_collections_profile_and_clear_rpc` | Adds `profiles.avatar_url`, owner-scoped collections/memberships, authenticated grants/RLS, and transactional `clear_my_library()`. |
 
-Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, `user_settings`, `library_collections`, and `library_collection_items`.
+Production RLS is enabled on `profiles`, `library_entries`, `reading_progress`, `reading_history`, `user_settings`, `library_collections`, `library_collection_items`, and `tracker_links`.
 
 The production account-data role contract is:
 
@@ -92,7 +92,7 @@ After reset:
 supabase migration list --local
 ```
 
-Expected baseline versions are the eleven production versions listed above. Future forward migrations may add later versions.
+Expected baseline versions are the eleven production versions listed above. The production chain now additionally includes `20260919234900_tracker_links.sql` and `20260919235000_source_migration_rpc.sql`. Future forward migrations append after these versions.
 
 Do not use `supabase db reset --linked` against production. It is destructive.
 
@@ -124,12 +124,18 @@ Before a production push, review pending migrations and SQL. Production mutation
 
 ## Current advisor state
 
-As of the 2026-09-18 post-migration check, carried forward unchanged for v1.0.2:
+As of the post-PR85 production check on 2026-09-20:
 
 - security advisor: known leaked-password-protection warning remains;
-- performance advisor: the new collection lookup index was reported unused while the new collection tables had no rows.
+- performance advisor: no findings.
 
-The leaked-password-protection warning is accepted/documented under the current plan rather than treated as evidence that owner RLS or account isolation is absent. An unused-index advisory immediately after adding empty tables is tracked as usage evidence, not a reason to remove the ownership lookup index without workload data.
+The leaked-password-protection warning remains documented rather than being confused with an RLS/account-isolation failure.
+
+## PR #85 tracker/source-migration data-model note
+
+Production migration `20260919234900_tracker_links.sql` adds owner-RLS-protected non-secret tracker mappings for AniList/MyAnimeList. OAuth bearer/refresh tokens remain device-local and are intentionally excluded from database storage and account export.
+
+Production migration `20260919235000_source_migration_rpc.sql` adds an authenticated `SECURITY INVOKER` source-migration RPC. It preserves/merges compatible library metadata, collection membership, tracker links, progress, and history, and aborts when old reading state cannot be mapped safely.
 
 ## v1.0.2 release data-model note
 
