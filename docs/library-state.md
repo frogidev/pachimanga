@@ -1,6 +1,6 @@
 # Library state, progress, and chapter updates
 
-Release baseline: v1.0.2. Exact release SHA and production deployment are recorded in `verification-release-2026-09-19.md`; the underlying library data model is carried forward from the v0.4.0 migration baseline.
+Release baseline: v1.0.2. The current post-PR85 production checkpoint is recorded in `verification-release-2026-09-20.md`; older verification files remain historical evidence.
 
 Pachimanga keeps provider publication state, personal reading state, chapter progress, and provider update baselines as separate concepts.
 
@@ -76,14 +76,14 @@ If a title has an owner-bound pending progress outbox entry, the dashboard avoid
 
 ## Synchronization visibility
 
-Current shell/Settings states are driven by real owner-bound queues:
+Current shell/Settings states are driven by real owner-bound queues, including library mutations:
 
 - `Synced`;
 - `Syncing · N pending`;
 - `Offline`;
 - `Offline · N pending`.
 
-Settings exposes explicit `Sync now` and `Retry pending sync` controls. They flush the same account-bound progress/settings queues used by reconnect handling; they do not bypass ownership checks or create a separate sync model.
+Settings exposes explicit `Sync now` and `Retry pending sync` controls. Sync completion accounting includes library, progress, and settings queues; the controls do not bypass ownership checks or create a separate sync model.
 
 ## Provider chapter-update tracking
 
@@ -114,6 +114,18 @@ Library supports:
 
 `/updates` also exposes live account/provider availability and bounded deliberate `Check all now` refresh behavior; it does not use aggressive background polling.
 
+## Source migration and tracker links
+
+PR #85 adds explicit source migration/duplicate consolidation for supported provider-backed library titles. The operation is confirmation-gated and database-transactional:
+
+- target library identity is written/merged before the old source identity is removed;
+- collection memberships and non-secret tracker links are preserved;
+- reading progress/history are copied only when chapter mapping is unambiguous;
+- any unmappable progress/history aborts the migration rather than discarding state;
+- the RPC runs as `SECURITY INVOKER` under the authenticated account.
+
+`tracker_links` stores only owner-scoped provider/media identifiers. OAuth access/refresh tokens remain device-local and are not stored in Supabase or included in account exports.
+
 ## User collections
 
 The v1.0.2 Library retains owner-scoped user collections. `library_collections` stores names and `library_collection_items` binds existing library rows into those collections using composite ownership foreign keys. Both tables have RLS enabled and authenticated owner policies. Deleting a collection removes only membership rows; deleting a library entry cascades its collection memberships.
@@ -131,8 +143,10 @@ Refresh/provider failures do not fabricate chapters, erase the previous baseline
 - `20260917024951_restrict_library_progress_summary_rpc.sql`
 - `20260917030319_restrict_library_progress_summary_rpc.sql`
 - `20260918010000_pwa_collections_profile_and_clear_rpc.sql`
+- `20260919234900_tracker_links.sql`
+- `20260919235000_source_migration_rpc.sql`
 
-Post-migration verification confirmed owner RLS/upsert constraints/grants remained intact, summary RPC `anon` execute was removed, performance advisor was clean, and leaked-password protection remained the accepted plan-limited warning.
+Post-PR85 verification confirmed the new migrations are applied in production, owner RLS/grants remain intact, the performance advisor has no findings, and leaked-password protection remains the known security warning.
 
 ## Historical v0.4.0 release verification — 2026-09-18
 
