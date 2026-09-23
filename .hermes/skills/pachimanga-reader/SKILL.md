@@ -28,6 +28,8 @@ Primary implementation areas include:
 9. Offline progress/history uses the existing IndexedDB outbox/reconnect path; never flush one account's queue under another account.
 10. Source/image failure remains explicit with retry/recovery; never substitute demo/mock pages in production.
 11. `prefers-reduced-motion` is a required behavior, not optional polish.
+12. A completed chapter must stay completed when reopened; reread scroll persistence must not downgrade 100% progress.
+13. A fully caught-up title must not manufacture chapter 1 as a continuation target; completing the latest unread chapter may exit back to manga detail after persisting completion.
 
 ## Required proof matrix
 
