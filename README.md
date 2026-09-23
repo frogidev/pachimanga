@@ -6,13 +6,13 @@ Pachimanga is a private, account-based manga reader built with Next.js 16 and Su
 
 Production: `https://pachimanga.frogilab.dev`
 
-## Release state — 2026-09-19
+## Release state — 2026-09-20
 
 Pachimanga v1.0.2 is the current authenticated PWA/web release line.
 
-The v1.0.2 designation consolidates the v0.4.0 production baseline with the subsequent Web Vitals attribution fix, mobile-library feedback fixes, mobile control/layout fixes, and the light-theme + reader Back-navigation hardening through PR #82. Exact release SHA/deployment evidence is maintained in `docs/verification-release-2026-09-19.md`; the older v0.4.0 record remains historical evidence in `docs/verification-release-2026-09-18.md`.
+The v1.0.2 production line now includes the post-release parity and reader fixes merged in PR #85. Current production evidence is recorded in `docs/verification-release-2026-09-20.md`; the 2026-09-19 and 2026-09-18 files remain historical release records.
 
-GitHub Actions is currently available again: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully on 2026-09-19.
+PR #85 completed Repository Hygiene, Web Quality, Native Quality, and Vercel preview validation before merge. The merged runtime `c48a057b30861b93124020822561eea7f7a9f8f4` is deployed to production in Vercel deployment `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` (`READY`).
 
 ## Post-release development
 
@@ -46,15 +46,16 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - Personal Library status separate from provider publication status.
 - Dynamic manga progress, deterministic rehydration, owner-bound progress/settings outboxes, explicit `Sync now`, and pending-sync retry.
 - Continue Reading, unread chapter updates, Recently Updated, Library sorting/filtering, user collections, and live data-backed Updates.
-- New readers start from the earliest available chapter; `Continue` is shown only when real progress exists.
+- New readers start from the earliest available chapter; caught-up titles wait for new unread chapters instead of restarting, completed rereads remain marked complete, and finishing the newest unread chapter returns to manga detail.
 - MangaDex reader integration.
 - WeebCentral browser/PWA support through the locked-down relay when configured.
 - ComicK metadata compatibility; public chapter-list `403` means it is not treated as a validated new-reader fallback.
 - Bounded provider refresh behavior: duplicate refreshes are coalesced, very recent checks can be reused, provider refresh has a hard timeout, and oversized WeebCentral raw chapter HTML is not placed in the Next.js data cache.
 - Conventional page and long-strip/manhwa reader layouts, progress/resume, navigation, auto-scroll, keyboard/touch controls, and optional Screen Wake Lock.
-- Explicit account-bound offline chapter downloads with cancellation/quota guards, bounded PWA runtime cache, and explicit service-worker update lifecycle.
-- OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, validated JSON fallback, and account export/import round-trip support.
-- Optional browser E2E runner without Playwright in normal dependencies.
+- Explicit account-bound offline chapter downloads with cancellation/quota guards, a Settings retry/remove manager, bounded PWA runtime cache, and explicit service-worker update lifecycle.
+- OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, validated JSON fallback, versioned account backup/restore, and non-secret tracker-link restoration.
+- Optional AniList/MyAnimeList tracking with device-local OAuth credentials and owner-RLS-protected tracker links.
+- Explicit source migration/duplicate consolidation, account-scoped navigation-state restoration, reader presets, bounded provider concurrency, and optional browser E2E without Playwright in normal dependencies.
 
 ## Runtime architecture
 
@@ -163,17 +164,18 @@ Read new-session guidance in this order:
 
 1. `AGENTS.md`
 2. `docs/WORKPLAN.md`
-3. `docs/verification-release-2026-09-19.md`
-4. `docs/verification-release-2026-09-18.md` — historical v0.4.0 record
-5. `docs/post-release-feedback.md`
-6. `docs/verification-2026-09-17.md`
-7. `docs/START-HERE-NEW-CHAT.md`
-8. `docs/architecture.md`
-9. `docs/operations.md`
-10. `docs/library-state.md`
-11. `docs/reader-pwa-hardening.md`
-12. `docs/browser-e2e-performance.md`
-13. `supabase/README.md`
+3. `docs/verification-release-2026-09-20.md`
+4. `docs/verification-release-2026-09-19.md` — historical pre-PR85 release record
+5. `docs/verification-release-2026-09-18.md` — historical v0.4.0 record
+6. `docs/post-release-feedback.md`
+7. `docs/verification-2026-09-17.md`
+8. `docs/START-HERE-NEW-CHAT.md`
+9. `docs/architecture.md`
+10. `docs/operations.md`
+11. `docs/library-state.md`
+12. `docs/reader-pwa-hardening.md`
+13. `docs/browser-e2e-performance.md`
+14. `supabase/README.md`
 
 Documentation index: `docs/README.md`.
 
