@@ -47,7 +47,7 @@ Hermes loads the root `AGENTS.md` as project context. Do not add `.hermes.md` ca
 
 PWA/web v1.0.2 is the current release line. Post-release work remains PWA-first by default and should prioritize real user feedback. Clear safe fixes should be executed autonomously; native release workflows stay manual-only unless the user explicitly requests that phase.
 
-GitHub Actions was observed available again on 2026-09-19; use normal required checks and keep any future capacity failure explicit rather than weakening gates. During the outage, do not burn pushes on unavailable CI; use local verification plus Vercel evidence where relevant and keep missing hosted evidence explicit.
+GitHub Actions is currently available and PR #85 completed the normal required hosted checks; use those checks and keep any future capacity failure explicit rather than weakening gates. During the outage, do not burn pushes on unavailable CI; use local verification plus Vercel evidence where relevant and keep missing hosted evidence explicit.
 
 ## Mandatory Hermes boot sequence
 
