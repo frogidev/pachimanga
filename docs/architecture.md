@@ -4,11 +4,11 @@ Pachimanga is a private, account-based manga reader. PWA/web v1.0.2 is the relea
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current release runtime — 2026-09-19
+## Current release runtime — 2026-09-20
 
-Pachimanga v1.0.2 is the current PWA/web release line. The exact merged SHA, production deployment ID, CI evidence, and residual manual-validation limits are recorded in `verification-release-2026-09-19.md`.
+Pachimanga v1.0.2 is the current PWA/web release line. The current production runtime is `c48a057b30861b93124020822561eea7f7a9f8f4` on Vercel deployment `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` (`READY`). Current deployment, CI, Supabase, and residual-validation evidence is recorded in `verification-release-2026-09-20.md`.
 
-The v1.0.2 line preserves the v0.4.0 architecture and includes subsequent Web Vitals attribution hardening, mobile-library behavior fixes, light-theme manga-detail correction, and reader browser-history/back-navigation hardening through PR #82.
+The v1.0.2 line preserves the existing auth/RLS/provider boundaries and now includes PR #85 source migration, account-scoped navigation state, reader presets, offline chapter management, bounded provider concurrency, optional AniList/MyAnimeList tracking, backup v2, and caught-up/completed-reader behavior.
 
 Post-release engineering is feedback-driven: user-reported defects and friction should improve the existing PWA architecture without weakening the boundaries below. See `post-release-feedback.md`.
 
@@ -60,11 +60,12 @@ Primary code areas:
 - `src/lib/storage` — account-bound cache/sync;
 - `src/lib/offline` — outbox ordering/account ownership/freshness;
 - `src/lib/imports` — OCR/backup/JSON import engines;
+- `src/lib/tracking` / `src/app/api/tracking` — optional tracker links and OAuth-backed AniList/MyAnimeList integration;
 - `src/sources/**` — provider adapters;
 - `public/sw.js` — PWA service worker;
 - `relay/weebcentral` — browser/PWA relay;
 - `src-tauri` — retained native shell/bridge;
-- `supabase/migrations` — canonical database history.
+- `supabase/migrations` — canonical database history, including owner-RLS tracker links and the source-migration RPC.
 
 ## Authentication boundary
 
