@@ -1,6 +1,6 @@
 # Post-release user feedback workflow
 
-Pachimanga v1.0.2 is the current released line. The default engineering mode is now iterative improvement driven by real user feedback.
+Pachimanga v1.0.2 is the current released line; the latest production checkpoint is documented in `verification-release-2026-09-20.md`. The default engineering mode is now iterative improvement driven by real user feedback.
 
 ## Priority
 
@@ -30,7 +30,7 @@ Do not stop for confirmation on routine implementation details. Ask only when a 
 
 ## GitHub Actions status
 
-The earlier September capacity outage is no longer the current state. On 2026-09-19, PR #82 successfully ran Repository Hygiene, Web Quality, and Native Quality.
+The earlier September capacity outage is no longer the current state. PR #85 successfully ran Repository Hygiene, Web Quality, and Native Quality before its 2026-09-20 merge.
 
 Use the normal required hosted checks. If Actions capacity/quota becomes unavailable again:
 

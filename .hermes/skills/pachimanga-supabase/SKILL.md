@@ -49,7 +49,7 @@ Current production baseline starts with:
 - `20260915080109_tighten_account_role_privileges.sql`
 - `20260915081911_reject_stale_sync_writes.sql`
 
-Future migrations append after these; do not renumber them.
+The current production chain also includes `20260919234900_tracker_links.sql` and `20260919235000_source_migration_rpc.sql`. Future migrations append after these; do not renumber applied history.
 
 ## Least-privilege Data API contract
 
@@ -76,13 +76,16 @@ For every account-owned table:
 - a client-supplied `user_id` must not grant access to another account;
 - no service-role/secret key is shipped to browser code.
 
-Current synchronized tables:
+Current synchronized/account-owned tables:
 
 - `profiles`
 - `library_entries`
 - `reading_progress`
 - `reading_history`
 - `user_settings`
+- `library_collections`
+- `library_collection_items`
+- `tracker_links`
 
 Known library-index invariant:
 

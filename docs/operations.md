@@ -4,14 +4,16 @@ This runbook covers the released PWA/web production path. Native distribution re
 
 Production UI: `https://pachimanga.frogilab.dev`
 
-## Current operating mode — 2026-09-19
+## Current operating mode — 2026-09-20
 
 - release: v1.0.2;
 - production alias: `https://pachimanga.frogilab.dev`;
-- exact current release SHA/deployment and evidence: `verification-release-2026-09-19.md`;
-- GitHub Actions was observed available again on 2026-09-19; PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully;
+- current runtime: `c48a057b30861b93124020822561eea7f7a9f8f4`;
+- production deployment: `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` (`READY`);
+- current evidence: `verification-release-2026-09-20.md`;
+- PR #85 completed Repository Hygiene, Web Quality, Native Quality, and Vercel preview validation successfully;
 - native distribution remains separate and manual-only;
-- a fresh exact-v1.0.2 Production Smoke remains a post-release confirmation unless explicitly observed and recorded.
+- the repository owner reported the post-PR85 production smoke passed after the deployment became `READY`.
 
 Do not weaken auth/RLS/account isolation/cache/secret boundaries to work around CI, preview, provider, or platform limitations.
 
@@ -127,10 +129,13 @@ Account-owned synchronized tables:
 - `reading_progress`
 - `reading_history`
 - `user_settings`
+- `library_collections`
+- `library_collection_items`
+- `tracker_links`
 
-Current safeguards include owner RLS, least-privilege grants, canonical timestamped migrations, newer-only stale-write guards, and an account-bound `SECURITY INVOKER` compact progress summary RPC with no `anon`/`PUBLIC` execute access.
+Current safeguards include owner RLS, least-privilege grants, canonical timestamped migrations, newer-only stale-write guards, owner-RLS tracker links, the account-bound progress summary RPC, and the authenticated `SECURITY INVOKER` source-migration RPC that fails closed on unmappable reading state.
 
-Run security/performance advisor review after schema/RLS/auth changes and before a release-candidate claim. The currently accepted plan-limited warning is leaked-password protection; performance was clean at the latest recorded review.
+Run security/performance advisor review after schema/RLS/auth changes and before a release-candidate claim. The currently accepted warning is leaked-password protection; the post-PR85 performance advisor returned no findings.
 
 Do not mutate production merely to investigate. Inspect first, author forward-only migrations, validate, and apply only when production mutation is intentionally authorized.
 

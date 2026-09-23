@@ -65,26 +65,20 @@ state:      READY
 
 The policy has remained in effect through later runtime deployments.
 
-## Current production state — 2026-09-19
+## Current production state — 2026-09-20
 
 Released hosted line: v1.0.2.
 
-Exact merged SHA, production deployment ID/state, and release evidence are recorded in `verification-release-2026-09-19.md`.
+Current runtime/deployment state and release evidence are recorded in `verification-release-2026-09-20.md`.
 
-v1.0.2 release evidence:
+Current production evidence:
 
-```text
-runtime-changing release-prep commit: 001a6d0d8aa03ec5eab1c280d31fd4f1915f5b96
-runtime-equivalent preview:            dpl_3iT8XMyGRpsiUgr3WrNTAv4SuWix (READY)
-release runtime:                       2fae75f7ed35295bd906babcd26da2ad24d47f37
-production:                            dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ (READY)
-```
+- PR #85 final head passed Repository Hygiene, Web Quality, Native Quality, and Vercel preview validation.
+- squash merge `c48a057b30861b93124020822561eea7f7a9f8f4` reached production deployment `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` in `READY`.
+- the inspected post-merge production `error`/`fatal` window was empty.
+- the repository owner reported the post-deploy Production Smoke passed.
 
-PR #83 completed Repository Hygiene, Web Quality, and Native Quality successfully. Later release-branch commits changed documentation only, so Vercel correctly canceled those redundant builds through the ignored-build step. The protected squash merge deployed the exact v1.0.2 runtime to production; the deployment reached `READY` with no alias error, anonymous root remained `private, no-store`, and inspected post-deploy runtime/error/fatal signals were clean.
-
-## Current validation mode
-
-Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions was observed available again on 2026-09-19, including successful Repository Hygiene, Web Quality, and Native Quality on the v1.0.2 release PR #83. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
+Repository Hygiene and Web Quality remain the normal repository gates. GitHub Actions is currently available, including successful Repository Hygiene, Web Quality, and Native Quality on PR #85. For subsequent runtime changes use the feedback workflow in `post-release-feedback.md`, then:
 
 1. Repository Hygiene + Web Quality, including install, tests, lint, typecheck, and production build;
 2. local `npm ci` + `npm run verify` when available;

@@ -4,7 +4,7 @@ Pachimanga separates deterministic repository quality checks from optional brows
 
 ## Current operating mode
 
-PWA/web v1.0.2 is the current release line. Repository Hygiene and Web Quality remain normal required checks. GitHub Actions was observed available again on 2026-09-19: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. If capacity/quota becomes unavailable again, keep missing hosted evidence explicit and use trustworthy local verification plus exact-head Vercel evidence where relevant.
+PWA/web v1.0.2 is the current release line. Repository Hygiene and Web Quality remain normal required checks. PR #85 completed Repository Hygiene, Web Quality, and Native Quality successfully before its 2026-09-20 merge. If capacity/quota becomes unavailable again, keep missing hosted evidence explicit and use trustworthy local verification plus exact-head Vercel evidence where relevant.
 
 `ops/browser-e2e.mjs` remains optional evidence for environments where Playwright and Chromium are already available. Pachimanga does not install Playwright as a normal project dependency and does not download browser binaries during standard install/build/deploy.
 
@@ -47,11 +47,11 @@ preview:      dpl_46qhkopEh5HNFUyxNgBzA6P6djeZ (READY)
 
 The operator reported the final local unit tests, lint, typecheck, and production build passing. Vercel independently compiled the production build, completed TypeScript, generated 22/22 static pages, and deployed successfully. Production error/fatal inspection was empty in the inspected window.
 
-GitHub Actions capacity was unavailable for that historical v0.4.0 release and is not claimed as passing evidence for that older release. Actions later recovered and were observed green on PR #82.
+GitHub Actions capacity was unavailable for that historical v0.4.0 release and is not claimed as passing evidence for that older release. Actions later recovered and were observed green on PR #85.
 
-## v1.0.2 current release note — 2026-09-19
+## v1.0.2 current release note — 2026-09-20
 
-Current release identity and verification are recorded in `verification-release-2026-09-19.md`. v1.0.2 keeps the same browser/performance contracts and includes the post-release Web Vitals attribution fix plus mobile/theme/reader-navigation hardening through PR #82.
+Current production identity and verification are recorded in `verification-release-2026-09-20.md`. The PR #85 baseline keeps the same browser/performance contracts while adding navigation-state restoration, bounded provider concurrency, offline chapter management, reader presets, tracker integrations, and the caught-up/completed-reader fixes.
 
 ## Feedback-driven measurement
 

@@ -8,30 +8,31 @@ For a new development session:
 
 1. `../AGENTS.md`
 2. `WORKPLAN.md`
-3. `verification-release-2026-09-19.md`
-4. `verification-release-2026-09-18.md` — historical v0.4.0 record
-5. `post-release-feedback.md`
-6. `verification-2026-09-17.md`
-7. `START-HERE-NEW-CHAT.md`
-8. `architecture.md`
-9. `operations.md`
-10. `library-state.md`
-11. `reader-pwa-hardening.md`
-12. `browser-e2e-performance.md`
-13. `../supabase/README.md`
-14. `vercel-build-policy.md`
-15. `free-pwa-distribution.md`
-16. `art-direction.md`
-17. `hermes-local.md`
-18. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
+3. `verification-release-2026-09-20.md`
+4. `verification-release-2026-09-19.md` — historical pre-PR85 release record
+5. `verification-release-2026-09-18.md` — historical v0.4.0 record
+6. `post-release-feedback.md`
+7. `verification-2026-09-17.md`
+8. `START-HERE-NEW-CHAT.md`
+9. `architecture.md`
+10. `operations.md`
+11. `library-state.md`
+12. `reader-pwa-hardening.md`
+13. `browser-e2e-performance.md`
+14. `../supabase/README.md`
+15. `vercel-build-policy.md`
+16. `free-pwa-distribution.md`
+17. `art-direction.md`
+18. `hermes-local.md`
+19. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
 
 Historical verification files remain historical evidence. Always prefer the latest dated/current-state document and verify live infrastructure before making time-sensitive claims.
 
-## Current snapshot — 2026-09-19
+## Current snapshot — 2026-09-20
 
-Pachimanga v1.0.2 is the current PWA/web release line. It consolidates the v0.4.0 release baseline with the post-release production fixes through PR #82. Exact release SHA, Vercel deployment, CI evidence, and evidence limits are recorded in `verification-release-2026-09-19.md`.
+Pachimanga v1.0.2 remains the current PWA/web release line. PR #85 is merged and deployed to production at `c48a057b30861b93124020822561eea7f7a9f8f4`; current Vercel/Supabase/validation evidence is recorded in `verification-release-2026-09-20.md`.
 
-GitHub Actions was observed healthy again on 2026-09-19: PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully. The prior September-capacity note is historical rather than an active operating constraint.
+The PR #85 production baseline includes source migration, navigation-state restoration, reader presets, offline chapter management, bounded provider concurrency, optional AniList/MyAnimeList tracking, backup v2, and the caught-up/completed-reader fixes.
 
 Manual real-device/account/import matrices remain post-release validation backlog and must not be represented as already observed.
 
@@ -41,7 +42,7 @@ Manual real-device/account/import matrices remain post-release validation backlo
 | --- | --- | --- |
 | Engineering/security contract | `../AGENTS.md` | current code/live infrastructure |
 | Current priorities | `WORKPLAN.md` | live GitHub/Vercel/Supabase state |
-| Current evidence | `verification-release-2026-09-19.md` | live state + recorded evidence |
+| Current evidence | `verification-release-2026-09-20.md` | live state + recorded evidence |
 | New-chat handoff | `START-HERE-NEW-CHAT.md` | latest workplan/evidence |
 | Post-release feedback workflow | `post-release-feedback.md` | feedback intake, autonomous execution, CI handling, PowerShell handoff |
 | Runtime architecture | `architecture.md` | `src/**`, `public/sw.js`, `relay/**`, `supabase/**` |

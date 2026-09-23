@@ -9,7 +9,7 @@ description: Strict implementation workflow for frogidev/pachimanga. Use for fea
 
 ## Before editing
 
-1. Read `AGENTS.md`, `docs/WORKPLAN.md`, and `docs/post-release-feedback.md` for feedback-driven work.
+1. Read `AGENTS.md`, `docs/WORKPLAN.md`, `docs/verification-release-2026-09-20.md`, and `docs/post-release-feedback.md` for current feedback-driven work.
 2. Check current `main`, open PRs, active branch, and `git status` when local git is available.
 3. Preserve unrelated local changes.
 4. Load a more specific project skill when the task is primarily UI, reader, Supabase, review, or deployment operations.
@@ -25,7 +25,7 @@ description: Strict implementation workflow for frogidev/pachimanga. Use for fea
 - Keep PWA/web as the active delivery target.
 - Post-release, prioritize concrete user feedback and improvements to existing flows over speculative expansion.
 - When the fix is clear and safe, proceed autonomously instead of asking for routine implementation choices.
-- GitHub Actions was observed available again on 2026-09-19. Use the normal required checks; if capacity/quota becomes unavailable again, do not burn pushes chasing unavailable CI and do not treat missing checks as passing.
+- GitHub Actions is available and PR #85 completed the normal required hosted checks before merge. Use the normal required checks; if capacity/quota becomes unavailable again, do not burn pushes chasing unavailable CI and do not treat missing checks as passing.
 - Native platform packaging/distribution is out of scope unless explicitly requested or the workplan final phase is active.
 
 ## Non-negotiable invariants

@@ -2,11 +2,11 @@
 
 This document records the current reader/PWA behavior after library sync scaling, explicit service-worker update handling, and account-bound offline chapter downloads.
 
-## Current implementation state — v1.0.2 / 2026-09-19
+## Current implementation state — v1.0.2 / 2026-09-20
 
-The reader/offline hardening is part of the v1.0.2 released line. Exact release SHA and production deployment are recorded in `verification-release-2026-09-19.md`.
+The reader/offline hardening is part of the v1.0.2 released line. The current post-PR85 runtime/deployment evidence is recorded in `verification-release-2026-09-20.md`.
 
-The v1.0.2 line includes the post-release reader history fix from PR #82: in-reader chapter changes replace the current history entry so browser/Android Back exits toward the surface that opened the reader instead of replaying chapter hops. PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully; exact v1.0.2 release evidence is kept in the current release verification document.
+The current line retains the reader history/back-navigation fix and adds PR #85 reader behavior: caught-up titles no longer restart at chapter 1, completed chapters remain completed when reopened, completed rereads start at the top, and completing the latest unread chapter persists 100% before returning to manga detail.
 
 Physical installed-device validation remains outstanding as post-release evidence and must not be inferred from automated/local checks.
 
@@ -23,7 +23,7 @@ The Reader offers explicit per-chapter page download:
 - cross-origin manga image requests can be satisfied from that explicit cache;
 - normal PWA shell/runtime updates do not evict saved chapter pages;
 - removing a chapter deletes its saved page URLs;
-- Settings can clear all saved chapter pages;
+- Settings exposes a saved-chapter manager that can retry incomplete saves, remove individual saved chapters, and clear all saved pages;
 - browser storage estimate is shown where supported.
 
 A cold offline launch may still reach `/offline` if authenticated route/metadata cannot be fetched. Pachimanga does not cache authenticated HTML or provider APIs as a public shell.
@@ -32,7 +32,7 @@ A cold offline launch may still reach `/offline` if authenticated route/metadata
 
 Downloaded chapter pages are account-bound local state. `bindChapterCacheOwner(userId)` records the active owner. Account changes/sign-out delete the previous owner's chapter cache before rebinding/clearing ownership.
 
-This mirrors the IndexedDB/localStorage ownership boundary and prevents a shared browser profile from exposing another account's deliberately downloaded pages.
+This mirrors the IndexedDB/localStorage ownership boundary. The offline chapter manifest is also account-bound and cleared/rebound on account changes, preventing a shared browser profile from exposing another account's saved-chapter metadata or pages.
 
 ## Reader controls and performance
 
@@ -40,6 +40,8 @@ The continuous-scroll reader remains the common layout model for conventional ma
 
 Current controls/performance behavior:
 
+- per-title Manga/Webtoon presets plus account defaults;
+- configurable bounded preload depth;
 - imperative top-edge progress bar;
 - previous/next page controls and mobile tap zones;
 - Page Up/Page Down page navigation;
