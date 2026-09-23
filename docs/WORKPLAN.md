@@ -8,42 +8,30 @@ PWA/web v1.0.2 is the current released line and remains the active delivery targ
 
 Production URL: `https://pachimanga.frogilab.dev`
 
-### Current execution state — 2026-09-19
+### Current execution state — 2026-09-20
 
-- GitHub Actions is currently available: PR #83 completed Repository Hygiene, Web Quality, and Native Quality successfully for the v1.0.2 release/versioning batch.
-- Use the normal protected PR/check flow. If Actions capacity or quota becomes unavailable again, do not weaken protections or treat missing/skipped jobs as passing.
-- Batch repository changes before pushing and minimize unnecessary Vercel build churn.
-- Runtime changes still require exact-head Vercel evidence when practical and exact production verification after merge.
+- PR #85 is merged into `main` as `c48a057b30861b93124020822561eea7f7a9f8f4`.
+- Repository Hygiene, Web Quality, Native Quality, and Vercel preview validation passed on the final PR head.
+- Vercel production deployment `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` is `READY` for the PR #85 runtime.
+- The owner reported the requested local validation, Supabase migration push, and post-deploy Production Smoke passed.
+- Production migration history includes `20260919234900_tracker_links.sql` and `20260919235000_source_migration_rpc.sql`.
+- Post-migration performance advisor has no findings; the known leaked-password-protection security warning remains.
+- Use the normal protected PR/check flow for future work. Do not weaken protections if a platform signal becomes unavailable.
 
-## Current release state — 2026-09-19
+## Current release state — 2026-09-20
 
-Pachimanga v1.0.2 is the current PWA/web release line. Exact release SHA, production deployment, CI evidence, and residual validation limits are maintained in `verification-release-2026-09-19.md`.
+Pachimanga v1.0.2 remains the current PWA/web release line. The current post-PR85 production checkpoint, deployment evidence, applied migrations, and residual validation limits are maintained in `verification-release-2026-09-20.md`.
 
-Release evidence:
-
-- the v0.4.0 release remains preserved as historical evidence in `verification-release-2026-09-18.md`;
-- PR #77 merged Web Vitals attribution hardening;
-- PRs #79–#81 merged the mobile Library/theme/list/control feedback fixes;
-- PR #82 merged the light manga-detail correction and reader browser-history/Back-navigation fix;
-- PR #82 completed Repository Hygiene, Web Quality, and Native Quality successfully;
-- merged runtime `ba8083df5a51ea352f84aecceadae29be3e4983d` reached production deployment `dpl_FHgi5LHcMKhrvQd8pupPMd8UcKbc` in `READY` state with no alias error;
-- the inspected post-deploy Vercel `error`/`fatal` window was empty and anonymous root remained `private, no-store`;
-- PR #83 aligned project/native metadata, the visible shell version, and current-state documentation on v1.0.2; all required hosted checks passed;
-- release runtime `2fae75f7ed35295bd906babcd26da2ad24d47f37` reached production deployment `dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ` in `READY` state with no alias error;
-- post-deploy anonymous root remained `private, no-store` and inspected Vercel runtime/error/fatal signals were clean.
-
-A fresh credential-free Production Smoke on the exact final v1.0.2 runtime remains a post-release confirmation item unless it is explicitly observed and recorded.
-
-## Current v1.0.2 production runtime — 2026-09-19
+Current production runtime:
 
 ```text
-release/runtime: 2fae75f7ed35295bd906babcd26da2ad24d47f37
-production:      dpl_Bu1WMVwVjqg3f9M4ccH91HvdfaZJ
-state:           READY
-alias:           https://pachimanga.frogilab.dev
+runtime:    c48a057b30861b93124020822561eea7f7a9f8f4
+production: dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2
+state:      READY
+alias:      https://pachimanga.frogilab.dev
 ```
 
-The runtime-changing release-prep commit had a `READY` Vercel preview; later branch commits were documentation-only and were correctly ignored by the Vercel build policy. Exact CI/deployment evidence and residual manual gaps are recorded in `verification-release-2026-09-19.md`.
+Historical release evidence remains in `verification-release-2026-09-19.md` and `verification-release-2026-09-18.md`; do not rewrite those records.
 
 ## Post-release operating priority
 
@@ -89,7 +77,8 @@ Implemented and merged:
 - mobile layout-toggle follow-up: the Grid/List control is scoped next to the "Your Library" content it changes on phones, with visible labels and immediate preference persistence instead of appearing inert above the unrelated Continue Reading section;
 - mobile library-control follow-up: sort/status controls now live with "Your Library" on phones, status uses a compact selector instead of an off-screen horizontal pill rail, collection management is hidden on phone widths, and Continue Reading no longer exposes a sort action that actually targeted the lower Library list;
 - post-release mobile/theme audit follow-up: manga detail uses an explicit warm-paper hero surface in light mode, and intra-reader chapter changes replace rather than push browser history so Android/browser Back does not replay chapter hops;
-- post-release parity batch: explicit fail-closed source migration/duplicate consolidation, account-scoped Library/Browse/manga-detail state retention, per-title manga/webtoon reader presets and configurable preload depth, account-bound offline chapter management, bounded provider concurrency, optional AniList/MyAnimeList tracking with device-local OAuth tokens, and backward-compatible versioned account backup/restore including non-secret tracker links.
+- post-release parity batch: explicit fail-closed source migration/duplicate consolidation, account-scoped Library/Browse/manga-detail state retention, per-title manga/webtoon reader presets and configurable preload depth, account-bound offline chapter management, bounded provider concurrency, optional AniList/MyAnimeList tracking with device-local OAuth tokens, and backward-compatible versioned account backup/restore including non-secret tracker links;
+- reader follow-up: fully read titles stay caught up instead of restarting at chapter 1; rereading a completed chapter preserves completion and starts at the top; completing the latest unread chapter returns to manga detail.
 
 ## Production-data truthfulness contract
 
@@ -198,7 +187,7 @@ The optional `ops/browser-e2e.mjs` may be used only where Playwright + Chromium 
 
 ## Release decision and residual evidence
 
-Pachimanga v1.0.2 is the current released PWA/web line as of 2026-09-19 by explicit owner decision.
+Pachimanga v1.0.2 is the current released PWA/web line; the latest verified production checkpoint is the PR #85 runtime recorded on 2026-09-20.
 
 Verified/implemented release facts:
 
@@ -221,7 +210,7 @@ Not claimed as completed:
 - [ ] installed-PWA device matrix;
 - [ ] conventional + long-strip physical-device reader matrix;
 - [ ] representative supported import-format matrix;
-- [ ] fresh credential-free Production Smoke against exact release runtime in a network-capable environment.
+- [x] post-PR85 credential-free Production Smoke was reported passing by the repository owner after production deployment.
 
 These unchecked items remain post-release evidence/backlog rather than being retroactively marked complete.
 
