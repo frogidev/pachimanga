@@ -21,7 +21,7 @@ Keep PWA/web first. Do not begin native signing/store/installer/TestFlight/platf
 
 Keep responses concise. Lead with status/result, changed scope, validation, and the next action. Do not repeat long project history unless it is needed.
 
-GitHub Actions was observed available again on 2026-09-19. Use the normal required hosted checks. If capacity/quota becomes unavailable again:
+GitHub Actions is available and PR #85 completed Repository Hygiene, Web Quality, and Native Quality successfully. Use the normal required hosted checks. If capacity/quota becomes unavailable again:
 - do not treat missing/skipped Actions as passing;
 - do not weaken rulesets/security/quality gates;
 - batch changes before pushing;
@@ -43,17 +43,18 @@ Start by reading, in order:
 
 1. `AGENTS.md`
 2. `docs/WORKPLAN.md`
-3. `docs/verification-release-2026-09-19.md`
-4. `docs/verification-release-2026-09-18.md` — historical v0.4.0 record
-5. `docs/post-release-feedback.md`
-6. `docs/architecture.md`
-7. `docs/operations.md`
-8. `docs/vercel-build-policy.md`
-9. `docs/library-state.md`
-10. `docs/reader-pwa-hardening.md`
-11. `docs/browser-e2e-performance.md`
-12. `supabase/README.md`
-13. the most specific `.hermes/skills/**/SKILL.md` for the task
+3. `docs/verification-release-2026-09-20.md`
+4. `docs/verification-release-2026-09-19.md` — historical pre-PR85 release record
+5. `docs/verification-release-2026-09-18.md` — historical v0.4.0 record
+6. `docs/post-release-feedback.md`
+7. `docs/architecture.md`
+8. `docs/operations.md`
+9. `docs/vercel-build-policy.md`
+10. `docs/library-state.md`
+11. `docs/reader-pwa-hardening.md`
+12. `docs/browser-e2e-performance.md`
+13. `supabase/README.md`
+14. the most specific `.hermes/skills/**/SKILL.md` for the task
 
 Then verify live state before editing:
 - current `main` HEAD;
@@ -65,9 +66,10 @@ Then verify live state before editing:
 
 Current release baseline:
 - release: v1.0.2 PWA/web;
-- exact release SHA/deployment: see `docs/verification-release-2026-09-19.md`;
+- current production checkpoint: see `docs/verification-release-2026-09-20.md`;
+- production runtime: `c48a057b30861b93124020822561eea7f7a9f8f4` / Vercel `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` (`READY`);
 - production alias: `https://pachimanga.frogilab.dev`;
-- Supabase migration `20260918010000_pwa_collections_profile_and_clear_rpc.sql` is applied;
+- Supabase migrations through `20260919235000_source_migration_rpc.sql` are applied, including `tracker_links`;
 - no production mock fallback;
 - mandatory auth/RLS/account isolation/cache/provider boundaries remain non-negotiable.
 
