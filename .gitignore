@@ -1,25 +1,42 @@
-# dependencies
+# Dependencies
 node_modules/
 
-# Next.js build output
+# Next.js / test / local build output
 .next/
 out/
 build/
+coverage/
+.nyc_output/
+.turbo/
 *.tsbuildinfo
 
-# Tauri/Rust build output
+# Vercel project-local metadata
+.vercel/
+
+# Tauri / Rust build output
 src-tauri/target/
 src-tauri/gen/
 
-# local env files
+# Environment and local credentials
+# The tracked sample is deliberately exempted.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# system files
+# Platform signing keys and provisioning material
+*.pem
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+
+# Local logs and OS files
+*.log
 .DS_Store
 Thumbs.db
 
-# generated wasm binary (copied on postinstall)
+# Generated WASM binary (copied during postinstall)
 public/sql-wasm.wasm
 scripts/calico-icons.stamp
