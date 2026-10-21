@@ -6,6 +6,14 @@ Pachimanga is a private, account-based manga reader built with Next.js 16 and Su
 
 Production: `https://pachimanga.frogilab.dev`
 
+## Repository baseline — audited 2026-10-20
+
+The default branch `main` was observed at `5b39bf45815a44a96585002f13026f511003a545`. Documentation PR #86 was squash-merged on 2026-09-23. Its remaining `docs/sync-post-pr85-production-state` branch has an **identical Git tree** to `main` despite divergent commit ancestry; do not merge it again. Both branches should be archived before the stale branch is removed.
+
+The latest scheduled GitHub Production Smoke and Provider Live Smoke checks succeeded on 2026-10-20. These targeted checks do not establish a freshly green full build, typecheck, or dependency audit.
+
+Security maintenance: the tracked lockfile pins Next.js `16.3.3`, which requires a review against published 2026 security advisories, and ESLint `9.39.5` is marked unsupported by its own lockfile metadata. Record upgrade validation in [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/WORKPLAN.md](docs/WORKPLAN.md); never bypass required checks to merge.
+
 ## Release state — 2026-09-20
 
 Pachimanga v1.0.2 is the current authenticated PWA/web release line.
@@ -94,7 +102,16 @@ These are post-release evidence/backlog items, not claims that the checks alread
 
 ## Local setup
 
-Requirements: Node.js 22+, npm, and Supabase publishable project values.
+Requirements: Node.js 22+, npm, network access for `npm ci`, and valid Supabase publishable project values. The `.env.example` values are **dummy placeholders**, not real credentials; configure a Supabase project with the required migration chain and RLS before sign-in can work. See [supabase/README.md](supabase/README.md).
+
+To clone from scratch:
+
+```bash
+git clone https://github.com/frogidev/pachimanga.git
+cd pachimanga
+git switch main
+git pull --ff-only origin main
+```
 
 ```bash
 npm ci
@@ -135,6 +152,14 @@ WEEBCENTRAL_RELAY_TOKEN=
 
 Never commit service-role keys, relay tokens, session tokens, passwords, signing certificates, provisioning profiles, keystores, or private keys.
 
+Optional environment variables in `.env.local` (documented in `.env.example`):
+
+- `NEXT_PUBLIC_ANILIST_CLIENT_ID` — AniList public OAuth application identifier.
+- `NEXT_PUBLIC_MYANIMELIST_CLIENT_ID` — MyAnimeList public OAuth identifier.
+- `MYANIMELIST_CLIENT_SECRET` — optional **server-only** secret for relevant MyAnimeList OAuth applications.
+
+The configured OAuth application redirect paths are `/tracking/anilist/callback` and `/tracking/myanimelist/callback`.
+
 ## Quality gate
 
 ```bash
@@ -158,6 +183,12 @@ BASE_URL=https://pachimanga.frogilab.dev node ops/production-smoke.mjs
 
 Native-impacting changes additionally require the checks documented in `AGENTS.md`/`NATIVE.md`; native distribution itself remains deferred.
 
+## Git workflow and contributions
+
+`main` is production-facing and protected by a GitHub ruleset requiring pull requests, squash merges, and `hygiene` and `quality` status checks. Use a short-lived `fix/`, `feat/`, `docs/` or `chore/` branch per coherent workstream. Begin from current `main`, run the full verification gate before runtime PRs, inspect diff/secrets/generated output, resolve review threads, then squash-merge after checks pass. Native workflows stay manual-only. Do not treat a stale squash-merged branch's ahead count as evidence of missing code.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and immediate prioritized backlog. `docs/WORKPLAN.md` remains the detailed operational plan.
+
 ## Documentation
 
 Read new-session guidance in this order:
@@ -178,6 +209,17 @@ Read new-session guidance in this order:
 14. `supabase/README.md`
 
 Documentation index: `docs/README.md`.
+
+## File ownership and architecture
+
+- `src/app`: Next.js 16 App Router pages, server endpoints and protected routing.
+- `src/features`, `src/components`: React 19 and Tailwind CSS 4 UI.
+- `src/lib/supabase`, `supabase/migrations`: Supabase authentication, PostgreSQL and row-level security.
+- `src/lib/storage`, `src/lib/offline`, `public/sw.js`: account-bound IndexedDB/offline cache, outbox sync and PWA support.
+- `src/sources`, `relay/weebcentral`: MangaDex, ComicK and restricted WeebCentral network paths.
+- `src/lib/imports`, `src/lib/tracking`: import formats and optional AniList/MyAnimeList.
+- `src-tauri`: retained Rust/Tauri 2 shell, not automatically released.
+- `.github/workflows`, `ops`: CI quality, controlled deployment and smoke checks.
 
 ## Distribution
 
