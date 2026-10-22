@@ -16,7 +16,7 @@ const storage = source('src/lib/storage/reader-storage.ts');
 test('mobile settings keeps theme switching reachable without the desktop sidebar', () => {
   assert.match(settings, /ThemeQuickToggle/);
   assert.match(settings, /md:hidden/);
-  assert.match(settings, /Appearance/);
+  assert.match(settings, /settings.theme"/);
 });
 
 test('library compact mode renders a real row variant and card status editing is not in the list menu', () => {

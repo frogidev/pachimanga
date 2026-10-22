@@ -2,7 +2,7 @@
 
 import JSZip from 'jszip';
 import type { InstalledExtension, ExtensionManifest, ExtensionSource } from './types';
-import { createExtensionSandbox, validateExtensionCode } from './sandbox';
+import { loadSandboxedExtension, validateExtensionCode, type SandboxedExtension } from './sandbox';
 import type { MangaSource } from '@/sources/core/manga-source';
 
 const STORAGE_KEY = 'pachimanga-extensions';
@@ -54,26 +54,16 @@ export async function installExtensionFromZip(file: File): Promise<{ success: bo
     const zip = await JSZip.loadAsync(arrayBuffer);
     
     // Look for manifest file
-    const manifestFile = zip.file('manifest.json') || zip.file('manifest.js');
+    const manifestFile = zip.file('manifest.json');
     if (!manifestFile) {
-      return { success: false, error: 'No manifest.json or manifest.js found in zip' };
+      return { success: false, error: 'No manifest.json found in zip' };
     }
     
     const manifestContent = await manifestFile.async('text');
     let manifest: ExtensionManifest | null = null;
     
     try {
-      if (manifestFile.name.endsWith('.json')) {
-        manifest = JSON.parse(manifestContent);
-      } else {
-        // For .js files, evaluate to get exports
-        const moduleExports: { manifest?: ExtensionManifest } = {};
-        const fn = new Function('exports', manifestContent + '; exports.manifest = manifest;');
-        fn(moduleExports);
-        const parsedManifest = moduleExports.manifest;
-        if (!parsedManifest) throw new Error('No manifest exported');
-        manifest = parsedManifest;
-      }
+      manifest = JSON.parse(manifestContent);
     } catch (e) {
       return { success: false, error: `Invalid manifest: ${e instanceof Error ? e.message : 'parse error'}` };
     }
@@ -138,6 +128,8 @@ export function uninstallExtension(extensionId: string): boolean {
 
   extensions.splice(index, 1);
   setStoredExtensions(extensions);
+  loadedExtensions.get(extensionId)?.destroy();
+  loadedExtensions.delete(extensionId);
   return true;
 }
 
@@ -173,58 +165,14 @@ export function updateExtensionSettings(extensionId: string, settings: Record<st
   return true;
 }
 
-const extensionSourcesCache: Map<string, ExtensionSource> = new Map();
-let sandboxInstance: Awaited<ReturnType<typeof createExtensionSandbox>> | null = null;
-
-async function getSandbox() {
-  if (!sandboxInstance) {
-    sandboxInstance = await createExtensionSandbox();
-  }
-  return sandboxInstance;
-}
+const loadedExtensions: Map<string, SandboxedExtension> = new Map();
 
 export async function loadExtensionSource(extension: InstalledExtension): Promise<ExtensionSource | null> {
   try {
-    const sandbox = await getSandbox();
-    const context = {
-      fetch: fetch.bind(window),
-      console: console,
-      setTimeout: window.setTimeout.bind(window),
-      clearTimeout: window.clearTimeout.bind(window),
-      setInterval: window.setInterval.bind(window),
-      clearInterval: window.clearInterval.bind(window),
-      Promise: window.Promise,
-      JSON: window.JSON,
-      Math: window.Math,
-      Date: window.Date,
-      Object: window.Object,
-      Array: window.Array,
-      String: window.String,
-      Number: window.Number,
-      Boolean: window.Boolean,
-      Map: window.Map,
-      Set: window.Set,
-      RegExp: window.RegExp,
-      Error: window.Error,
-      TypeError: window.TypeError,
-      URIError: window.URIError,
-      encodeURIComponent: window.encodeURIComponent,
-      decodeURIComponent: window.decodeURIComponent,
-      btoa: window.btoa,
-      atob: window.atob,
-      URL: window.URL,
-      URLSearchParams: window.URLSearchParams,
-      Headers: window.Headers,
-      Request: window.Request,
-      Response: window.Response,
-      FormData: window.FormData,
-      Blob: window.Blob,
-      crypto: window.crypto,
-    };
-
-    const source = await sandbox.run(extension.code, context);
-    extensionSourcesCache.set(extension.manifest.id, source);
-    return source;
+    const loaded = await loadSandboxedExtension(extension.code);
+    loadedExtensions.get(extension.manifest.id)?.destroy();
+    loadedExtensions.set(extension.manifest.id, loaded);
+    return loaded.source;
   } catch (error) {
     console.error(`Failed to load extension ${extension.manifest.id}:`, error);
     return null;
@@ -232,9 +180,8 @@ export async function loadExtensionSource(extension: InstalledExtension): Promis
 }
 
 export async function getExtensionSource(extensionId: string): Promise<ExtensionSource | null> {
-  if (extensionSourcesCache.has(extensionId)) {
-    return extensionSourcesCache.get(extensionId)!;
-  }
+  const cached = loadedExtensions.get(extensionId);
+  if (cached) return cached.source;
 
   const extension = getExtension(extensionId);
   if (!extension || !extension.enabled) return null;
@@ -243,7 +190,8 @@ export async function getExtensionSource(extensionId: string): Promise<Extension
 }
 
 export function clearExtensionCache(): void {
-  extensionSourcesCache.clear();
+  for (const loaded of loadedExtensions.values()) loaded.destroy();
+  loadedExtensions.clear();
 }
 
 export function createMangaSourceFromExtension(extension: InstalledExtension, extensionSource: ExtensionSource): MangaSource {

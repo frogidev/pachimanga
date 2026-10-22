@@ -36,7 +36,7 @@ The hosted product still owns:
 - reader UI;
 - progress/history;
 - settings;
-- MangaDex/ComicK paths.
+- MangaPlus/Webtoon paths.
 
 A new installer is normally unnecessary for a pure Next.js/React change.
 
@@ -65,7 +65,7 @@ A physical-device Android path has been validated historically:
 3. Authenticate with the normal Pachimanga account.
 4. Detect the Tauri runtime.
 5. Route supported WeebCentral requests through `weebcentral_request`.
-6. Keep MangaDex/ComicK on their normal application paths.
+6. Keep MangaPlus/Webtoon on their normal application paths.
 7. Synchronize library/settings/history/progress through the authenticated account model.
 
 This historical validation is not a substitute for final release validation. The native phase must repeat real-device testing after the PWA product and signing/distribution configuration are finalized.

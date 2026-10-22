@@ -7,17 +7,18 @@ import { PachiLogo } from "@/components/pachi-logo";
 import { AccountProfileBadge } from "@/components/account-profile-badge";
 import { SyncStatusIndicator } from "@/components/sync-status";
 import { ThemeQuickToggle } from "@/components/theme-quick-toggle";
+import { useLocale } from "@/lib/i18n";
 
 type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "archive" | "settings";
 
-const navItems: Array<{ href: string; label: string; icon: NavIconName }> = [
-  { href: "/", label: "Library", icon: "library" },
-  { href: "/browse", label: "Browse", icon: "browse" },
-  { href: "/updates", label: "Updates", icon: "updates" },
-  { href: "/history", label: "History", icon: "history" },
-  { href: "/import", label: "Import", icon: "import" },
-  { href: "/archive", label: "Archive", icon: "archive" },
-  { href: "/settings", label: "Settings", icon: "settings" },
+const navItems: Array<{ href: string; labelKey: string; icon: NavIconName }> = [
+  { href: "/", labelKey: "nav.library", icon: "library" },
+  { href: "/browse", labelKey: "nav.browse", icon: "browse" },
+  { href: "/updates", labelKey: "nav.updates", icon: "updates" },
+  { href: "/history", labelKey: "nav.history", icon: "history" },
+  { href: "/import", labelKey: "nav.import", icon: "import" },
+  { href: "/archive", labelKey: "nav.archive", icon: "archive" },
+  { href: "/settings", labelKey: "nav.settings", icon: "settings" },
 ];
 
 function NavIcon({ name }: { name: NavIconName }) {
@@ -37,6 +38,7 @@ function isActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { t } = useLocale();
   const router = useRouter();
 
   useEffect(() => {
@@ -92,7 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className={`grid size-7 place-items-center ${active ? "text-[#28101b]" : "text-zinc-500 group-hover:text-pink-300"}`} aria-hidden="true">
                   <NavIcon name={item.icon} />
                 </span>
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
               </Link>
             );
           })}
@@ -132,7 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           return (
             <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${active ? "text-pink-300" : "text-zinc-500"}`}>
               <span aria-hidden="true"><NavIcon name={item.icon} /></span>
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}

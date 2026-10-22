@@ -9,6 +9,7 @@ import type { Chapter, Manga } from '@/types/models';
 
 const RECENT_REFRESH_DEDUPE_MS = 15_000;
 const PROVIDER_REFRESH_TIMEOUT_MS = 15_000;
+const REMOVED_PROVIDERS = new Set(['comick', 'mangadex']);
 
 type ProviderSnapshot = { manga: Manga; chapters: Chapter[] };
 
@@ -67,26 +68,29 @@ export async function POST(request: Request) {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return json({ error: { kind: 'upstream', title: 'Authentication required', message: 'Sign in before refreshing a library title.', retryable: false } }, 401);
 
-  let body: { mangaId?: unknown; force?: unknown };
+  let body: { mangaId?: unknown; sourceId?: unknown; force?: unknown };
   try {
-    body = await request.json() as { mangaId?: unknown; force?: unknown };
+    body = await request.json() as { mangaId?: unknown; sourceId?: unknown; force?: unknown };
   } catch {
     return json({ error: { kind: 'upstream', title: 'Invalid request', message: 'Invalid request body.', retryable: false } }, 400);
   }
 
   const mangaId = typeof body.mangaId === 'string' ? body.mangaId.trim() : '';
+  const sourceId = typeof body.sourceId === 'string' ? body.sourceId.trim() : '';
   const force = body.force === true;
-  if (!mangaId || mangaId.length > 160) return json({ error: { kind: 'upstream', title: 'Invalid request', message: 'Invalid mangaId.', retryable: false } }, 400);
+  if (!mangaId || mangaId.length > 160 || sourceId.length > 40) return json({ error: { kind: 'upstream', title: 'Invalid request', message: 'Invalid mangaId.', retryable: false } }, 400);
 
-  const { data: row, error: rowError } = await sb
+  let query = sb
     .from('library_entries')
     .select('source_id,manga_id,added_at,chapter_count,latest_chapter_id,latest_chapter_number,new_chapter_count,last_chapter_change_at,last_checked_at,publication_status')
     .eq('user_id', user.id)
-    .eq('manga_id', mangaId)
-    .maybeSingle();
+    .eq('manga_id', mangaId);
+  if (sourceId) query = query.eq('source_id', sourceId);
+  const { data: row, error: rowError } = await query.maybeSingle();
   if (rowError) return json({ error: { kind: 'upstream', title: 'Library unavailable', message: 'Could not load the library entry.', retryable: true } }, 500);
   if (!row) return json({ error: { kind: 'missing', title: 'Library entry not found', message: 'This title is no longer in the signed-in account library.', retryable: false } }, 404);
   if (row.source_id === 'import') return json({ skipped: true, reason: 'Imported titles do not have a live provider.' });
+  if (REMOVED_PROVIDERS.has(row.source_id)) return json({ skipped: true, reason: 'This provider is no longer supported.' });
 
   if (!force && checkedRecently(row.last_checked_at)) {
     return json({

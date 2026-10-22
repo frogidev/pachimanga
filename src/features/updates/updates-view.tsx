@@ -46,9 +46,8 @@ function subscribeNative() {
 }
 
 function providerLabel(sourceId: string) {
-  if (sourceId === 'mangadex') return 'MangaDex';
   if (sourceId === 'weebcentral') return 'WeebCentral';
-  if (sourceId === 'comick') return 'ComicK';
+  if (sourceId === 'zonatmo') return 'ZonaTMO';
   if (sourceId === 'import') return 'Local import';
   return sourceId || 'Unknown source';
 }
@@ -138,7 +137,7 @@ export function UpdatesView() {
             const response = await fetch('/api/library/refresh', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ mangaId: entry.mangaId }),
+              body: JSON.stringify({ mangaId: entry.mangaId, sourceId: entry.sourceId }),
             });
             const body = await response.json() as RefreshResponse;
             if (!response.ok) {

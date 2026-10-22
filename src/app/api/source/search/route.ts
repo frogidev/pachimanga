@@ -1,62 +1,64 @@
 import { createClient } from '@/lib/supabase/server';
 import { withProviderConcurrency } from '@/lib/source/provider-limiter';
 import { NextResponse } from 'next/server';
-import { mergeProviderSearchResults } from '@/lib/source/search-dedupe';
-import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
+import type { MangaSource } from '@/sources/core/manga-source';
+import type { Manga } from '@/types/models';
 import {
   getWeebCentralTransport,
   weebCentralSource,
 } from '@/sources/weebcentral/weebcentral-source';
+import { zonaTmoSource } from '@/sources/zonatmo/zonatmo-source';
+
+type Lang = 'en' | 'es' | 'all';
+
+const SOURCES: Array<{ source: MangaSource; label: string; lang: 'en' | 'es' }> = [
+  { source: weebCentralSource, label: 'WeebCentral', lang: 'en' },
+  { source: zonaTmoSource, label: 'ZonaTMO', lang: 'es' },
+];
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get('q')?.trim() || '';
-  const includeDuplicates = url.searchParams.get('includeDuplicates') === '1';
+  const requested = url.searchParams.get('lang');
+  const lang: Lang = requested === 'es' || requested === 'all' ? requested : 'en';
   if (query.length > 100) return NextResponse.json({ items: [], source: null, sources: [], error: 'Search query is too long.' }, { status: 400 });
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ items: [], source: null, sources: [], error: 'Authentication required.' }, { status: 401 });
-  const skipWeebCentral = url.searchParams.get('skipWeebCentral') === '1';
   const transport = getWeebCentralTransport();
   if (!query) return NextResponse.json({ items: [], source: null, sources: [], transport });
 
-  const sourceErrors: string[] = [];
-  const groups: Array<{ source: string; items: Awaited<ReturnType<typeof mangaDexSource.search>> }> = [];
+  const selected = SOURCES.filter((entry) => lang === 'all' || entry.lang === lang);
+  const settled = await Promise.allSettled(
+    selected.map(({ source }) => withProviderConcurrency(`${user.id}:${source.id}`, () => source.search(query))),
+  );
 
-  if (!skipWeebCentral) {
-    try {
-      const items = await withProviderConcurrency(`${user.id}:weebcentral`, () => weebCentralSource.search(query));
-      if (items.length) groups.push({ source: 'WeebCentral', items });
-    } catch (error) {
-      sourceErrors.push(error instanceof Error ? error.message : 'WeebCentral unavailable');
+  const items: Manga[] = [];
+  const sources: string[] = [];
+  const errors: string[] = [];
+  settled.forEach((result, index) => {
+    const { label } = selected[index];
+    if (result.status === 'fulfilled') {
+      if (result.value.length) {
+        items.push(...result.value);
+        sources.push(label);
+      }
+    } else {
+      errors.push(result.reason instanceof Error ? result.reason.message : `${label} unavailable`);
     }
-  }
+  });
 
-  try {
-    const items = await withProviderConcurrency(`${user.id}:mangadex`, () => mangaDexSource.search(query));
-    if (items.length) groups.push({ source: 'MangaDex', items });
-  } catch (error) {
-    sourceErrors.push(error instanceof Error ? error.message : 'MangaDex unavailable');
-  }
-
-  const items = includeDuplicates ? groups.flatMap((group) => group.items) : mergeProviderSearchResults(groups.map((group) => group.items));
-  const sources = groups.map((group) => group.source);
   if (items.length) {
     return NextResponse.json({
       items,
       sources,
       source: sources.join(' + '),
       transport,
-      warning: sourceErrors.length ? sourceErrors.join(' · ') : undefined,
+      warning: errors.length ? errors.join(' · ') : undefined,
     });
   }
-
-  if (sourceErrors.length) {
-    return NextResponse.json(
-      { items: [], source: null, sources, transport, error: sourceErrors.join(' · ') },
-      { status: 502 },
-    );
+  if (errors.length) {
+    return NextResponse.json({ items: [], source: null, sources, transport, error: errors.join(' · ') }, { status: 502 });
   }
-
   return NextResponse.json({ items: [], source: null, sources, transport });
 }

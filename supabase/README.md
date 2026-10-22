@@ -135,7 +135,7 @@ The leaked-password-protection warning remains documented rather than being conf
 
 ## PR #85 tracker/source-migration data-model note
 
-Production migration `20260919234900_tracker_links.sql` adds owner-RLS-protected non-secret tracker mappings for AniList/MyAnimeList. OAuth bearer/refresh tokens remain device-local and are intentionally excluded from database storage and account export.
+Production migration `20260919234900_tracker_links.sql` adds owner-RLS-protected non-secret tracker mappings for AniList/MyAnimeList. The AniList/MyAnimeList integration that used it has since been removed; the table is retained unchanged.
 
 Production migration `20260919235000_source_migration_rpc.sql` adds an authenticated `SECURITY INVOKER` source-migration RPC. It preserves/merges compatible library metadata, collection membership, tracker links, progress, and history, and aborts when old reading state cannot be mapped safely.
 

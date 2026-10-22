@@ -23,7 +23,7 @@ import {
 import { removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga, MangaLanguage } from "@/types/models";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
-import { useLocale, t } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
 
 type SortMode = "recent" | "lastRead" | "progress" | "added" | "title";
 type FilterMode = "All" | "Unread Updates" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Plan to Read";
@@ -93,13 +93,15 @@ function mangaHref(manga: Manga, native: boolean) {
 }
 
 export function LibraryView() {
-  const { t } = useLocale();
+  const { t, contentLanguage } = useLocale();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
-  const [languageFilter, setLanguageFilter] = useState<MangaLanguage | "all">("all");
+  // The manga-language setting is the default chip; picking a chip overrides it for this visit.
+  const [languageOverride, setLanguageFilter] = useState<MangaLanguage | "all" | null>(null);
+  const languageFilter = languageOverride ?? contentLanguage;
   const [view, setView] = useState<ViewMode>(initialLibraryView);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
@@ -173,7 +175,7 @@ export function LibraryView() {
             const response = await fetch("/api/library/refresh", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ mangaId: entry.mangaId }),
+              body: JSON.stringify({ mangaId: entry.mangaId, sourceId: entry.sourceId }),
             });
             if (!response.ok) throw new Error(`Provider refresh failed with HTTP ${response.status}`);
           }));
@@ -650,7 +652,7 @@ export function LibraryView() {
         )}
 
         <div className="promo-strip relative mt-8 flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
-          <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-pink-400/10"><PachiCalico variant="head" className="size-10" /></div>
+          <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-pink-400/10"><PachiCalico className="size-10" /></div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
             <div className="font-semibold text-zinc-100">A new chapter is always a good idea.</div>
             <div className="mt-1 text-sm text-zinc-500">Keep reading, keep collecting, keep enjoying!</div>

@@ -31,17 +31,18 @@ function authorized(request) {
   return Boolean(match && safeTokenEquals(match[1]));
 }
 
+// shortcut: behind a trusted proxy every caller shares its address, so the limit is global; the
+// bearer token already gates access. Never trust X-Forwarded-For here, callers can forge it.
 function clientIp(request) {
-  const cf = request.headers['cf-connecting-ip'];
-  if (typeof cf === 'string' && cf) return cf;
-  const forwarded = request.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded) return forwarded.split(',')[0].trim();
   return request.socket.remoteAddress || 'unknown';
 }
 
 function allowRate(request) {
   const key = clientIp(request);
   const now = Date.now();
+  if (rate.size > 1024) {
+    for (const [ip, entry] of rate) if (entry.resetAt <= now) rate.delete(ip);
+  }
   const current = rate.get(key);
   if (!current || current.resetAt <= now) {
     rate.set(key, { count: 1, resetAt: now + 60_000 });
@@ -128,6 +129,14 @@ async function fetchUpstream(spec) {
   });
 }
 
+async function readCappedText(upstream) {
+  const declared = Number(upstream.headers.get('content-length') || 0);
+  if (declared > CACHE_ITEM_MAX_BYTES) throw new Error('upstream body too large');
+  const body = await upstream.text();
+  if (Buffer.byteLength(body, 'utf8') > CACHE_ITEM_MAX_BYTES) throw new Error('upstream body too large');
+  return body;
+}
+
 async function upstreamHealth() {
   try {
     const response = await fetch(WEEBCENTRAL_ORIGIN, {
@@ -169,7 +178,7 @@ const server = createServer(async (request, response) => {
     if (cached) return sendText(response, 200, cached.body, 'hit');
 
     const upstream = await fetchUpstream(spec);
-    const body = await upstream.text();
+    const body = await readCappedText(upstream);
     if (!upstream.ok) {
       return sendJson(response, upstream.status, {
         error: 'upstream_error',

@@ -13,6 +13,12 @@ import {
 } from '@/lib/extensions';
 import { useLocale } from '@/lib/i18n';
 
+/* Icons come from arbitrary extension hosts, so next/image cannot optimize them. */
+function ExtensionIcon({ src }: { src: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" width={32} height={32} loading="lazy" referrerPolicy="no-referrer" className="size-8 rounded" />;
+}
+
 export function ExtensionManager() {
   const [extensions, setExtensions] = useState<InstalledExtension[]>([]);
   const [showInstall, setShowInstall] = useState(false);
@@ -61,9 +67,9 @@ export function ExtensionManager() {
       const arrayBuffer = await zipFile.arrayBuffer();
       const zip = await JSZip.loadAsync(arrayBuffer);
 
-      const manifestFile = zip.file('manifest.json') || zip.file('manifest.js');
+      const manifestFile = zip.file('manifest.json');
       if (!manifestFile) {
-        setZipValidation({ valid: false, error: 'No manifest.json or manifest.js found in zip' });
+        setZipValidation({ valid: false, error: 'No manifest.json found in zip' });
         return;
       }
 
@@ -71,14 +77,7 @@ export function ExtensionManager() {
       let manifest: Record<string, unknown> | null = null;
 
       try {
-        if (manifestFile.name.endsWith('.json')) {
-          manifest = JSON.parse(manifestContent);
-        } else {
-          const moduleExports: Record<string, unknown> = {};
-          const fn = new Function('exports', manifestContent + '; exports.manifest = manifest;');
-          fn(moduleExports);
-          manifest = moduleExports.manifest as Record<string, unknown> | null;
-        }
+        manifest = JSON.parse(manifestContent);
       } catch {
         setZipValidation({ valid: false, error: 'Invalid manifest format' });
         return;
@@ -144,11 +143,6 @@ export function ExtensionManager() {
     }
   }
 
-  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) handleFile(file);
-  }
-
   function handleFile(file: File) {
     if (!file.name.endsWith('.zip')) {
       setInstallStatus({ type: 'error', message: 'Please select a .zip file' });
@@ -157,23 +151,6 @@ export function ExtensionManager() {
     setZipFile(file);
     setZipValidation(null);
     setInstallStatus(null);
-  }
-
-  function handleDragOver(event: React.DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function handleDragLeave(event: React.DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function handleDrop(event: React.DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    const file = event.dataTransfer.files[0];
-    if (file) handleFile(file);
   }
 
   function clearZip() {
@@ -304,7 +281,7 @@ export function ExtensionManager() {
       <div className="mt-4">
         <h3 className="font-semibold text-zinc-100 mb-4">{t("extensions.install_zip")}</h3>
         <p className="text-sm text-zinc-500 mb-4">
-          The zip file should contain <code>manifest.json</code> (or <code>manifest.js</code>) and <code>source.js</code> (or <code>index.js</code>/<code>main.js</code>).
+          The zip file should contain <code>manifest.json</code> and <code>source.js</code> (or <code>index.js</code>/<code>main.js</code>).
         </p>
 
         <div
@@ -330,28 +307,6 @@ export function ExtensionManager() {
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
           />
-        </div>
-      </div>
-    );
-  }
-
-  function renderCodeTab() {
-    return (
-      <div className="mt-4">
-        <h3 className="font-semibold text-zinc-100 mb-4">Install from Code</h3>
-        <p className="text-sm text-zinc-500 mb-4">
-          Paste the extension JavaScript code below. The extension must export a <code>manifest</code> object and a <code>source</code> object.
-        </p>
-        <textarea
-          className="w-full h-64 bg-[#0e0d14] border border-white/[.1] rounded-lg p-3 text-zinc-100 font-mono text-sm resize-y"
-          value={installCode}
-          onChange={(e) => setInstallCode(e.target.value)}
-          placeholder="// Extension code here..."
-          spellCheck={false}
-        />
-        <div className="mt-4 flex gap-3">
-          <button className="button-primary px-4 py-2" onClick={handleInstall}>Install</button>
-          <button className="button-secondary px-4 py-2" onClick={() => { setShowInstall(false); setInstallCode(''); }}>Cancel</button>
         </div>
       </div>
     );
@@ -491,7 +446,7 @@ function ExtensionCard({
       >
         <div className={`size-12 rounded-lg flex items-center justify-center ${enabled ? 'bg-green-400/10' : 'bg-zinc-800'}`}>
           {manifest.icon ? (
-            <img src={manifest.icon} alt="" className="size-8 rounded" />
+            <ExtensionIcon src={manifest.icon} />
           ) : (
             <span className="text-2xl">📦</span>
           )}

@@ -33,8 +33,6 @@ Browser / installed PWA
 Next.js 16 App Router on Vercel
         |
         +--> Supabase Auth + Postgres/RLS
-        +--> MangaDex
-        +--> ComicK metadata/compatibility paths
         +--> server-side operation-limited WeebCentral relay client
                   |
                   v
@@ -60,7 +58,6 @@ Primary code areas:
 - `src/lib/storage` — account-bound cache/sync;
 - `src/lib/offline` — outbox ordering/account ownership/freshness;
 - `src/lib/imports` — OCR/backup/JSON import engines;
-- `src/lib/tracking` / `src/app/api/tracking` — optional tracker links and OAuth-backed AniList/MyAnimeList integration;
 - `src/sources/**` — provider adapters;
 - `public/sw.js` — PWA service worker;
 - `relay/weebcentral` — browser/PWA relay;
@@ -141,7 +138,7 @@ Library titles can be deliberately moved between supported source identities. Mi
 
 ### External tracker boundary
 
-AniList and MyAnimeList are optional integrations. OAuth bearer/refresh tokens remain in account-bound browser IndexedDB and are cleared on account switch/sign-out; they are never stored in Supabase or included in account export. Supabase stores only owner-RLS-protected manga-to-tracker identifiers so title associations can restore across devices. Tracker controls remain unavailable when the corresponding public OAuth client configuration is absent.
+AniList/MyAnimeList tracking was removed. The IndexedDB `trackerAuth` store is deleted on upgrade (DB v7) so old OAuth tokens are purged; the owner-RLS `tracker_links` table and its export remain as inert data.
 
 ### Visible sync state
 
@@ -165,13 +162,13 @@ Chapter update tracking stores the provider baseline, latest chapter information
 
 ## Provider architecture
 
-### MangaDex
+### Removed providers
 
-MangaDex is a validated readable provider. Feed pagination excludes external-only chapters that cannot be served by MangaDex@Home.
+MangaDex and ComicK were removed. Existing `comick`/`mangadex` library rows are kept but skipped by refresh and cannot be opened; remove them or re-add the title from WeebCentral.
 
-### ComicK
+### ZonaTMO (Spanish)
 
-ComicK metadata/search compatibility uses `api.comick.dev`. Public chapter-list access has been observed returning `403`, so ComicK is not used as a new reader-discovery fallback. Existing/import compatibility code remains, and failures are explicit.
+Server-side adapter in `src/sources/zonatmo` for the fixed origin `https://zonatmo.org`: `/biblioteca?title=` search, `/library/{type}/{id}/{slug}` series pages (the site redirects any type/slug to the canonical URL, so only the numeric id is stored: `zt-{id}`) and `/view_uploads/{uploadId}` readers (`ztc-{uploadId}`). The first upload per chapter number is listed; the reader page supplies pages and the full chapter selector. Only numeric ids are accepted, there is no caller-controlled URL, and Cloudflare challenges/403s become explicit `SourceUnavailableError`s (no solving, cookies or proxies). Chapter images on `storage.zonatmo.org` return 403 for foreign referrers, so the reader and the offline cache request them with `referrerPolicy: no-referrer`; no image proxy exists. Browse sends the manga language (`lang=en|es|all`) to `/api/source/search`, which picks WeebCentral (en) and/or ZonaTMO (es). The Tauri bridge remains WeebCentral-only, so native Browse uses it only for English.
 
 ### WeebCentral browser/PWA
 

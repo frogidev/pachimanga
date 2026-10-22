@@ -35,14 +35,6 @@ export type ImportCollectionMembership = {
   mangaId: string;
 };
 
-export type ImportTrackerLink = {
-  provider: 'anilist' | 'myanimelist';
-  sourceId: string;
-  mangaId: string;
-  mediaId: string;
-  mediaTitle: string;
-};
-
 export type ImportReaderSettings = {
   autoScrollMultiplier?: number;
   baseSpeedPxPerSecond?: number;
@@ -62,5 +54,4 @@ export type ImportResult = {
   readerSettings?: ImportReaderSettings;
   collections?: ImportCollection[];
   collectionMemberships?: ImportCollectionMembership[];
-  trackerLinks?: ImportTrackerLink[];
 };

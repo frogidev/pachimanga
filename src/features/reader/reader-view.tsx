@@ -119,6 +119,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           loading={index < 2 ? 'eager' : 'lazy'}
           decoding="async"
           unoptimized
+          referrerPolicy="no-referrer"
           onError={() => setFailedPages((current) => ({
             ...current,
             [chapter.id]: { ...(current[chapter.id] || {}), [index]: true },
@@ -128,7 +129,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         />
       )
     );
-  }, [chapter.id, settings, shouldUseSpread, failedPages, pageRetryVersion, setFailedPages, setPageRetryVersion]);
+  }, [chapter.id, chapter.title, manga.title, settings, shouldUseSpread, failedPages, pageRetryVersion, setFailedPages, setPageRetryVersion]);
 
   // Render pages - extracted to avoid IIFE in JSX
   const renderPages = useMemo(() => {

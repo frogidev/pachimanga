@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MangaCard } from "@/components/manga-card";
 import { PageHeading } from "@/components/page-heading";
@@ -13,8 +15,8 @@ import { getLibraryEntries } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
 
-const WEB_STATUS = "Search live WeebCentral and MangaDex results with duplicate titles collapsed.";
-const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device, with MangaDex fallback.";
+const WEB_STATUS = "Search live WeebCentral results with duplicate titles collapsed.";
+const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
 
 type RuntimeMode = "checking" | "web" | "native";
 type SourceHealth = "idle" | "checking" | "reachable" | "unreachable";
@@ -41,6 +43,7 @@ function SearchIcon() {
 }
 
 export function BrowseView() {
+  const { t, contentLanguage } = useLocale();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Manga[]>([]);
   const [runtime, setRuntime] = useState<RuntimeMode>("checking");
@@ -122,14 +125,14 @@ export function BrowseView() {
               relayReady
                 ? "Private WeebCentral relay connected · PWA/web can query WeebCentral."
                 : body.configured
-                  ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."} MangaDex remains available.`
-                  : "Private WeebCentral relay is not configured · MangaDex remains available.",
+                  ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."}`
+                  : "Private WeebCentral relay is not configured.",
             );
           })
           .catch((error) => {
             if (cancelled) return;
             setSourceHealth("unreachable");
-            setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)} · MangaDex remains available.`);
+            setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)}`);
           });
       }
     }, 0);
@@ -160,11 +163,12 @@ export function BrowseView() {
     const controller = new AbortController();
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setStatus(runtime === "native" ? "Searching live WeebCentral from this device…" : "Searching live manga sources…");
-      if (runtime === "native") setSourceNotice("Native WeebCentral search in progress…");
-      let nativeError: string | undefined;
+      // The native bridge only reaches WeebCentral (English); other languages use the server route.
+      const useNative = runtime === "native" && contentLanguage === "en";
+      setStatus(useNative ? "Searching live WeebCentral from this device…" : "Searching live manga sources…");
+      if (useNative) setSourceNotice("Native WeebCentral search in progress…");
 
-      if (runtime === "native") {
+      if (useNative) {
         try {
           const nativeItems = await searchNativeWeebCentral(q);
           if (cancelled) return;
@@ -176,17 +180,25 @@ export function BrowseView() {
             setStatus(`${nativeItems.length} readable result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
             return;
           }
-          setSourceNotice("WeebCentral answered the native search with 0 matching titles. Checking MangaDex fallback…");
+          setResults([]);
+          setSearchState("done");
+          setSourceNotice("WeebCentral answered the native search with 0 matching titles.");
+          setStatus(`0 readable titles returned by WeebCentral for “${q}”.`);
+          return;
         } catch (error) {
-          nativeError = nativeErrorMessage(error);
+          const nativeError = nativeErrorMessage(error);
           setSourceHealth("unreachable");
-          setSourceNotice(`Native WeebCentral failed: ${nativeError} · Checking MangaDex fallback…`);
+          setResults([]);
+          setSearchState("error");
+          setSearchError(nativeError);
+          setStatus(`Live search failed: ${nativeError}`);
+          setSourceNotice(`Native WeebCentral failed: ${nativeError}`);
+          return;
         }
       }
 
       try {
-        const skipWeebCentral = runtime === "native" ? "&skipWeebCentral=1" : "";
-        const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}${skipWeebCentral}`, { signal: controller.signal, cache: "no-store" });
+        const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}&lang=${contentLanguage}`, { signal: controller.signal, cache: "no-store" });
         const body = await response.json() as SearchResponse;
         if (!response.ok) throw new Error(body.error || `Search failed with HTTP ${response.status}`);
         if (cancelled) return;
@@ -198,30 +210,16 @@ export function BrowseView() {
         setSearchState("done");
 
         const viaRelay = runtime === "web" && sources.includes("WeebCentral") && body.transport === "relay";
-        if (runtime === "native") {
-          setSourceNotice(
-            source
-              ? nativeError
-                ? `Showing ${source} fallback · native WeebCentral error: ${nativeError}`
-                : `Showing ${source} fallback because native WeebCentral returned 0 matching titles.`
-              : nativeError
-                ? `No readable fallback result · native WeebCentral error: ${nativeError}`
-                : "WeebCentral and MangaDex both returned 0 readable matches.",
-          );
-        } else if (viaRelay) {
+        if (viaRelay) {
           setSourceHealth("reachable");
           setSourceNotice(`Using WeebCentral through the private relay · ${items.length} result${items.length === 1 ? "" : "s"}.`);
         } else if (body.warning) {
           setSourceHealth("unreachable");
-          setSourceNotice(source ? `Showing ${source} fallback · ${body.warning}` : `Live source warning · ${body.warning}`);
+          setSourceNotice(`Live source warning · ${body.warning}`);
         }
 
         if (items.length && source) {
-          const fallbackNote = body.warning && sources.length === 1 && sources[0] === "MangaDex"
-            ? " · WeebCentral unavailable"
-            : viaRelay
-              ? " · private relay"
-              : "";
+          const fallbackNote = viaRelay ? " · private relay" : "";
           setStatus(`${items.length} readable result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
         } else {
           setStatus(`0 readable titles returned by the live sources for “${q}”.`);
@@ -244,7 +242,7 @@ export function BrowseView() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, retryNonce, runtime]);
+  }, [query, retryNonce, runtime, contentLanguage]);
 
   const sourceDot = sourceHealth === "reachable"
     ? "bg-emerald-400"
@@ -253,13 +251,16 @@ export function BrowseView() {
       : "bg-pink-400";
 
   const runtimeLabel = runtime === "native"
-    ? "Native · WeebCentral + MangaDex"
+    ? "Native · WeebCentral"
     : sourceHealth === "reachable"
-      ? "PWA/Web · private relay + MangaDex"
-      : "PWA/Web · MangaDex fallback";
+      ? "PWA/Web · private relay"
+      : "PWA/Web · direct";
 
   const q = query.trim();
   const hasQuery = Boolean(q);
+  // Sources without a language tag (WeebCentral) are English.
+  const visibleResults = contentLanguage === "all" ? results : results.filter((manga) => (manga.language ?? "en") === contentLanguage);
+  const hiddenCount = results.length - visibleResults.length;
   const libraryByKey = useMemo(
     () => new Map(libraryEntries.map((entry) => [`${entry.sourceId}\u0000${entry.mangaId}`, entry])),
     [libraryEntries],
@@ -268,8 +269,8 @@ export function BrowseView() {
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
       <PageHeading
-        eyebrow="Discover"
-        title="Browse manga"
+        eyebrow={t("browse.kicker")}
+        title={t("browse.title")}
         subtitle={status}
         actions={
           <span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400">
@@ -285,7 +286,7 @@ export function BrowseView() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search title, genre, or keyword"
+            placeholder={t("browse.placeholder")}
             className="field h-13 w-full pl-11 pr-4 text-sm placeholder:text-zinc-600"
             autoComplete="off"
           />
@@ -296,7 +297,7 @@ export function BrowseView() {
           </div>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-zinc-600">
-          <span className="rounded-full bg-white/[.035] px-2.5 py-1">Try: fantasy</span>
+          <span className="rounded-full bg-white/[.035] px-2.5 py-1">{t("browse.try")} fantasy</span>
           <span className="rounded-full bg-white/[.035] px-2.5 py-1">romance</span>
           <span className="rounded-full bg-white/[.035] px-2.5 py-1">action</span>
         </div>
@@ -304,15 +305,21 @@ export function BrowseView() {
 
       <div className="mt-6 flex items-end justify-between">
         <div>
-          <p className="pixel-kicker text-[9px] text-pink-400">Catalog</p>
-          <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{hasQuery ? "Live search results" : "Live source search"}</h2>
+          <p className="pixel-kicker text-[9px] text-pink-400">{t("browse.catalog")}</p>
+          <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{hasQuery ? t("browse.results") : t("browse.idle")}</h2>
         </div>
-        {hasQuery && searchState === "done" ? <span className="text-xs text-zinc-500">{results.length} title{results.length === 1 ? "" : "s"}</span> : null}
+        {hasQuery && searchState === "done" ? <span className="text-xs text-zinc-500">{visibleResults.length} title{visibleResults.length === 1 ? "" : "s"}</span> : null}
       </div>
 
-      {results.length ? (
+      {hiddenCount > 0 ? (
+        <p className="mt-3 text-xs text-zinc-500">
+          {hiddenCount} {t("browse.hidden")} <Link href="/settings" className="text-pink-300 underline-offset-2 hover:underline">{t("browse.change_language")}</Link>
+        </p>
+      ) : null}
+
+      {visibleResults.length ? (
         <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {results.map((manga) => {
+          {visibleResults.map((manga) => {
             const libraryEntry = libraryByKey.get(`${manga.sourceId}\u0000${manga.id}`);
             return (
               <MangaCard
