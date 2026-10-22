@@ -8,7 +8,7 @@ import { AccountProfileBadge } from "@/components/account-profile-badge";
 import { SyncStatusIndicator } from "@/components/sync-status";
 import { ThemeQuickToggle } from "@/components/theme-quick-toggle";
 
-type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "settings";
+type NavIconName = "library" | "browse" | "updates" | "history" | "import" | "archive" | "settings";
 
 const navItems: Array<{ href: string; label: string; icon: NavIconName }> = [
   { href: "/", label: "Library", icon: "library" },
@@ -16,6 +16,7 @@ const navItems: Array<{ href: string; label: string; icon: NavIconName }> = [
   { href: "/updates", label: "Updates", icon: "updates" },
   { href: "/history", label: "History", icon: "history" },
   { href: "/import", label: "Import", icon: "import" },
+  { href: "/archive", label: "Archive", icon: "archive" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
@@ -26,7 +27,8 @@ function NavIcon({ name }: { name: NavIconName }) {
   if (name === "updates") return <svg {...common}><path d="M18 8a6 6 0 1 0 1.1 6.4"/><path d="M18 4v4h-4"/><path d="M12 8v4l2.5 1.5"/></svg>;
   if (name === "history") return <svg {...common}><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>;
   if (name === "import") return <svg {...common}><path d="M12 3v12"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 20h14"/></svg>;
-  return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06L7.06 4.2l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"/></svg>;
+  if (name === "archive") return <svg {...common}><path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"/><rect x="1" y="8" width="22" height="12" rx="1"/><path d="M5 12v8"/><path d="M19 12v8"/></svg>;
+  return <svg {...common}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06L7.06 4.2l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6Z"/></svg>;
 }
 
 function isActive(pathname: string, href: string) {
@@ -124,8 +126,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:ml-[252px] md:pb-0">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-white/[.07] bg-[#0b0910]/96 px-1.5 pb-[calc(.55rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden" aria-label="Primary navigation">
-        {navItems.slice(0, 5).map((item) => {
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-6 border-t border-white/[.07] bg-[#0b0910]/96 px-1.5 pb-[calc(.55rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden" aria-label="Primary navigation">
+        {navItems.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${active ? "text-pink-300" : "text-zinc-500"}`}>

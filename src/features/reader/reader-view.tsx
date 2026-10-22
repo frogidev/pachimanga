@@ -9,7 +9,7 @@ import { useReducedMotion } from "@/features/reader/prefers-reduced-motion";
 import { getPreloadWindow } from "@/features/reader/preload";
 import { initialReaderState, readerReducer, readerResumeScrollTop } from "@/features/reader/reader-state";
 import { preserveCompletedPercentage, shouldCloseReaderAfterCompletion } from "@/features/reader/completion";
-import { effectiveReaderSettings, setTitleReaderPreset } from "@/features/reader/presets";
+import { effectiveReaderSettings, setTitleReaderPreset, readerPresetForTitle } from "@/features/reader/presets";
 import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
@@ -46,6 +46,31 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
   const previousChapter = chapterIndex >= 0 && chapterIndex < chapters.length - 1 ? chapters[chapterIndex + 1] : undefined;
   const nextChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : undefined;
   const speed = useMemo(() => effectiveSpeed(settings.baseSpeedPxPerSecond, settings.autoScrollMultiplier), [settings]);
+
+  // Spread mode: detect landscape and render two pages side-by-side
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [spreadMode, setSpreadMode] = useState<'auto' | 'always' | 'never'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('pachimanga:spreadMode') as 'auto' | 'always' | 'never') || 'auto';
+    }
+    return 'auto';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const checkLandscape = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    checkLandscape();
+    window.addEventListener('resize', checkLandscape);
+    return () => window.removeEventListener('resize', checkLandscape);
+  }, []);
+
+  const shouldUseSpread = useMemo(() => {
+    if (spreadMode === 'never') return false;
+    if (spreadMode === 'always') return true;
+    // auto: use spread in landscape for manga preset
+    return isLandscape && readerPresetForTitle(settings, manga.id) === 'manga';
+  }, [spreadMode, isLandscape, settings, manga.id]);
+
   const pause = useCallback(() => dispatch({ type: "pause" }), []);
   const navigateChapter = useCallback((chapterId: string) => {
     // Chapter hops stay within one reader history entry so browser/Android Back
@@ -53,6 +78,97 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     router.replace(`${routeBasePath}/${chapterId}`);
   }, [routeBasePath, router]);
   useAutoScroll({ playing: state.autoScrollPlaying && !reducedMotion, speedPxPerSecond: speed, onEnd: pause });
+
+  const renderPageContent = useCallback((page: Page, index: number, hasDimensions: boolean) => {
+    return (
+      failedPages[chapter.id]?.[index] ? (
+        <div className="grid min-h-80 w-full max-w-[800px] place-items-center px-6 py-12 text-center">
+          <div>
+            <p className="text-sm font-medium text-zinc-300">Page {index + 1} could not be loaded.</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-600">The provider image may be temporarily unavailable. Retrying does not change reading progress.</p>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setFailedPages((current) => ({
+                  ...current,
+                  [chapter.id]: { ...(current[chapter.id] || {}), [index]: false },
+                }));
+                setPageRetryVersion((current) => ({
+                  ...current,
+                  [chapter.id]: {
+                    ...(current[chapter.id] || {}),
+                    [index]: (current[chapter.id]?.[index] || 0) + 1,
+                  },
+                }));
+              }}
+              className="button-secondary mt-4 px-4 py-2 text-xs"
+            >
+              Retry page
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Image
+          key={`${page.imageUrl}:${pageRetryVersion[chapter.id]?.[index] || 0}`}
+          src={page.imageUrl}
+          alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
+          width={page.width ?? 1200}
+          height={page.height ?? 1800}
+          sizes={shouldUseSpread ? '(max-width: 580px) 100vw, 580px' : '(max-width: 1200px) 100vw, 1200px'}
+          loading={index < 2 ? 'eager' : 'lazy'}
+          decoding="async"
+          unoptimized
+          onError={() => setFailedPages((current) => ({
+            ...current,
+            [chapter.id]: { ...(current[chapter.id] || {}), [index]: true },
+          }))}
+          style={!hasDimensions && settings.fitMode === 'width' ? { width: '100%', height: 'auto' } : undefined}
+          className={settings.fitMode === 'screen' ? 'block h-auto max-h-[100svh] w-auto max-w-full object-contain' : 'block h-auto w-full max-w-[1200px] object-contain'}
+        />
+      )
+    );
+  }, [chapter.id, settings, shouldUseSpread, failedPages, pageRetryVersion, setFailedPages, setPageRetryVersion]);
+
+  // Render pages - extracted to avoid IIFE in JSX
+  const renderPages = useMemo(() => {
+    if (!hydrated) return null;
+    if (!shouldUseSpread) {
+      return pages.map((page, index) => {
+        const hasDimensions = Boolean(page.width && page.height);
+        return (
+          <div key={page.index} data-page-index={index} className={['flex w-full flex-col items-center justify-center bg-zinc-900 [content-visibility:auto] [contain-intrinsic-size:1200px]', index > 0 ? 'border-t border-black' : ''].join(' ')}>
+            {renderPageContent(page, index, hasDimensions)}
+          </div>
+        );
+      });
+    }
+
+    // Spread mode: render pairs of pages side-by-side using Array.from
+    const spreadCount = Math.ceil(pages.length / 2);
+    return Array.from({ length: spreadCount }, (_, spreadIndex) => {
+      const i = spreadIndex * 2;
+      const page1 = pages[i];
+      const page2 = pages[i + 1];
+      const hasDimensions1 = Boolean(page1.width && page1.height);
+      const hasDimensions2 = page2 ? Boolean(page2.width && page2.height) : false;
+      
+      return (
+        <div key={`spread-${page1.index}`} data-page-index={page1.index} className="flex w-full flex-col items-center justify-center bg-zinc-900 [content-visibility:auto] [contain-intrinsic-size:1200px]">
+          <div className="flex w-full gap-2 justify-center px-2">
+            <div className="flex-1 max-w-[580px] flex flex-col items-center">
+              {renderPageContent(page1, page1.index, hasDimensions1)}
+            </div>
+            {page2 && (
+              <div className="flex-1 max-w-[580px] flex flex-col items-center">
+                {renderPageContent(page2, page2.index, hasDimensions2)}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    });
+  }, [hydrated, shouldUseSpread, pages, renderPageContent]);
 
   const currentScrollPercentage = useCallback(() => {
     const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
@@ -239,7 +355,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
     if (document.fullscreenElement) await document.exitFullscreen();
     else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
   }
-  const toggleControls = () => dispatch({ type: state.controlsVisible ? "hide-controls" : "show-controls" });
+
+  const toggleControls = () => dispatch({ type: state.controlsVisible ? 'hide-controls' : 'show-controls' });
 
   useEffect(() => {
     let cancelled = false;
@@ -318,59 +435,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
             ))}
             <span className="text-sm text-zinc-500">Loading chapter…</span>
           </div>
-        ) : pages.map((page, index) => {
-          const hasDimensions = Boolean(page.width && page.height);
-          return (
-            <div key={page.index} data-page-index={index} className={`flex w-full flex-col items-center justify-center bg-zinc-900 [content-visibility:auto] [contain-intrinsic-size:1200px] ${index > 0 ? "border-t border-black" : ""}`}>
-              {failedPages[chapter.id]?.[index] ? (
-                <div className="grid min-h-80 w-full max-w-[800px] place-items-center px-6 py-12 text-center">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-300">Page {index + 1} could not be loaded.</p>
-                    <p className="mt-2 text-xs leading-5 text-zinc-600">The provider image may be temporarily unavailable. Retrying does not change reading progress.</p>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setFailedPages((current) => ({
-                          ...current,
-                          [chapter.id]: { ...(current[chapter.id] || {}), [index]: false },
-                        }));
-                        setPageRetryVersion((current) => ({
-                          ...current,
-                          [chapter.id]: {
-                            ...(current[chapter.id] || {}),
-                            [index]: (current[chapter.id]?.[index] || 0) + 1,
-                          },
-                        }));
-                      }}
-                      className="button-secondary mt-4 px-4 py-2 text-xs"
-                    >
-                      Retry page
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <Image
-                  key={`${page.imageUrl}:${pageRetryVersion[chapter.id]?.[index] || 0}`}
-                  src={page.imageUrl}
-                  alt={`${manga.title} ${chapter.title}, page ${index + 1}`}
-                  width={page.width ?? 1200}
-                  height={page.height ?? 1800}
-                  sizes="(max-width: 1200px) 100vw, 1200px"
-                  loading={index < 2 ? "eager" : "lazy"}
-                  decoding="async"
-                  unoptimized
-                  onError={() => setFailedPages((current) => ({
-                    ...current,
-                    [chapter.id]: { ...(current[chapter.id] || {}), [index]: true },
-                  }))}
-                  style={!hasDimensions && settings.fitMode === "width" ? { width: "100%", height: "auto" } : undefined}
-                  className={settings.fitMode === "screen" ? "block h-auto max-h-[100svh] w-auto max-w-full object-contain" : "block h-auto w-full max-w-[1200px] object-contain"}
-                />
-              )}
-            </div>
-          );
-        })}
+        ) : renderPages}
       </div>
 
       <div className={`fixed inset-x-0 top-0 z-50 transition duration-200 motion-reduce:transition-none ${state.controlsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
@@ -394,6 +459,21 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               {wakeLock.active ? "Awake" : "Wake"}
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              const modes: ('auto' | 'always' | 'never')[] = ['auto', 'always', 'never'];
+              const currentIndex = modes.indexOf(spreadMode);
+              const nextMode = modes[(currentIndex + 1) % modes.length];
+              setSpreadMode(nextMode);
+              localStorage.setItem('pachimanga:spreadMode', nextMode);
+            }}
+            className="hidden rounded-xl px-3 py-2 text-xs sm:block"
+            style={shouldUseSpread ? { background: 'rgba(244, 114, 182, 0.15)', color: '#f9a8d4' } : { background: 'rgba(255,255,255,0.05)', color: '#a1a1aa' }}
+            title={spreadMode === 'auto' ? 'Spread: Auto (landscape only)' : spreadMode === 'always' ? 'Spread: Always' : 'Spread: Never'}
+          >
+            {shouldUseSpread ? 'Spread' : 'Single'}
+          </button>
           <button type="button" onClick={() => void toggleFullscreen()} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 sm:block">Fullscreen</button>
         </div>
         {offlineError ? <div className="mx-auto mt-2 w-fit max-w-[calc(100vw-2rem)] rounded-xl bg-red-950/90 px-3 py-2 text-xs text-red-200">{offlineError}</div> : null}

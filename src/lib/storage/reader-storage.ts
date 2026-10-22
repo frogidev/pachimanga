@@ -21,6 +21,7 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   preloadPages: 3,
   defaultPreset: 'webtoon',
   titlePresets: {},
+  spreadMode: 'auto',
 };
 
 const CACHE_OWNER_KEY = 'pachimanga:cache-owner';

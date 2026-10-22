@@ -1,18 +1,54 @@
 import type { MangaSource } from "@/sources/core/manga-source";
 import { comickSource } from "@/sources/comick/comick-source";
 import { mangaDexSource } from "@/sources/mangadex/mangadex-source";
+import { mangaPlusSource } from "@/sources/mangaplus/mangaplus-source";
+import { webtoonSource } from "@/sources/webtoon/webtoon-source";
 import { weebCentralSource } from "@/sources/weebcentral/weebcentral-source";
+import { getEnabledExtensions, getExtensionSource, createMangaSourceFromExtension } from "@/lib/extensions";
 
-const sourceRegistry = new Map<string, MangaSource>([
+const builtInSources = new Map<string, MangaSource>([
   [weebCentralSource.id, weebCentralSource],
   [mangaDexSource.id, mangaDexSource],
   [comickSource.id, comickSource],
+  [mangaPlusSource.id, mangaPlusSource],
+  [webtoonSource.id, webtoonSource],
 ]);
 
+let extensionSourcesLoaded = false;
+let initializationPromise: Promise<void> | null = null;
+
+async function loadExtensionSources(): Promise<void> {
+  const extensions = getEnabledExtensions();
+
+  for (const extension of extensions) {
+    const source = await getExtensionSource(extension.manifest.id);
+    if (source) {
+      builtInSources.set(extension.manifest.sourceId, createMangaSourceFromExtension(extension, source));
+    }
+  }
+}
+
 export function getSource(id: string): MangaSource | undefined {
-  return sourceRegistry.get(id);
+  return builtInSources.get(id);
 }
 
 export function listSources(): MangaSource[] {
-  return [...sourceRegistry.values()];
+  return [...builtInSources.values()];
+}
+
+export async function initializeExtensionSources(): Promise<void> {
+  if (extensionSourcesLoaded) return;
+  if (initializationPromise) return initializationPromise;
+
+  initializationPromise = (async () => {
+    extensionSourcesLoaded = true;
+    await loadExtensionSources();
+  })();
+
+  return initializationPromise;
+}
+
+export function refreshExtensionSources(): void {
+  extensionSourcesLoaded = false;
+  initializationPromise = null;
 }
