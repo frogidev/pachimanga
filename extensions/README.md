@@ -18,18 +18,35 @@ These are included in the app by default (no installation needed):
 
 These extensions must be installed by the user from **Settings → Extensions → Install Extension**.
 
+Pre-packaged zip files are available in `extensions/packaged/`:
+
 | Extension | Source | Language | Status |
 |-----------|--------|----------|--------|
-| `lectortmo` | LectorTMO | ES | 📁 Template |
-| `tumangaonline` | TuMangaOnline | ES | 📁 Template |
-| `mangalatino` | MangaLatino | ES | 📁 Template |
-| `submanga` | SubManga | ES | 📁 Template |
+| `lectortmo` | LectorTMO | ES | 📦 Packaged |
+| `tumangaonline` | TuMangaOnline | ES | 📦 Packaged |
+| `mangalatino` | MangaLatino | ES | 📦 Packaged |
+| `submanga` | SubManga | ES | 📦 Packaged |
+
+Source templates (for modification) are in each source folder under `extensions/`.
 
 ## How to Install an Extension
 
+You can install extensions in two ways:
+
+### Option A: Pre-packaged Zip File (Recommended)
 1. Open **Settings** in Pachimanga
 2. Scroll to **Extensions** section
 3. Click **"Install Extension"**
+4. Switch to **"Zip File"** tab
+4. Drag & drop or browse for a `.zip` file from `extensions/packaged/`
+5. Click **"Validate Zip"** to verify the package
+5. Click **"Install Extension"**
+
+### Option B: Paste Source Code
+1. Open **Settings** in Pachimanga
+2. Scroll to **Extensions** section
+3. Click **"Install Extension"**
+4. Switch to **"Paste Code"** tab
 4. Copy the entire contents of a `.js` file from this folder
 5. Paste into the text area
 6. Click **"Install"**
