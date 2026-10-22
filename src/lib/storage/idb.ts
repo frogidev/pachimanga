@@ -1,7 +1,7 @@
-type StoreName = "library" | "progress" | "history" | "outbox" | "settingsOutbox" | "libraryOutbox" | "offlineChapters" | "trackerAuth";
+type StoreName = "library" | "progress" | "history" | "outbox" | "settingsOutbox" | "libraryOutbox" | "offlineChapters";
 
 const DB_NAME = "pachimanga";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 function hasIndexedDb() {
   return typeof window !== "undefined" && "indexedDB" in window;
@@ -15,7 +15,6 @@ function storeKeyField(store: StoreName) {
   if (store === "library" || store === "history") return "mangaId";
   if (store === "settingsOutbox") return "userId";
   if (store === "libraryOutbox" || store === "offlineChapters") return "key";
-  if (store === "trackerAuth") return "provider";
   return "chapterId";
 }
 
@@ -77,8 +76,9 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("offlineChapters")) {
         db.createObjectStore("offlineChapters", { keyPath: "key" });
       }
-      if (!db.objectStoreNames.contains("trackerAuth")) {
-        db.createObjectStore("trackerAuth", { keyPath: "provider" });
+      // v7: drop the removed tracker OAuth token store so old tokens are purged from the device.
+      if (db.objectStoreNames.contains("trackerAuth")) {
+        db.deleteObjectStore("trackerAuth");
       }
     };
     request.onsuccess = () => resolve(request.result);

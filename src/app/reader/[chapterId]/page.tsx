@@ -3,18 +3,15 @@ import { notFound } from 'next/navigation';
 import { ProviderFailure } from '@/components/provider-failure';
 import { ReaderView } from '@/features/reader/reader-view';
 import { classifyProviderError } from '@/lib/source/provider-error';
-import { getComickChapterContext } from '@/sources/comick/comick-source';
-import { getMangaDexChapterContext } from '@/sources/mangadex/mangadex-source';
 import { getWeebCentralChapterContext } from '@/sources/weebcentral/weebcentral-source';
+import { getZonaTmoChapterContext } from '@/sources/zonatmo/zonatmo-source';
 
 async function resolve(chapterId: string) {
   const loader = chapterId.startsWith('wc-')
     ? getWeebCentralChapterContext
-    : chapterId.startsWith('ckc-')
-      ? getComickChapterContext
-      : chapterId.startsWith('mdc-')
-        ? getMangaDexChapterContext
-        : null;
+    : chapterId.startsWith('ztc-')
+      ? getZonaTmoChapterContext
+      : null;
 
   if (loader) {
     try {

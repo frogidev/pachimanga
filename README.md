@@ -48,9 +48,9 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - Dynamic manga progress, deterministic rehydration, owner-bound progress/settings outboxes, explicit `Sync now`, and pending-sync retry.
 - Continue Reading, unread chapter updates, Recently Updated, Library sorting/filtering, user collections, and live data-backed Updates.
 - New readers start from the earliest available chapter; caught-up titles wait for new unread chapters instead of restarting, completed rereads remain marked complete, and finishing the newest unread chapter returns to manga detail.
-- MangaDex reader integration.
 - WeebCentral browser/PWA support through the locked-down relay when configured.
-- ComicK metadata compatibility; public chapter-list `403` means it is not treated as a validated new-reader fallback.
+- ZonaTMO (Spanish) search, series, chapters and reader, fetched server-side from the fixed `zonatmo.org` origin. Chapter images are loaded without a referrer because the host rejects foreign referrers; challenges/403s are surfaced, never bypassed.
+- Manga language setting (English/Español/All) that selects which providers Browse queries.
 - Bounded provider refresh behavior: duplicate refreshes are coalesced, very recent checks can be reused, provider refresh has a hard timeout, and oversized WeebCentral raw chapter HTML is not placed in the Next.js data cache.
 - Conventional page and long-strip/manhwa reader layouts, progress/resume, navigation, auto-scroll, keyboard/touch controls, and optional Screen Wake Lock.
 - **Reader spread/double-page mode** (auto/always/never) with landscape auto-detection for manga preset.
@@ -59,7 +59,6 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, validated JSON fallback, versioned account backup/restore, and non-secret tracker-link restoration.
 - **Library language filter** (EN, ES, JA, ZH, KO, FR, DE, PT, IT, RU, Other, All).
 - **Library search → Browse integration**: when no results, prompt to browse live sources.
-- Optional AniList/MyAnimeList tracking with device-local OAuth credentials and owner-RLS-protected tracker links.
 - **Multi-language support (English/Spanish)** with persistent locale selection.
 - **Official Spanish sources**: MangaPlus (Shueisha) and Webtoon (Naver) built-in.
 - **Extension system**: user-installable extensions (zip + code), sandbox execution, registry, Settings UI, example Spanish aggregator templates.
@@ -74,7 +73,6 @@ Browser / installed PWA
 Next.js 16 App Router on Vercel
         |
         +--> Supabase Auth + Postgres/RLS
-        +--> MangaDex / ComicK metadata paths
         +--> MangaPlus / Webtoon official APIs
         +--> optional locked-down WeebCentral relay
 
@@ -161,11 +159,7 @@ Never commit service-role keys, relay tokens, session tokens, passwords, signing
 
 Optional environment variables in `.env.local` (documented in `.env.example`):
 
-- `NEXT_PUBLIC_ANILIST_CLIENT_ID` — AniList public OAuth application identifier.
-- `NEXT_PUBLIC_MYANIMELIST_CLIENT_ID` — MyAnimeList public OAuth identifier.
-- `MYANIMELIST_CLIENT_SECRET` — optional **server-only** secret for relevant MyAnimeList OAuth applications.
-
-The configured OAuth application redirect paths are `/tracking/anilist/callback` and `/tracking/myanimelist/callback`.
+- `WEEBCENTRAL_RELAY_URL` / `WEEBCENTRAL_RELAY_TOKEN` — optional server-only relay settings.
 
 ## Quality gate
 
@@ -223,8 +217,8 @@ Documentation index: `docs/README.md`.
 - `src/features`, `src/components`: React 19 and Tailwind CSS 4 UI.
 - `src/lib/supabase`, `supabase/migrations`: Supabase authentication, PostgreSQL and row-level security.
 - `src/lib/storage`, `src/lib/offline`, `public/sw.js`: account-bound IndexedDB/offline cache, outbox sync and PWA support.
-- `src/sources`, `relay/weebcentral`: MangaDex, ComicK, MangaPlus, Webtoon and restricted WeebCentral network paths.
-- `src/lib/imports`, `src/lib/tracking`: import formats and optional AniList/MyAnimeList.
+- `src/sources`, `relay/weebcentral`: ZonaTMO, MangaPlus, Webtoon and restricted WeebCentral network paths.
+- `src/lib/imports`: import formats.
 - `src/lib/extensions`, `extensions/`: extension system (sandbox, registry, UI, templates).
 - `src/lib/archive`: local archive reader (CBZ/ZIP).
 - `src/lib/i18n`: multi-language support (English/Spanish).

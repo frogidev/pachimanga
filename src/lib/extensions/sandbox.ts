@@ -1,165 +1,159 @@
 'use client';
 
-import type { ExtensionSandbox, ExtensionSource, ExtensionManifest } from './types';
+import type { ExtensionManifest, ExtensionSource } from './types';
 
 /**
- * Simple extension sandbox using Function constructor with limited scope.
- * This is a safer alternative to eval but still allows dynamic code execution.
- * For production, a proper sandbox like QuickJS or iframe-based sandbox should be used.
+ * Extension code runs in a sandboxed iframe without `allow-same-origin`: it gets an opaque
+ * origin, so it cannot read this page's cookies, localStorage, IndexedDB or the Supabase
+ * session. Only structured-cloneable data crosses the postMessage bridge.
+ * shortcut: the iframe can still make network requests (CORS-limited, no credentials); a
+ * per-manifest host allowlist needs a CSP on the srcdoc, add it if untrusted installs grow.
  */
 
-function createSafeGlobals(): Record<string, unknown> {
-  return {
-    fetch: fetch.bind(window),
-    console: {
-      log: (...args: unknown[]) => console.log('[Extension]', ...args),
-      warn: (...args: unknown[]) => console.warn('[Extension]', ...args),
-      error: (...args: unknown[]) => console.error('[Extension]', ...args),
-      info: (...args: unknown[]) => console.info('[Extension]', ...args),
-      debug: (...args: unknown[]) => console.debug('[Extension]', ...args),
-    },
-    setTimeout: window.setTimeout.bind(window),
-    clearTimeout: window.clearTimeout.bind(window),
-    setInterval: window.setInterval.bind(window),
-    clearInterval: window.clearInterval.bind(window),
-    Promise: window.Promise,
-    JSON: window.JSON,
-    Math: window.Math,
-    Date: window.Date,
-    Object: window.Object,
-    Array: window.Array,
-    String: window.String,
-    Number: window.Number,
-    Boolean: window.Boolean,
-    Map: window.Map,
-    Set: window.Set,
-    RegExp: window.RegExp,
-    Error: window.Error,
-    TypeError: window.TypeError,
-    URIError: window.URIError,
-    encodeURIComponent: window.encodeURIComponent,
-    decodeURIComponent: window.decodeURIComponent,
-    btoa: window.btoa,
-    atob: window.atob,
-    URL: window.URL,
-    URLSearchParams: window.URLSearchParams,
-    Headers: window.Headers,
-    Request: window.Request,
-    Response: window.Response,
-    FormData: window.FormData,
-    Blob: window.Blob,
-    crypto: window.crypto,
-  };
+const LOAD_TIMEOUT_MS = 5_000;
+const CALL_TIMEOUT_MS = 30_000;
+const REQUIRED_FIELDS = ['id', 'name', 'version', 'description', 'author', 'sourceId', 'sourceName'] as const;
+const REQUIRED_METHODS = ['search', 'getManga', 'getChapters', 'getChapterPages'] as const;
+
+const FRAME_SCRIPT = `
+const post = (message) => parent.postMessage(message, '*');
+let loaded = null;
+addEventListener('message', async (event) => {
+  const msg = event.data;
+  if (!msg || typeof msg !== 'object') return;
+  if (msg.type === 'load') {
+    try {
+      const exports = {};
+      new Function('exports', String(msg.code))(exports);
+      if (!exports.manifest || typeof exports.manifest !== 'object') throw new Error('Extension must export a manifest object');
+      if (!exports.source || typeof exports.source !== 'object') throw new Error('Extension must export a source object');
+      loaded = exports;
+      post({ type: 'loaded', manifest: JSON.parse(JSON.stringify(exports.manifest)), methods: Object.keys(exports.source).filter((k) => typeof exports.source[k] === 'function') });
+    } catch (error) {
+      post({ type: 'load-error', error: error && error.message ? String(error.message) : 'Extension execution failed' });
+    }
+  } else if (msg.type === 'call' && loaded) {
+    try {
+      const fn = loaded.source[msg.method];
+      if (typeof fn !== 'function') throw new Error('Unknown method');
+      const value = await fn.apply(loaded.source, msg.args || []);
+      post({ type: 'result', id: msg.id, value: JSON.parse(JSON.stringify(value ?? null)) });
+    } catch (error) {
+      post({ type: 'result', id: msg.id, error: error && error.message ? String(error.message) : 'Extension call failed' });
+    }
+  }
+});
+post({ type: 'ready' });
+`;
+
+export type SandboxedExtension = {
+  manifest: ExtensionManifest;
+  source: ExtensionSource;
+  destroy(): void;
+};
+
+type Pending = { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> };
+
+function validateManifest(manifest: ExtensionManifest) {
+  for (const field of REQUIRED_FIELDS) {
+    if (!manifest[field]) throw new Error(`Manifest missing required field: ${field}`);
+  }
 }
 
-export async function createExtensionSandbox(): Promise<ExtensionSandbox> {
-  const sandbox: ExtensionSandbox = {
-    async run(code: string): Promise<ExtensionSource> {
-      // Create a safe execution environment
-      const globals = createSafeGlobals();
-      
-      // Wrap the code in a function to isolate scope
-      const wrapper = `
-        (function(globals) {
-          with (globals) {
-            ${code}
+export function loadSandboxedExtension(code: string): Promise<SandboxedExtension> {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.display = 'none';
+    iframe.srcdoc = `<!doctype html><meta charset="utf-8"><script>${FRAME_SCRIPT.replaceAll('</script', '<\\/script')}</script>`;
+
+    const pending = new Map<number, Pending>();
+    let nextId = 1;
+    let settled = false;
+
+    const destroy = () => {
+      window.removeEventListener('message', onMessage);
+      clearTimeout(loadTimer);
+      for (const entry of pending.values()) {
+        clearTimeout(entry.timer);
+        entry.reject(new Error('Extension was unloaded'));
+      }
+      pending.clear();
+      iframe.remove();
+    };
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      destroy();
+      reject(error);
+    };
+
+    function call(method: string, args: unknown[]) {
+      return new Promise<unknown>((res, rej) => {
+        const id = nextId++;
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          rej(new Error(`Extension call timed out: ${method}`));
+        }, CALL_TIMEOUT_MS);
+        pending.set(id, { resolve: res, reject: rej, timer });
+        iframe.contentWindow?.postMessage({ type: 'call', id, method, args }, '*');
+      });
+    }
+
+    function onMessage(event: MessageEvent) {
+      if (event.source !== iframe.contentWindow) return;
+      const msg = event.data as Record<string, unknown> | null;
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'ready') {
+        iframe.contentWindow?.postMessage({ type: 'load', code }, '*');
+      } else if (msg.type === 'load-error') {
+        fail(new Error(String(msg.error)));
+      } else if (msg.type === 'loaded' && !settled) {
+        try {
+          const manifest = msg.manifest as ExtensionManifest;
+          validateManifest(manifest);
+          const methods = new Set(msg.methods as string[]);
+          for (const method of REQUIRED_METHODS) {
+            if (!methods.has(method)) throw new Error(`Source missing required method: ${method}`);
           }
-          return exports;
-        })
-      `;
-      
-      let exports: { manifest: ExtensionManifest; source: ExtensionSource };
-      try {
-        const fn = new Function('globals', wrapper) as (globals: Record<string, unknown>) => { manifest: ExtensionManifest; source: ExtensionSource };
-        exports = fn(globals);
-      } catch (error) {
-        throw new Error(`Extension execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-
-      if (!exports || typeof exports !== 'object') {
-        throw new Error('Extension must export an object');
-      }
-
-      const manifest = exports.manifest;
-      if (!manifest || typeof manifest !== 'object') {
-        throw new Error('Extension must export a manifest object');
-      }
-
-      const requiredFields = ['id', 'name', 'version', 'description', 'author', 'sourceId', 'sourceName'];
-      for (const field of requiredFields) {
-        if (!manifest[field as keyof ExtensionManifest]) {
-          throw new Error(`Manifest missing required field: ${field}`);
+          settled = true;
+          clearTimeout(loadTimer);
+          resolve({
+            manifest,
+            destroy,
+            source: {
+              manifest,
+              search: (query) => call('search', [query]) as ReturnType<ExtensionSource['search']>,
+              getManga: (id) => call('getManga', [id]) as ReturnType<ExtensionSource['getManga']>,
+              getChapters: (mangaId) => call('getChapters', [mangaId]) as ReturnType<ExtensionSource['getChapters']>,
+              getChapterPages: (chapterId) => call('getChapterPages', [chapterId]) as ReturnType<ExtensionSource['getChapterPages']>,
+            },
+          });
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error('Invalid extension'));
         }
+      } else if (msg.type === 'result' && typeof msg.id === 'number') {
+        const entry = pending.get(msg.id);
+        if (!entry) return;
+        pending.delete(msg.id);
+        clearTimeout(entry.timer);
+        if (typeof msg.error === 'string') entry.reject(new Error(msg.error));
+        else entry.resolve(msg.value);
       }
+    }
 
-      const source = exports.source;
-      if (!source || typeof source !== 'object') {
-        throw new Error('Extension must export a source object');
-      }
-
-      const requiredMethods = ['search', 'getManga', 'getChapters', 'getChapterPages'] as const;
-      for (const method of requiredMethods) {
-        if (typeof (source as unknown as Record<string, unknown>)[method] !== 'function') {
-          throw new Error(`Source missing required method: ${method}`);
-        }
-      }
-
-      return source;
-    },
-
-    terminate() {
-      // No-op for Function-based sandbox
-    },
-  };
-
-  return sandbox;
+    const loadTimer = setTimeout(() => fail(new Error('Extension did not load in time')), LOAD_TIMEOUT_MS);
+    window.addEventListener('message', onMessage);
+    document.body.appendChild(iframe);
+  });
 }
 
 export async function validateExtensionCode(code: string): Promise<{ valid: boolean; manifest?: ExtensionManifest; error?: string }> {
   try {
-    const globals = createSafeGlobals();
-    
-    const wrapper = `
-      (function(globals) {
-        with (globals) {
-          ${code}
-        }
-        return exports;
-      })
-    `;
-    
-    const fn = new Function('globals', wrapper) as (globals: Record<string, unknown>) => { manifest: ExtensionManifest; source: ExtensionSource };
-    const exports = fn(globals);
-
-    if (!exports || typeof exports !== 'object') {
-      return { valid: false, error: 'Extension must export an object' };
-    }
-
-    const manifest = exports.manifest;
-    if (!manifest || typeof manifest !== 'object') {
-      return { valid: false, error: 'Extension must export a manifest object' };
-    }
-
-    const requiredFields = ['id', 'name', 'version', 'description', 'author', 'sourceId', 'sourceName'];
-    for (const field of requiredFields) {
-      if (!manifest[field as keyof ExtensionManifest]) {
-        return { valid: false, error: `Manifest missing required field: ${field}` };
-      }
-    }
-
-    const source = exports.source;
-    if (!source || typeof source !== 'object') {
-      return { valid: false, error: 'Extension must export a source object' };
-    }
-
-    const requiredMethods = ['search', 'getManga', 'getChapters', 'getChapterPages'] as const;
-    for (const method of requiredMethods) {
-      if (typeof (source as unknown as Record<string, unknown>)[method] !== 'function') {
-        return { valid: false, error: `Source missing required method: ${method}` };
-      }
-    }
-
-    return { valid: true, manifest };
+    const extension = await loadSandboxedExtension(code);
+    extension.destroy();
+    return { valid: true, manifest: extension.manifest };
   } catch (error) {
     return { valid: false, error: error instanceof Error ? error.message : 'Validation failed' };
   }

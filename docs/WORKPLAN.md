@@ -49,7 +49,6 @@ Implemented and merged:
 
 - Vercel ignored-build missing/unresolvable SHA fail-open behavior;
 - provider retry/pagination and explicit failure behavior;
-- ComicK excluded as a validated new-reader fallback while its public chapter-list API returns `403`;
 - separate personal reading status versus provider publication status;
 - dynamic manga progress and deterministic large-account rehydration;
 - compact account-bound library progress summary RPC;
@@ -159,9 +158,7 @@ Using a real signed-in disposable/test account, verify that production reflects 
 
 ## Provider release evidence
 
-- MangaDex has prior verified live search/detail/chapter/page/image evidence.
 - WeebCentral public relay health has prior evidence; authenticated upstream health requires authorized operator context. Recheck authoritative relay health for any provider/relay change.
-- ComicK metadata search works through `api.comick.dev`, but its public chapter-list path has returned `403`; do not advertise ComicK as a validated reader source until a stable readable chain exists.
 - Never bypass `403`/`429`, CAPTCHAs, auth, or anti-bot controls.
 
 ## Platform/security state

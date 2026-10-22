@@ -4,18 +4,11 @@ import { ProviderFailure } from '@/components/provider-failure';
 import { ProviderRefreshStatus } from '@/components/provider-refresh-status';
 import { MangaDetail } from '@/features/manga/manga-detail';
 import { classifyProviderError } from '@/lib/source/provider-error';
-import { comickSource } from '@/sources/comick/comick-source';
-import { mangaDexSource } from '@/sources/mangadex/mangadex-source';
 import { weebCentralSource } from '@/sources/weebcentral/weebcentral-source';
+import { zonaTmoSource } from '@/sources/zonatmo/zonatmo-source';
 
 async function resolve(id: string) {
-  const source = id.startsWith('wc-')
-    ? weebCentralSource
-    : id.startsWith('ck-')
-      ? comickSource
-      : id.startsWith('md-')
-        ? mangaDexSource
-        : null;
+  const source = id.startsWith('wc-') ? weebCentralSource : id.startsWith('zt-') ? zonaTmoSource : null;
   if (!source) return null;
 
   try {

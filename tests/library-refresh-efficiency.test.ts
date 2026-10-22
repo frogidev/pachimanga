@@ -19,7 +19,7 @@ test('library refresh coalesces duplicate provider work and bounds request durat
 });
 
 test('explicit per-title refresh bypasses the duplicate-refresh cooldown', () => {
-  assert.match(refreshStatus, /JSON\.stringify\(\{ mangaId, force: true \}\)/);
+  assert.match(refreshStatus, /JSON\.stringify\(\{ mangaId, sourceId, force: true \}\)/);
 });
 
 test('WeebCentral chapter lists avoid the oversized Next data cache and reuse parsed results', () => {

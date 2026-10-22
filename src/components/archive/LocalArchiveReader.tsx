@@ -118,6 +118,7 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
 
       <div className="relative aspect-[2/3] max-w-3xl mx-auto overflow-hidden rounded-xl bg-[#0e0d14]">
         {pages[currentPage] && (
+          // eslint-disable-next-line @next/next/no-img-element -- local blob: URL, nothing for next/image to optimize
           <img
             src={pages[currentPage].imageUrl}
             alt={`Page ${currentPage + 1}`}
@@ -165,8 +166,9 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
                 aria-label={`Page ${index + 1}`}
                 aria-current={index === currentPage ? 'page' : undefined}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element -- local blob: URL */}
                 <img
-                  src={createObjectUrl(entry.data, getMimeType(entry.name))}
+                  src={pages[index]?.imageUrl}
                   alt={`Page ${index + 1}`}
                   className="w-full h-full object-cover rounded"
                   loading="lazy"

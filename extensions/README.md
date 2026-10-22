@@ -10,9 +10,7 @@ These are included in the app by default (no installation needed):
 |--------|----------|------|--------|
 | **MangaPlus** | Multi (incl. ES) | Official Shueisha | ✅ Built-in |
 | **Webtoon** | Multi (incl. ES) | Official Naver | ✅ Built-in |
-| **MangaDex** | Multi (incl. ES) | Community API | ✅ Built-in |
 | **WeebCentral** | EN | Community | ✅ Built-in |
-| **ComicK** | EN | Community | ⚠️ Built-in (403 on chapters) |
 
 ## Community Extensions (Install via Settings)
 
@@ -82,9 +80,9 @@ exports.source = {
 
 ### Available APIs in Extensions
 
-Extensions run in a sandboxed environment with access to:
+Extensions run in a sandboxed iframe with an opaque origin (no `allow-same-origin`), loaded from `manifest.json` + `source.js` in the zip, and communicate with the app only through structured-clone messages. They have access to:
 
-- `fetch` - Network requests (same-origin + CORS)
+- `fetch` - Network requests (CORS rules apply, no cookies are sent)
 - `console.log/warn/error` - Logging (prefixed with `[Extension]`)
 - `setTimeout/clearTimeout`, `setInterval/clearInterval`
 - `Promise`, `JSON`, `Math`, `Date`, `Object`, `Array`, etc.
@@ -110,7 +108,7 @@ Extensions run in a sandboxed environment with access to:
 - Could violate site ToS
 - Should respect rate limits and not overload servers
 
-**Official sources** (MangaPlus, Webtoon, MangaDex) are recommended when available.
+**Official sources** (MangaPlus, Webtoon) are recommended when available.
 
 ## Contributing
 

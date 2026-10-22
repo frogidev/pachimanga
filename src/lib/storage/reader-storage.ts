@@ -100,6 +100,7 @@ async function bindCacheToUser(userId: string) {
   await clearAccountBoundIdb();
   localStorage.removeItem('pachimanga:reader-settings');
   localStorage.removeItem('frogilab:reader-settings');
+  localStorage.removeItem('pachimanga-extensions');
   localStorage.setItem(CACHE_OWNER_KEY, userId);
 }
 
@@ -119,14 +120,14 @@ export async function clearLocalUserCache() {
     localStorage.removeItem(CACHE_OWNER_KEY);
     localStorage.removeItem('pachimanga:reader-settings');
     localStorage.removeItem('frogilab:reader-settings');
+    localStorage.removeItem('pachimanga-extensions');
   }
   await clearAccountBoundIdb();
 }
 
 function sourceIdFromMangaId(mangaId: string) {
   if (mangaId.startsWith('wc-')) return 'weebcentral';
-  if (mangaId.startsWith('ck-')) return 'comick';
-  if (mangaId.startsWith('md-')) return 'mangadex';
+  if (mangaId.startsWith('zt-')) return 'zonatmo';
   return 'import';
 }
 

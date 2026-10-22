@@ -59,9 +59,9 @@ test("production runtime excludes mock providers and reader fallbacks", () => {
   const reader = readFileSync(join(ROOT, "src/app/reader/[chapterId]/page.tsx"), "utf8");
   const mangaDetail = readFileSync(join(ROOT, "src/features/manga/manga-detail.tsx"), "utf8");
   assert.match(registry, /weebCentralSource/);
-  assert.match(registry, /comickSource/);
   assert.match(registry, /mangaPlusSource/);
   assert.match(registry, /webtoonSource/);
+  assert.doesNotMatch(registry, /comickSource/);
   assert.doesNotMatch(registry, /mangaDexSource/);
   assert.doesNotMatch(registry, /sources\/mock|mockSource/);
   assert.doesNotMatch(reader, /mock-data|getMock/);

@@ -80,7 +80,7 @@ export async function cacheChapterPages(
     try {
       const hit = await cache.match(url);
       if (!hit) {
-        const response = await fetch(url, { mode: "no-cors", credentials: "omit", signal: options.signal });
+        const response = await fetch(url, { mode: "no-cors", credentials: "omit", referrerPolicy: "no-referrer", signal: options.signal });
         await cache.put(url, response);
       }
       saved += 1;

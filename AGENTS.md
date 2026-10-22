@@ -166,7 +166,7 @@ Main boundaries:
 - Supabase Auth + Postgres/RLS for authenticated user data
 - IndexedDB/localStorage as account-bound cache
 - local-first progress/history outbox for reconnect retry
-- MangaDex and ComicK integrations
+- MangaPlus and Webtoon integrations
 - WeebCentral browser/PWA path through the optional locked-down private relay
 - WeebCentral Tauri path through the Rust `weebcentral_request` command
 - Tauri 2 shell loading the production UI
@@ -252,9 +252,13 @@ Two network paths are intentional:
 
 Never turn either into an arbitrary URL proxy. Validate IDs/operations in trusted code, bound timeouts/redirects, and surface upstream 403/429/refusal states instead of bypassing them.
 
-### MangaDex / ComicK
+### ZonaTMO
 
-Keep their source adapters independent. Do not route them through the native WeebCentral bridge without a deliberate architecture change.
+Server-side, fixed origin `https://zonatmo.org`, numeric ids only. Never add cookies, challenge solving, proxies or an image proxy; surface 403/429/challenge states instead.
+
+### MangaPlus / Webtoon
+
+Keep their source adapters independent. Do not route them through the native WeebCentral bridge without a deliberate architecture change. MangaDex, ComicK and the AniList/MyAnimeList tracking integrations were removed; do not re-add them without explicit direction.
 
 ## Reader regression contract
 

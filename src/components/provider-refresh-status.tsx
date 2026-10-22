@@ -58,7 +58,7 @@ export function ProviderRefreshStatus({ mangaId, sourceId }: { mangaId: string; 
       const response = await fetch('/api/library/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mangaId, force: true }),
+        body: JSON.stringify({ mangaId, sourceId, force: true }),
       });
       const body = await response.json() as RefreshResponse;
       if (!response.ok) {
