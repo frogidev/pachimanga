@@ -1,5 +1,6 @@
 'use client';
 
+import JSZip from 'jszip';
 import type { InstalledExtension, ExtensionManifest, ExtensionSource } from './types';
 import { createExtensionSandbox, validateExtensionCode } from './sandbox';
 import type { MangaSource } from '@/sources/core/manga-source';
@@ -45,6 +46,89 @@ export async function installExtension(code: string, manifest?: ExtensionManifes
   setStoredExtensions(existingExtensions);
 
   return { success: true, extension };
+}
+
+export async function installExtensionFromZip(file: File): Promise<{ success: boolean; extension?: InstalledExtension; error?: string }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    
+    // Look for manifest file
+    const manifestFile = zip.file('manifest.json') || zip.file('manifest.js');
+    if (!manifestFile) {
+      return { success: false, error: 'No manifest.json or manifest.js found in zip' };
+    }
+    
+    const manifestContent = await manifestFile.async('text');
+    let manifest: ExtensionManifest | null = null;
+    
+    try {
+      if (manifestFile.name.endsWith('.json')) {
+        manifest = JSON.parse(manifestContent);
+      } else {
+        // For .js files, evaluate to get exports
+        const moduleExports: { manifest?: ExtensionManifest } = {};
+        const fn = new Function('exports', manifestContent + '; exports.manifest = manifest;');
+        fn(moduleExports);
+        const parsedManifest = moduleExports.manifest;
+        if (!parsedManifest) throw new Error('No manifest exported');
+        manifest = parsedManifest;
+      }
+    } catch (e) {
+      return { success: false, error: `Invalid manifest: ${e instanceof Error ? e.message : 'parse error'}` };
+    }
+    
+    if (!manifest) {
+      return { success: false, error: 'Manifest is null after parsing' };
+    }
+    
+    // Validate required manifest fields
+    const requiredFields = ['id', 'name', 'version', 'description', 'author', 'sourceId', 'sourceName'];
+    for (const field of requiredFields) {
+      if (!manifest[field as keyof ExtensionManifest]) {
+        return { success: false, error: `Manifest missing required field: ${field}` };
+      }
+    }
+    
+    // Look for source file
+    const sourceFile = zip.file('source.js') || zip.file('index.js') || zip.file('main.js');
+    if (!sourceFile) {
+      return { success: false, error: 'No source.js, index.js, or main.js found in zip' };
+    }
+    
+    const sourceCode = await sourceFile.async('text');
+    
+    // Validate the source code
+    const validation = await validateExtensionCode(sourceCode);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+    
+    // Check manifest consistency
+    if (validation.manifest && validation.manifest.id !== manifest.id) {
+      return { success: false, error: 'Manifest ID mismatch between manifest and source' };
+    }
+    
+    const existingExtensions = getStoredExtensions();
+    if (existingExtensions.some(ext => ext.manifest.id === manifest.id)) {
+      return { success: false, error: 'Extension with this ID is already installed' };
+    }
+    
+    const extension: InstalledExtension = {
+      manifest,
+      code: sourceCode,
+      installedAt: new Date().toISOString(),
+      enabled: true,
+    };
+    
+    const existingExtensionsList = getStoredExtensions();
+    existingExtensionsList.push(extension);
+    setStoredExtensions(existingExtensionsList);
+    
+    return { success: true, extension };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to install from zip' };
+  }
 }
 
 export function uninstallExtension(extensionId: string): boolean {

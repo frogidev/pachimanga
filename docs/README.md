@@ -14,25 +14,25 @@ For a new development session:
 6. `post-release-feedback.md`
 7. `verification-2026-09-17.md`
 8. `START-HERE-NEW-CHAT.md`
-9. `architecture.md`
-10. `operations.md`
-11. `library-state.md`
-12. `reader-pwa-hardening.md`
-13. `browser-e2e-performance.md`
-14. `../supabase/README.md`
-15. `vercel-build-policy.md`
-16. `free-pwa-distribution.md`
-17. `art-direction.md`
-18. `hermes-local.md`
-19. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
+8. `architecture.md`
+9. `operations.md`
+9. `library-state.md`
+9. `reader-pwa-hardening.md`
+9. `browser-e2e-performance.md`
+9. `../supabase/README.md`
+9. `vercel-build-policy.md`
+9. `free-pwa-distribution.md`
+9. `art-direction.md`
+9. `hermes-local.md`
+9. `../NATIVE.md` and `native-release-pipeline.md` only when native work is intentionally in scope.
 
 Historical verification files remain historical evidence. Always prefer the latest dated/current-state document and verify live infrastructure before making time-sensitive claims.
 
-## Current snapshot — 2026-09-20
+## Current snapshot — 2026-10-22
 
-Pachimanga v1.0.2 remains the current PWA/web release line. PR #85 is merged and deployed to production at `c48a057b30861b93124020822561eea7f7a9f8f4`; current Vercel/Supabase/validation evidence is recorded in `verification-release-2026-09-20.md`.
+Pachimanga v1.0.2 remains the current PWA/web release line. PR #89 is merged and deployed to production at `23c6cf0`; current Vercel/Supabase/validation evidence is recorded in `verification-release-2026-09-20.md`.
 
-The PR #85 production baseline includes source migration, navigation-state restoration, reader presets, offline chapter management, bounded provider concurrency, optional AniList/MyAnimeList tracking, backup v2, and the caught-up/completed-reader fixes.
+The PR #89 production baseline includes the extension system, multi-language support (EN/ES), official Spanish sources (MangaPlus, Webtoon), local archive reader, reader spread mode, library language filter, library search→browse integration, and the caught-up/completed-reader fixes.
 
 Manual real-device/account/import matrices remain post-release validation backlog and must not be represented as already observed.
 
