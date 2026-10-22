@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AccountDataExport } from '@/components/account-data-export';
 import { AccountSettings } from '@/components/account-settings';
+import { ExtensionManager } from '@/components/extensions/ExtensionManager';
 import { PageHeading } from '@/components/page-heading';
 import { OfflineDownloadManager } from '@/components/offline-download-manager';
 import { TrackingIntegrations } from '@/components/tracking-integrations';
@@ -114,6 +115,7 @@ export default function SettingsPage() {
         <PwaDeviceStatus />
         <OfflineDownloadManager />
         <TrackingIntegrations />
+        <ExtensionManager />
         <AccountDataExport />
         <SettingsDiagnostics />
         <SignOutSettings />

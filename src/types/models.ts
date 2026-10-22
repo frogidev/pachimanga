@@ -80,4 +80,5 @@ export interface ReaderSettings {
   preloadPages?: 1 | 2 | 3 | 4;
   defaultPreset?: "manga" | "webtoon";
   titlePresets?: Record<string, "manga" | "webtoon">;
+  spreadMode?: "auto" | "always" | "never";
 }
