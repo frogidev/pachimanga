@@ -1,6 +1,5 @@
 import type { MangaSource } from "@/sources/core/manga-source";
 import { comickSource } from "@/sources/comick/comick-source";
-import { mangaDexSource } from "@/sources/mangadex/mangadex-source";
 import { mangaPlusSource } from "@/sources/mangaplus/mangaplus-source";
 import { webtoonSource } from "@/sources/webtoon/webtoon-source";
 import { weebCentralSource } from "@/sources/weebcentral/weebcentral-source";
@@ -8,7 +7,6 @@ import { getEnabledExtensions, getExtensionSource, createMangaSourceFromExtensio
 
 const builtInSources = new Map<string, MangaSource>([
   [weebCentralSource.id, weebCentralSource],
-  [mangaDexSource.id, mangaDexSource],
   [comickSource.id, comickSource],
   [mangaPlusSource.id, mangaPlusSource],
   [webtoonSource.id, webtoonSource],
