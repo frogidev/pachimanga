@@ -6,29 +6,21 @@ Pachimanga is a private, account-based manga reader built with Next.js 16 and Su
 
 Production: `https://pachimanga.frogilab.dev`
 
-## Repository baseline — audited 2026-10-20
+## Repository baseline — audited 2026-10-22
 
-The default branch `main` was observed at `5b39bf45815a44a96585002f13026f511003a545`. Documentation PR #86 was squash-merged on 2026-09-23. Its remaining `docs/sync-post-pr85-production-state` branch has an **identical Git tree** to `main` despite divergent commit ancestry; do not merge it again. Both branches should be archived before the stale branch is removed.
+The default branch `main` was observed at `23c6cf0`. The extension system, multi-language support, Spanish manga sources, local archive reader, reader spread mode, and library language filter were merged in PR #89 and deployed to production.
 
-The latest scheduled GitHub Production Smoke and Provider Live Smoke checks succeeded on 2026-10-20. These targeted checks do not establish a freshly green full build, typecheck, or dependency audit.
+## Release state — 2026-10-22
 
-Security maintenance: the tracked lockfile pins Next.js `16.3.3`, which requires a review against published 2026 security advisories, and ESLint `9.39.5` is marked unsupported by its own lockfile metadata. Record upgrade validation in [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/WORKPLAN.md](docs/WORKPLAN.md); never bypass required checks to merge.
-
-## Release state — 2026-09-20
-
-Pachimanga v1.0.2 is the current authenticated PWA/web release line.
-
-The v1.0.2 production line now includes the post-release parity and reader fixes merged in PR #85. Current production evidence is recorded in `docs/verification-release-2026-09-20.md`; the 2026-09-19 and 2026-09-18 files remain historical release records.
-
-PR #85 completed Repository Hygiene, Web Quality, Native Quality, and Vercel preview validation before merge. The merged runtime `c48a057b30861b93124020822561eea7f7a9f8f4` is deployed to production in Vercel deployment `dpl_2MvvLYSXBf3u9hjdAULZfXDSFBb2` (`READY`).
+Pachimanga v1.0.2 remains the current authenticated PWA/web release line. The PR #89 production line includes the extension system, multi-language support (English/Spanish), official Spanish sources (MangaPlus, Webtoon), local archive reader (CBZ/ZIP), reader spread/double-page mode, library language filter, and library search → browse integration.
 
 ## Post-release development
 
-Pachimanga is now in a feedback-driven improvement phase. Concrete user reports, screenshots, and reproducible friction should be treated as the primary product input. Clear and safe fixes should be handled autonomously in focused batches, with regression coverage and concise handoff.
+Pachimanga is in a feedback-driven improvement phase. Concrete user reports, screenshots, and reproducible friction are the primary product input. Clear and safe fixes are handled autonomously in focused batches, with regression coverage and concise handoff.
 
-GitHub Actions is available and PR #85 completed the normal required hosted checks. If quota/capacity becomes unavailable again, keep the missing signal explicit and never weaken protections to work around it.
+GitHub Actions is available. If quota/capacity becomes unavailable again, keep the missing signal explicit and never weaken protections to work around it.
 
-When local validation is needed, owner-facing instructions should be paste-ready PowerShell rooted at `F:\LF\pachimanga`.
+When local validation is needed, owner-facing instructions are paste-ready PowerShell rooted at `F:\LF\pachimanga`.
 
 See `docs/post-release-feedback.md`.
 
@@ -51,6 +43,7 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - Account controls consolidated into Settings; `/account` remains a protected compatibility redirect to `/settings#account`.
 - Reader settings, sync status, PWA/device controls, account export, diagnostics, and sign-out organized by user importance.
 - Theme quick toggle in the main shell rather than a full Settings card.
+- **Multi-language support (English/Spanish)** with persistent locale selection.
 - Personal Library status separate from provider publication status.
 - Dynamic manga progress, deterministic rehydration, owner-bound progress/settings outboxes, explicit `Sync now`, and pending-sync retry.
 - Continue Reading, unread chapter updates, Recently Updated, Library sorting/filtering, user collections, and live data-backed Updates.
@@ -60,9 +53,16 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - ComicK metadata compatibility; public chapter-list `403` means it is not treated as a validated new-reader fallback.
 - Bounded provider refresh behavior: duplicate refreshes are coalesced, very recent checks can be reused, provider refresh has a hard timeout, and oversized WeebCentral raw chapter HTML is not placed in the Next.js data cache.
 - Conventional page and long-strip/manhwa reader layouts, progress/resume, navigation, auto-scroll, keyboard/touch controls, and optional Screen Wake Lock.
+- **Reader spread/double-page mode** (auto/always/never) with landscape auto-detection for manga preset.
 - Explicit account-bound offline chapter downloads with cancellation/quota guards, a Settings retry/remove manager, bounded PWA runtime cache, and explicit service-worker update lifecycle.
+- **Local archive reader** (`/archive` route) for CBZ/ZIP files with thumbnail strip, keyboard/touch navigation, and fullscreen.
 - OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, validated JSON fallback, versioned account backup/restore, and non-secret tracker-link restoration.
+- **Library language filter** (EN, ES, JA, ZH, KO, FR, DE, PT, IT, RU, Other, All).
+- **Library search → Browse integration**: when no results, prompt to browse live sources.
 - Optional AniList/MyAnimeList tracking with device-local OAuth credentials and owner-RLS-protected tracker links.
+- **Multi-language support (English/Spanish)** with persistent locale selection.
+- **Official Spanish sources**: MangaPlus (Shueisha) and Webtoon (Naver) built-in.
+- **Extension system**: user-installable extensions (zip + code), sandbox execution, registry, Settings UI, example Spanish aggregator templates.
 - Explicit source migration/duplicate consolidation, account-scoped navigation-state restoration, reader presets, bounded provider concurrency, and optional browser E2E without Playwright in normal dependencies.
 
 ## Runtime architecture
@@ -75,6 +75,7 @@ Next.js 16 App Router on Vercel
         |
         +--> Supabase Auth + Postgres/RLS
         +--> MangaDex / ComicK metadata paths
+        +--> MangaPlus / Webtoon official APIs
         +--> optional locked-down WeebCentral relay
 
 Tauri 2 shell (source retained; distribution deferred)
@@ -97,6 +98,12 @@ The owner designated v1.0.2 as the current release line on 2026-09-19. That rele
 - physical-device conventional and long-strip reader testing;
 - representative OCR/`.tachibk`/`.proto.gz`/`.tmb` imports using disposable samples;
 - repeat Production Smoke after future runtime-impacting merges; the repository owner reported the post-PR85 production smoke passed.
+- extension installation from zip and code, toggle, settings;
+- multi-language toggle (EN/ES) and persistence;
+- Spanish sources (MangaPlus, Webtoon) search, chapters, pages;
+- local archive reader (CBZ/ZIP) open, navigation, thumbnails, fullscreen;
+- reader spread mode (auto/always/never) in portrait/landscape;
+- library language filter and search→browse prompt.
 
 These are post-release evidence/backlog items, not claims that the checks already passed.
 
@@ -201,12 +208,12 @@ Read new-session guidance in this order:
 6. `docs/post-release-feedback.md`
 7. `docs/verification-2026-09-17.md`
 8. `docs/START-HERE-NEW-CHAT.md`
-9. `docs/architecture.md`
-10. `docs/operations.md`
-11. `docs/library-state.md`
-12. `docs/reader-pwa-hardening.md`
-13. `docs/browser-e2e-performance.md`
-14. `supabase/README.md`
+8. `docs/architecture.md`
+9. `docs/operations.md`
+10. `docs/library-state.md`
+10. `docs/reader-pwa-hardening.md`
+11. `docs/browser-e2e-performance.md`
+11. `supabase/README.md`
 
 Documentation index: `docs/README.md`.
 
@@ -216,8 +223,11 @@ Documentation index: `docs/README.md`.
 - `src/features`, `src/components`: React 19 and Tailwind CSS 4 UI.
 - `src/lib/supabase`, `supabase/migrations`: Supabase authentication, PostgreSQL and row-level security.
 - `src/lib/storage`, `src/lib/offline`, `public/sw.js`: account-bound IndexedDB/offline cache, outbox sync and PWA support.
-- `src/sources`, `relay/weebcentral`: MangaDex, ComicK and restricted WeebCentral network paths.
+- `src/sources`, `relay/weebcentral`: MangaDex, ComicK, MangaPlus, Webtoon and restricted WeebCentral network paths.
 - `src/lib/imports`, `src/lib/tracking`: import formats and optional AniList/MyAnimeList.
+- `src/lib/extensions`, `extensions/`: extension system (sandbox, registry, UI, templates).
+- `src/lib/archive`: local archive reader (CBZ/ZIP).
+- `src/lib/i18n`: multi-language support (English/Spanish).
 - `src-tauri`: retained Rust/Tauri 2 shell, not automatically released.
 - `.github/workflows`, `ops`: CI quality, controlled deployment and smoke checks.
 

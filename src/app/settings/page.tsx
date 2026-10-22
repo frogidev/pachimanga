@@ -15,9 +15,11 @@ import { ThemeQuickToggle } from '@/components/theme-quick-toggle';
 import { DEFAULT_READER_SETTINGS, loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
 import type { ReaderSettings } from '@/types/models';
 import { READER_PRESETS } from '@/features/reader/presets';
+import { useLocale } from '@/lib/i18n';
 
 export default function SettingsPage() {
   const [s, setS] = useState<ReaderSettings>(DEFAULT_READER_SETTINGS);
+  const { locale, setLocale, t } = useLocale();
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +39,7 @@ export default function SettingsPage() {
 
   return (
     <div className="app-page max-w-4xl">
-      <PageHeading eyebrow="Preferences" title="Settings" subtitle="Manage your account, reading experience, sync and device behavior in one place." />
+      <PageHeading eyebrow="Preferences" title={t("settings.title")} subtitle={t("settings.subtitle")} />
       <div className="mt-6 grid gap-4">
         <section id="account" className="scroll-mt-24">
           <AccountSettings />
@@ -45,7 +47,7 @@ export default function SettingsPage() {
 
         <section className="surface-card p-5 md:hidden" aria-labelledby="mobile-theme-title">
           <p className="pixel-kicker text-[9px] text-pink-400">Appearance</p>
-          <h2 id="mobile-theme-title" className="mt-1 text-lg font-semibold text-zinc-100">Theme</h2>
+          <h2 id="mobile-theme-title" className="mt-1 text-lg font-semibold text-zinc-100">{t("settings.theme")}</h2>
           <p className="mt-1 text-sm leading-6 text-zinc-500">Switch between the dark room and warm-paper light theme.</p>
           <div className="mt-3">
             <ThemeQuickToggle />
@@ -109,6 +111,14 @@ export default function SettingsPage() {
               <span className="mt-1 block text-xs leading-5 text-zinc-500">Uses the browser Screen Wake Lock API when supported and releases it when the reader closes or the app is backgrounded.</span>
             </span>
           </label>
+          
+          <div className="mt-6">
+            <p className="text-xs font-medium uppercase tracking-[.12em] text-zinc-600">Language</p>
+            <div className="mt-2 inline-flex rounded-xl border border-white/[.08] bg-[#0d0c12] p-1">
+              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${locale === 'en' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => setLocale('en')}>English</button>
+              <button className={`rounded-[9px] px-4 py-2 text-sm transition ${locale === 'es' ? 'bg-pink-400 font-semibold text-[#2a1503]' : 'text-zinc-400 hover:text-white'}`} onClick={() => setLocale('es')}>Español</button>
+            </div>
+          </div>
         </section>
 
         <SyncStatusPanel />

@@ -2,6 +2,8 @@ import type { LibraryReadingStatus } from '@/lib/library/library-state';
 
 export type MangaStatus = "ongoing" | "complete" | "hiatus" | "cancelled" | "unknown";
 
+export type MangaLanguage = "en" | "es" | "ja" | "zh" | "ko" | "fr" | "de" | "pt" | "it" | "ru" | "other";
+
 export interface Manga {
   id: string;
   sourceId: string;
@@ -14,6 +16,7 @@ export interface Manga {
   status: MangaStatus;
   genres: string[];
   sourceUrl: string;
+  language?: MangaLanguage;
 }
 
 export interface Chapter {

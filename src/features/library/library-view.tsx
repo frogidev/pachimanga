@@ -21,8 +21,9 @@ import {
   type LibraryCollectionMembership,
 } from "@/lib/storage/library-collections";
 import { removeLibraryEntry } from "@/lib/storage/reader-storage";
-import type { LibraryEntry, Manga } from "@/types/models";
+import type { LibraryEntry, Manga, MangaLanguage } from "@/types/models";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
+import { useLocale, t } from "@/lib/i18n";
 
 type SortMode = "recent" | "lastRead" | "progress" | "added" | "title";
 type FilterMode = "All" | "Unread Updates" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Plan to Read";
@@ -37,6 +38,9 @@ const filterStatus: Record<StatusFilterMode, LibraryReadingStatus> = {
   Dropped: "dropped",
   "Plan to Read": "plan_to_read",
 };
+
+const languageFilters: MangaLanguage[] = ["en", "es", "ja", "zh", "ko", "fr", "de", "pt", "it", "ru", "other"];
+
 const LIBRARY_VIEW_KEY = "pachimanga:library-view";
 const INITIAL_VISIBLE = 48;
 const LOAD_MORE_COUNT = 48;
@@ -89,11 +93,13 @@ function mangaHref(manga: Manga, native: boolean) {
 }
 
 export function LibraryView() {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
+  const [languageFilter, setLanguageFilter] = useState<MangaLanguage | "all">("all");
   const [view, setView] = useState<ViewMode>(initialLibraryView);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
@@ -242,6 +248,10 @@ export function LibraryView() {
           && membership.sourceId === item.entry.sourceId
           && membership.mangaId === item.entry.mangaId
         );
+      })
+      .filter((item) => {
+        if (languageFilter === "all") return true;
+        return item.manga.language === languageFilter;
       });
 
     pairs.sort((a, b) => {
@@ -254,7 +264,7 @@ export function LibraryView() {
       return bUpdated.localeCompare(aUpdated);
     });
     return pairs;
-  }, [collectionFilter, entries, filter, memberships, query, sort]);
+  }, [collectionFilter, entries, filter, languageFilter, memberships, query, sort]);
 
   const visibleManga = manga.slice(0, visibleCount);
   const continueReading = useMemo(() => entries
@@ -382,7 +392,7 @@ export function LibraryView() {
               placeholder="Search your library..."
               className="h-13 w-full rounded-[12px] border border-white/[.09] bg-[#171723] pl-11 pr-20 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-pink-400/45 focus:bg-[#191925]"
             />
-            <kbd className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-white/[.08] bg-white/[.035] px-2 py-1 font-sans text-[10px] text-zinc-500 sm:inline-flex">Ctrl K</kbd>
+            <kbd className="absolute right-3 top-1/2 hidden -translate_y-1/2 rounded-md border border-white/[.08] bg-white/[.035] px-2 py-1 font-sans text-[10px] text-zinc-500 sm:inline-flex">Ctrl K</kbd>
           </label>
 
           <div className="hidden items-center gap-2 md:flex">
@@ -420,6 +430,31 @@ export function LibraryView() {
               {item}
             </button>
           ))}
+        </div>
+
+        <div className="mt-2 hidden gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex">
+          {languageFilters.map((item) => (
+            <button
+              key={item}
+              onClick={() => setLanguageFilter(item)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                languageFilter === item
+                  ? "border-pink-300/70 bg-pink-400 text-[#28101b] shadow-[0_6px_18px_rgba(255,105,170,.13)]"
+                  : "border-white/[.08] bg-[#14141d] text-zinc-400 hover:border-white/[.14] hover:text-zinc-100"
+              }`}
+            >
+              {item === "en" ? "EN" : item === "es" ? "ES" : item.toUpperCase()}
+            </button>
+          ))}
+          <button
+            onClick={() => setLanguageFilter("all")}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              languageFilter === "all"
+                ? "border-pink-300/70 bg-pink-400 text-[#28101b] shadow-[0_6px_18px_rgba(255,105,170,.13)]"
+                : "border-white/[.08] bg-[#14141d] text-zinc-400 hover:border-white/[.14] hover:text-zinc-100"
+            }`}>
+            {t("manga.lang_all")}
+          </button>
         </div>
 
         <section className="mt-3 hidden rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:block" aria-label="Library collections">
