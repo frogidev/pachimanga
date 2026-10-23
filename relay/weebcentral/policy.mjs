@@ -13,6 +13,48 @@ export function sanitizeRelayQuery(value) {
     .slice(0, 100);
 }
 
+const IMAGE_EXTENSION = /\.(?:jpe?g|png|webp|avif|gif)$/i;
+const MAX_IMAGES_PER_PAGE = 400;
+
+/** https image URL on a public hostname: no credentials, no port, no loopback/IP/internal names. */
+export function isProxyableImageUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
+  const host = url.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return false;
+  if (/^[0-9.]+$/.test(host) || host.includes(':')) return false;
+  return IMAGE_EXTENSION.test(url.pathname);
+}
+
+/**
+ * Page images a WeebCentral `pages` response points at. The relay only ever serves images it has
+ * just seen listed there, so /v1/image can never become an open image proxy.
+ */
+export function extractPageImageUrls(html) {
+  const found = new Set();
+  const add = (raw) => {
+    if (found.size >= MAX_IMAGES_PER_PAGE) return;
+    try {
+      const url = new URL(raw.replaceAll('\\/', '/'), WEEBCENTRAL_ORIGIN);
+      if (isProxyableImageUrl(url.href) && !/logo|icon|avatar|cover/i.test(url.href)) found.add(url.href);
+    } catch {
+      // not a URL
+    }
+  };
+  const text = String(html);
+  for (const tag of text.matchAll(/<img\b[^>]*>/gi)) {
+    const value = tag[0].match(/\s(?:src|data-src|data-lazy-src)=["']([^"']+)["']/i)?.[1];
+    if (value) add(value);
+  }
+  for (const match of text.matchAll(/https?:\\?\/\\?\/[^"'<>\s]+?\.(?:jpe?g|png|webp|avif)(?:\?[^"'<>\s]*)?/gi)) add(match[0]);
+  return [...found];
+}
+
 function zonaTmoOperation(url) {
   if (url.pathname === '/v1/zonatmo/search') {
     const query = sanitizeRelayQuery(url.searchParams.get('q'));

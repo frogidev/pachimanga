@@ -19,8 +19,39 @@ async function readablePage(url: string): Promise<Blob> {
   }
 }
 
-async function* pageBlobs(urls: string[]) {
-  for (const url of urls) yield await readablePage(url);
+/** Bytes through the authenticated relay route, for hosts that block CORS (WeebCentral images). */
+async function relayedPage(url: string): Promise<Blob> {
+  try {
+    const response = await fetch(`/api/source/image?u=${encodeURIComponent(url)}`, { credentials: "same-origin", cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.blob();
+  } catch {
+    throw new ImageNotExportableError();
+  }
+}
+
+/** The relay only serves images a recent `pages` response listed, so ask for the chapter's pages first. */
+async function primeRelayImages(record: OfflineChapterRecord) {
+  if (!record.mangaId.startsWith("wc-")) return;
+  await fetch(`/api/source/pages?source=weebcentral&chapterId=${encodeURIComponent(record.chapterId)}`, { cache: "no-store" }).catch(() => null);
+}
+
+async function* pageBlobs(record: OfflineChapterRecord) {
+  let viaRelay = false;
+  for (const url of record.urls) {
+    if (!viaRelay) {
+      try {
+        yield await readablePage(url);
+        continue;
+      } catch (error) {
+        if (!(error instanceof ImageNotExportableError)) throw error;
+        // Direct read is blocked: use the relay for the rest of this chapter.
+        viaRelay = true;
+        await primeRelayImages(record);
+      }
+    }
+    yield await relayedPage(url);
+  }
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
@@ -40,7 +71,7 @@ export function chapterPdfName(record: Pick<OfflineChapterRecord, "mangaTitle" |
 
 /** Builds the chapter PDF; throws ImageNotExportableError when the image host blocks cross-origin reads. */
 export function exportChapterPdf(record: OfflineChapterRecord, onPage?: (done: number) => void) {
-  return imagesToPdf(pageBlobs(record.urls), onPage);
+  return imagesToPdf(pageBlobs(record), onPage);
 }
 
 export type MangaExportResult = { blob: Blob | null; exported: number; skipped: number };
