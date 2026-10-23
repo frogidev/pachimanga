@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
-import { relayOperationFromUrl, WEEBCENTRAL_ORIGIN } from './policy.mjs';
+import { ALLOWED_UPSTREAM_ORIGINS, relayOperationFromUrl, WEEBCENTRAL_ORIGIN } from './policy.mjs';
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT || 8787);
@@ -178,6 +178,10 @@ const server = createServer(async (request, response) => {
     if (cached) return sendText(response, 200, cached.body, 'hit');
 
     const upstream = await fetchUpstream(spec);
+    // A redirect must never leave the fixed upstream origins.
+    if (!ALLOWED_UPSTREAM_ORIGINS.includes(new URL(upstream.url).origin)) {
+      return sendJson(response, 502, { error: 'unexpected_redirect' });
+    }
     const body = await readCappedText(upstream);
     if (!upstream.ok) {
       return sendJson(response, upstream.status, {

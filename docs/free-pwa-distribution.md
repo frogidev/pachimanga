@@ -87,6 +87,8 @@ WeebCentral
 
 The relay accepts known read operations only. It is not an arbitrary URL proxy.
 
+It serves two fixed upstreams: WeebCentral (`/v1/search`, `/v1/manga|chapters|chapter|pages/{id}`) and ZonaTMO (`/v1/zonatmo/search?q=`, `/v1/zonatmo/series/{numericId}`, `/v1/zonatmo/reader/{numericId}`). ZonaTMO's Cloudflare protection refuses Vercel's network, so the PWA reads it through the relay when `WEEBCENTRAL_RELAY_URL`/`WEEBCENTRAL_RELAY_TOKEN` are set. Redeploy the relay after upgrading; whether ZonaTMO accepts the relay's network cannot be known in advance, and a refusal (403) is reported, never bypassed. Redirects that leave the two fixed origins are rejected.
+
 Relay invariants:
 
 - protected operations require bearer token;

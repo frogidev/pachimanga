@@ -95,10 +95,12 @@ test('reader page yields manga link, selector chapters and ordered unique page i
 
 test('ZonaTMO source only fetches its fixed origin, validates ids and never bypasses challenges', () => {
   const source = readFileSync(join(process.cwd(), 'src/sources/zonatmo/zonatmo-source.ts'), 'utf8');
-  assert.match(source, /ZONATMO_BASE\}\$\{path\}/);
+  assert.ok(source.includes('`${ZONATMO_BASE}${operation.path}`'));
+  assert.ok(source.includes('`${relayBase()}${operation.relayPath}`'));
   assert.ok(source.includes('const ID = /^\\d{1,9}$/;'));
   assert.match(source, /cf-mitigated/);
   assert.match(source, /Pachimanga\/1\.0\.2/);
+  assert.match(source, /upstreamStatus/);
   assert.doesNotMatch(source, /cookie|Cookie|x-forwarded/);
 });
 
