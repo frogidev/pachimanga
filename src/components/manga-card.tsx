@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { LibraryReadingStatus } from "@/lib/library/library-state";
 import type { Manga } from "@/types/models";
+import { sourceDisplayName } from "@/lib/source-labels";
 
 const statusLabels: Record<LibraryReadingStatus, string> = {
   reading: "Reading",
@@ -48,15 +49,12 @@ export function MangaCard({
   const pct = typeof progress === "number" ? Math.min(100, Math.max(0, progress)) : 0;
   const missingCover = !manga.coverUrl || imgError;
   const targetHref = href ?? (manga.sourceId === "import" ? null : `/manga/${manga.id}`);
-  const publication = manga.status === "complete"
-    ? "Publication complete"
-    : manga.status === "ongoing"
-      ? "Publication ongoing"
-      : manga.status === "hiatus"
-        ? "Publication hiatus"
-        : manga.status === "cancelled"
-          ? "Publication cancelled"
-          : manga.sourceId === "import" ? "Imported title" : manga.sourceId;
+  // Always lead with the provider so every card reads the same, then the publication state if known.
+  const provider = sourceDisplayName(manga.sourceId) ?? manga.sourceId;
+  const publicationState = { complete: "Complete", ongoing: "Ongoing", hiatus: "Hiatus", cancelled: "Cancelled" }[manga.status as string];
+  const publication = manga.sourceId === "import"
+    ? "Imported title"
+    : publicationState ? `${provider} · ${publicationState}` : provider;
   const hasMenu = Boolean(onRemove || (collections.length && onCollectionToggle));
   const membershipLabel = manga.sourceId === "import" ? "Imported" : "In library";
 
