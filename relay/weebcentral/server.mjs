@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
-import { ALLOWED_UPSTREAM_ORIGINS, relayOperationFromUrl, WEEBCENTRAL_ORIGIN } from './policy.mjs';
+import { once } from 'node:events';
+import { ALLOWED_UPSTREAM_ORIGINS, extractPageImageUrls, isProxyableImageUrl, relayOperationFromUrl, WEEBCENTRAL_ORIGIN } from './policy.mjs';
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT || 8787);
@@ -129,6 +130,71 @@ async function fetchUpstream(spec) {
   });
 }
 
+// Page images the relay will serve: only URLs a recent WeebCentral `pages` response listed.
+const IMAGE_TTL_MS = 2 * 60 * 60 * 1000;
+const IMAGE_ALLOWLIST_LIMIT = 20_000;
+const IMAGE_MAX_BYTES = 15 * 1024 * 1024;
+const allowedImages = new Map();
+
+function registerImages(html) {
+  const expiresAt = Date.now() + IMAGE_TTL_MS;
+  for (const imageUrl of extractPageImageUrls(html)) {
+    allowedImages.delete(imageUrl); // re-insert so the oldest entries are evicted first
+    allowedImages.set(imageUrl, expiresAt);
+  }
+  while (allowedImages.size > IMAGE_ALLOWLIST_LIMIT) allowedImages.delete(allowedImages.keys().next().value);
+}
+
+function imageAllowed(imageUrl) {
+  const expiresAt = allowedImages.get(imageUrl);
+  if (!expiresAt) return false;
+  if (expiresAt <= Date.now()) {
+    allowedImages.delete(imageUrl);
+    return false;
+  }
+  return true;
+}
+
+async function serveImage(raw, response) {
+  let target;
+  try {
+    target = new URL(String(raw || '')).href;
+  } catch {
+    return sendJson(response, 400, { error: 'invalid_image_url' });
+  }
+  if (!isProxyableImageUrl(target) || !imageAllowed(target)) return sendJson(response, 404, { error: 'unsupported_operation' });
+
+  // Redirects are refused: the image must come from exactly the URL WeebCentral listed.
+  const upstream = await fetch(target, {
+    headers: { Accept: 'image/*', 'User-Agent': 'PachimangaRelay/0.1 (+https://pachimanga.frogilab.dev)' },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!upstream.ok) {
+    return sendJson(response, upstream.status >= 400 ? upstream.status : 502, { error: 'upstream_error', upstreamStatus: upstream.status });
+  }
+  const type = upstream.headers.get('content-type') || '';
+  if (!type.toLowerCase().startsWith('image/')) return sendJson(response, 502, { error: 'not_an_image' });
+  const declared = Number(upstream.headers.get('content-length') || 0);
+  if (declared > IMAGE_MAX_BYTES) return sendJson(response, 502, { error: 'image_too_large' });
+
+  response.statusCode = 200;
+  setCommonHeaders(response);
+  response.setHeader('Content-Type', type);
+  if (declared) response.setHeader('Content-Length', String(declared));
+  let total = 0;
+  for await (const chunk of upstream.body) {
+    total += chunk.length;
+    if (total > IMAGE_MAX_BYTES) {
+      response.destroy();
+      return undefined;
+    }
+    if (!response.write(chunk)) await once(response, 'drain');
+  }
+  response.end();
+  return undefined;
+}
+
 async function readCappedText(upstream) {
   const declared = Number(upstream.headers.get('content-length') || 0);
   if (declared > CACHE_ITEM_MAX_BYTES) throw new Error('upstream body too large');
@@ -171,11 +237,16 @@ const server = createServer(async (request, response) => {
       return sendJson(response, result.ok ? 200 : 503, result);
     }
 
+    if (url.pathname === '/v1/image') return await serveImage(url.searchParams.get('u'), response);
+
     const spec = relayOperationFromUrl(url);
     if (!spec) return sendJson(response, 404, { error: 'unsupported_operation' });
 
     const cached = getCached(spec.key);
-    if (cached) return sendText(response, 200, cached.body, 'hit');
+    if (cached) {
+      if (spec.operation === 'pages') registerImages(cached.body);
+      return sendText(response, 200, cached.body, 'hit');
+    }
 
     const upstream = await fetchUpstream(spec);
     // A redirect must never leave the fixed upstream origins.
@@ -191,6 +262,7 @@ const server = createServer(async (request, response) => {
     }
 
     putCached(spec.key, body, spec.ttl);
+    if (spec.operation === 'pages') registerImages(body);
     return sendText(response, 200, body, 'miss');
   } catch (error) {
     const isTimeout = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');

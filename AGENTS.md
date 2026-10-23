@@ -252,6 +252,10 @@ Two network paths are intentional:
 
 Never turn either into an arbitrary URL proxy. Validate IDs/operations in trusted code, bound timeouts/redirects, and surface upstream 403/429/refusal states instead of bypassing them.
 
+### Relay image operation
+
+`/v1/image` serves only exact https image URLs that a recent WeebCentral `pages` response from the same relay listed. Do not widen it (no host allowlists by pattern, no redirects, no arbitrary URLs).
+
 ### ZonaTMO
 
 Server-side, fixed origin `https://zonatmo.org`, numeric ids only. When the private relay is configured it goes through the three fixed `/v1/zonatmo/*` relay operations; keep them operation-limited. Never add cookies, challenge solving, proxies or an image proxy; surface 403/429/challenge states instead.

@@ -64,7 +64,7 @@ Offline support is intentionally scoped to page bytes rather than the whole priv
 - saved chapters are managed in **Archive** (grouped by title): retry, remove, remove all, clear everything, with the browser storage estimate;
 - **Save all chapters offline** on a title page fetches chapter pages one chapter at a time through the authenticated `/api/source/pages` route (WeebCentral and ZonaTMO only), skips chapters that are already complete, and stops on cancel or low storage;
 - pages are saved with a CORS fetch first so their bytes stay readable; hosts without CORS fall back to an opaque response that still displays offline;
-- **PDF export** is client-side (no server, no proxy): each chapter becomes a PDF, and a title can be exported as a ZIP of PDFs. Hosts that block cross-origin reads (e.g. WeebCentral images) cannot be read directly, so those chapters open a print view and use the browser's Save as PDF.
+- **PDF export** is client-side (no server, no proxy): each chapter becomes a PDF, and a title can be exported as a ZIP of PDFs. Hosts that block cross-origin reads (e.g. WeebCentral images) are read through the relay's image operation when it is deployed; otherwise those chapters open a print view and use the browser's Save as PDF.
 
 A cold offline launch may still reach `/offline` if authenticated route metadata cannot be fetched. Pachimanga does not cache authenticated HTML or provider API responses as a public shell.
 
@@ -91,6 +91,8 @@ WeebCentral
 The relay accepts known read operations only. It is not an arbitrary URL proxy.
 
 It serves two fixed upstreams: WeebCentral (`/v1/search`, `/v1/manga|chapters|chapter|pages/{id}`) and ZonaTMO (`/v1/zonatmo/search?q=`, `/v1/zonatmo/series/{numericId}`, `/v1/zonatmo/reader/{numericId}`). ZonaTMO's Cloudflare protection refuses Vercel's network, so the PWA reads it through the relay when `WEEBCENTRAL_RELAY_URL`/`WEEBCENTRAL_RELAY_TOKEN` are set. Redeploy the relay after upgrading; whether ZonaTMO accepts the relay's network cannot be known in advance, and a refusal (403) is reported, never bypassed. Redirects that leave the two fixed origins are rejected.
+
+For **PDF export of WeebCentral chapters** the relay also serves `/v1/image?u=<image url>`. It refuses everything except an exact https image URL that a WeebCentral `pages` response served by this relay listed within the last two hours (an in-memory allowlist, 20,000 URLs max): no other hosts, no redirects, no private/IP hosts, 15 MB per image. The app reaches it only through the authenticated `/api/source/image` route, so image bytes travel browser ← Vercel ← relay for exports (expect real bandwidth on both: a whole title can be hundreds of MB). It is not an open image proxy. Redeploy the relay to enable it; without it, WeebCentral chapters keep using the browser print view.
 
 Relay invariants:
 
