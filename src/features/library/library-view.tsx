@@ -94,6 +94,7 @@ function mangaHref(manga: Manga, native: boolean) {
 
 export function LibraryView() {
   const { t, contentLanguage } = useLocale();
+  const filterLabel = (item: FilterMode) => t(`library.filter.${item}`);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
@@ -177,7 +178,7 @@ export function LibraryView() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ mangaId: entry.mangaId, sourceId: entry.sourceId }),
             });
-            if (!response.ok) throw new Error(`Provider refresh failed with HTTP ${response.status}`);
+            if (!response.ok) throw new Error(t("library.err.refresh", { status: response.status }));
           }));
         }
         if (!cancelled) {
@@ -204,7 +205,7 @@ export function LibraryView() {
           void refreshSources(result);
         }
       } catch (error) {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Could not load your library.");
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : t("library.err.load"));
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -284,7 +285,7 @@ export function LibraryView() {
     try {
       await removeLibraryEntry(entry.mangaId);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not remove this title.");
+      setLoadError(error instanceof Error ? error.message : t("library.err.remove"));
     }
   }
 
@@ -312,7 +313,7 @@ export function LibraryView() {
       setNewCollectionName("");
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not create the collection.");
+      setLoadError(error instanceof Error ? error.message : t("library.err.collection_create"));
     } finally {
       setCollectionBusy(false);
     }
@@ -322,7 +323,7 @@ export function LibraryView() {
     if (collectionFilter === "all" || collectionBusy) return;
     const selected = collections.find((collection) => collection.id === collectionFilter);
     if (!selected) return;
-    if (!window.confirm(`Delete collection “${selected.name}”? Titles stay in your library.`)) return;
+    if (!window.confirm(t("library.confirm_delete_collection", { name: selected.name }))) return;
     setCollectionBusy(true);
     try {
       await deleteLibraryCollection(selected.id);
@@ -331,7 +332,7 @@ export function LibraryView() {
       setCollectionFilter("all");
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not delete the collection.");
+      setLoadError(error instanceof Error ? error.message : t("library.err.collection_delete"));
     } finally {
       setCollectionBusy(false);
     }
@@ -357,7 +358,7 @@ export function LibraryView() {
       });
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not update the collection.");
+      setLoadError(error instanceof Error ? error.message : t("library.err.collection_update"));
     }
   }
 
@@ -368,7 +369,7 @@ export function LibraryView() {
     try {
       for (const item of unmatchedImports) await removeLibraryEntry(item.entry.mangaId);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not clear unmatched imports.");
+      setLoadError(error instanceof Error ? error.message : t("library.err.clear_imports"));
     }
   }
 
@@ -379,9 +380,9 @@ export function LibraryView() {
       <div className="mx-auto max-w-[1440px] px-4 pb-8 pt-6 sm:px-6 lg:px-8">
         <header>
           <h1 className="pixel-heading text-[2.1rem] leading-[1.03] text-white sm:text-[2.65rem]">
-            Welcome to <span className="text-pink-400">Pachimanga</span>
+            {t("library.welcome")} <span className="text-pink-400">Pachimanga</span>
           </h1>
-          <p className="mt-2 text-sm text-zinc-400 sm:text-base">Organize. Read. Sync. Your manga. Everywhere.</p>
+          <p className="mt-2 text-sm text-zinc-400 sm:text-base">{t("library.tagline")}</p>
         </header>
 
         <div className="mt-6 flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -391,29 +392,29 @@ export function LibraryView() {
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search your library..."
+              placeholder={t("library.search")}
               className="h-13 w-full rounded-[12px] border border-white/[.09] bg-[#171723] pl-11 pr-20 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-pink-400/45 focus:bg-[#191925]"
             />
             <kbd className="absolute right-3 top-1/2 hidden -translate_y-1/2 rounded-md border border-white/[.08] bg-white/[.035] px-2 py-1 font-sans text-[10px] text-zinc-500 sm:inline-flex">Ctrl K</kbd>
           </label>
 
           <div className="hidden items-center gap-2 md:flex">
-            <label className="sr-only" htmlFor="library-sort">Sort library</label>
+            <label className="sr-only" htmlFor="library-sort">{t("library.sort_label")}</label>
             <select
               id="library-sort"
               value={sort}
               onChange={(event) => setSort(event.target.value as SortMode)}
               className="h-13 min-w-44 rounded-[12px] border border-white/[.09] bg-[#15151f] px-4 text-sm text-zinc-300 outline-none transition hover:border-white/[.14] focus:border-pink-400/45"
             >
-              <option value="recent">Recently Updated</option>
-              <option value="lastRead">Last Read</option>
-              <option value="progress">Progress</option>
-              <option value="added">Recently Added</option>
-              <option value="title">Title A–Z</option>
+              <option value="recent">{t("library.sort.recent")}</option>
+              <option value="lastRead">{t("library.sort.lastRead")}</option>
+              <option value="progress">{t("library.sort.progress")}</option>
+              <option value="added">{t("library.sort.added")}</option>
+              <option value="title">{t("library.sort.title")}</option>
             </select>
-            <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1" aria-label="Library layout">
-              <button type="button" onClick={() => changeView("grid")} aria-label="Grid view" aria-pressed={view === "grid"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><GridIcon /></button>
-              <button type="button" onClick={() => changeView("compact")} aria-label="List view" aria-pressed={view === "compact"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><ListIcon /></button>
+            <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1" aria-label={t("library.layout")}>
+              <button type="button" onClick={() => changeView("grid")} aria-label={t("library.view.grid")} aria-pressed={view === "grid"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><GridIcon /></button>
+              <button type="button" onClick={() => changeView("compact")} aria-label={t("library.view.list")} aria-pressed={view === "compact"} className={`grid size-10 place-items-center rounded-[9px] transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500 hover:text-zinc-200"}`}><ListIcon /></button>
             </div>
           </div>
         </div>
@@ -429,7 +430,7 @@ export function LibraryView() {
                   : "border-white/[.08] bg-[#14141d] text-zinc-400 hover:border-white/[.14] hover:text-zinc-100"
               }`}
             >
-              {item}
+              {filterLabel(item)}
             </button>
           ))}
         </div>
@@ -481,19 +482,19 @@ export function LibraryView() {
               ))}
             </div>
             <div className="flex gap-2">
-              <label className="sr-only" htmlFor="new-library-collection">New collection name</label>
+              <label className="sr-only" htmlFor="new-library-collection">{t("library.collection_name")}</label>
               <input
                 id="new-library-collection"
                 value={newCollectionName}
                 maxLength={50}
                 onChange={(event) => setNewCollectionName(event.target.value)}
                 onKeyDown={(event) => { if (event.key === "Enter") void createCollection(); }}
-                placeholder="New collection"
+                placeholder={t("library.collection_new")}
                 className="field min-w-0 flex-1 px-3 py-2 text-xs lg:w-44"
               />
-              <button type="button" disabled={!newCollectionName.trim() || collectionBusy} onClick={() => void createCollection()} className="button-secondary px-3 py-2 text-xs disabled:opacity-40">Add</button>
+              <button type="button" disabled={!newCollectionName.trim() || collectionBusy} onClick={() => void createCollection()} className="button-secondary px-3 py-2 text-xs disabled:opacity-40">{t("common.add")}</button>
               {collectionFilter !== "all" ? (
-                <button type="button" disabled={collectionBusy} onClick={() => void removeCollection()} className="rounded-xl border border-red-300/15 px-3 py-2 text-xs text-red-300 hover:bg-red-400/[.06] disabled:opacity-40">Delete</button>
+                <button type="button" disabled={collectionBusy} onClick={() => void removeCollection()} className="rounded-xl border border-red-300/15 px-3 py-2 text-xs text-red-300 hover:bg-red-400/[.06] disabled:opacity-40">{t("common.delete")}</button>
               ) : null}
             </div>
           </div>
@@ -503,10 +504,10 @@ export function LibraryView() {
           <section className="mt-7" aria-labelledby="continue-reading-heading">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="pixel-kicker text-[9px] text-sky-300">Pick up where you left off</p>
-                <h2 id="continue-reading-heading" className="mt-1 text-lg font-semibold text-zinc-100">Continue Reading</h2>
+                <p className="pixel-kicker text-[9px] text-sky-300">{t("library.pickup")}</p>
+                <h2 id="continue-reading-heading" className="mt-1 text-lg font-semibold text-zinc-100">{t("library.continue")}</h2>
               </div>
-              <span className="text-xs text-zinc-500">Recent activity</span>
+              <span className="text-xs text-zinc-500">{t("library.recent_activity")}</span>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               {continueReading.map(({ entry, manga: title }) => {
@@ -533,16 +534,16 @@ export function LibraryView() {
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-lg bg-pink-400/10 text-pink-400" aria-hidden="true"><BookIcon /></span>
             <div>
-              <p className="pixel-kicker text-[9px] text-pink-400">Your collection</p>
-              <h2 className="mt-0.5 text-[1.65rem] font-bold tracking-[-.035em] text-white">Your Library</h2>
+              <p className="pixel-kicker text-[9px] text-pink-400">{t("library.your_collection")}</p>
+              <h2 className="mt-0.5 text-[1.65rem] font-bold tracking-[-.035em] text-white">{t("library.title")}</h2>
             </div>
           </div>
           <div className="flex items-center gap-3 pb-1">
-            {checkingUpdates ? <span className="hidden text-xs text-zinc-600 sm:inline">Checking updates…</span> : null}
+            {checkingUpdates ? <span className="hidden text-xs text-zinc-600 sm:inline">{t("library.checking_updates")}</span> : null}
             {unmatchedImports.length ? (
-              <button type="button" onClick={() => void purgeUnmatchedImports()} className="hidden text-xs text-zinc-500 transition hover:text-red-300 sm:inline">Clear {unmatchedImports.length} unmatched import{unmatchedImports.length === 1 ? "" : "s"}</button>
+              <button type="button" onClick={() => void purgeUnmatchedImports()} className="hidden text-xs text-zinc-500 transition hover:text-red-300 sm:inline">{t(unmatchedImports.length === 1 ? "library.clear_imports_one" : "library.clear_imports_other", { count: unmatchedImports.length })}</button>
             ) : null}
-            <span className="text-xs text-zinc-500">{manga.length} title{manga.length === 1 ? "" : "s"}</span>
+            <span className="text-xs text-zinc-500">{t(manga.length === 1 ? "library.titles_one" : "library.titles_other", { count: manga.length })}</span>
           </div>
         </div>
 
@@ -556,11 +557,11 @@ export function LibraryView() {
                 onChange={(event) => setSort(event.target.value as SortMode)}
                 className="field h-11 min-w-0 w-full px-3 text-xs normal-case tracking-normal"
               >
-                <option value="recent">Recently Updated</option>
-                <option value="lastRead">Last Read</option>
-                <option value="progress">Progress</option>
-                <option value="added">Recently Added</option>
-                <option value="title">Title A–Z</option>
+                <option value="recent">{t("library.sort.recent")}</option>
+                <option value="lastRead">{t("library.sort.lastRead")}</option>
+                <option value="progress">{t("library.sort.progress")}</option>
+                <option value="added">{t("library.sort.added")}</option>
+                <option value="title">{t("library.sort.title")}</option>
               </select>
             </label>
             <label className="grid min-w-0 gap-1 text-[10px] font-medium uppercase tracking-[.08em] text-zinc-500" htmlFor="library-mobile-filter">
@@ -571,12 +572,12 @@ export function LibraryView() {
                 onChange={(event) => setFilter(event.target.value as FilterMode)}
                 className="field h-11 min-w-0 w-full px-3 text-xs normal-case tracking-normal"
               >
-                {filters.map((item) => <option key={item} value={item}>{item}</option>)}
+                {filters.map((item) => <option key={item} value={item}>{filterLabel(item)}</option>)}
               </select>
             </label>
           </div>
-          <div className="flex items-center justify-between gap-3" aria-label="Library layout">
-            <span className="text-xs font-medium text-zinc-500">Layout</span>
+          <div className="flex items-center justify-between gap-3" aria-label={t("library.layout")}>
+            <span className="text-xs font-medium text-zinc-500">{t("library.layout_short")}</span>
             <div className="flex rounded-[12px] border border-white/[.08] bg-[#12121b] p-1">
               <button
                 type="button"
@@ -584,7 +585,7 @@ export function LibraryView() {
                 aria-pressed={view === "grid"}
                 className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "grid" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
               >
-                <GridIcon /> Grid
+                <GridIcon /> {t("library.grid")}
               </button>
               <button
                 type="button"
@@ -592,7 +593,7 @@ export function LibraryView() {
                 aria-pressed={view === "compact"}
                 className={`flex min-h-10 min-w-20 items-center justify-center gap-2 rounded-[9px] px-3 text-xs font-medium transition ${view === "compact" ? "bg-pink-400 text-[#271019]" : "text-zinc-500"}`}
               >
-                <ListIcon /> List
+                <ListIcon /> {t("library.list")}
               </button>
             </div>
           </div>
@@ -630,22 +631,22 @@ export function LibraryView() {
             </div>
             {visibleCount < manga.length ? (
               <div className="mt-7 flex justify-center">
-                <button type="button" onClick={() => setVisibleCount((count) => count + LOAD_MORE_COUNT)} className="button-secondary px-5 py-2.5 text-sm">Show more ({manga.length - visibleCount} remaining)</button>
+                <button type="button" onClick={() => setVisibleCount((count) => count + LOAD_MORE_COUNT)} className="button-secondary px-5 py-2.5 text-sm">{t("library.show_more", { count: manga.length - visibleCount })}</button>
               </div>
             ) : null}
           </>
         ) : loadError ? null : (
           <div className="surface-card mt-4 flex flex-col gap-3 px-5 py-4 text-sm text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
             <p>
-              <strong className="text-zinc-200">{entries.length ? "0 titles match the current library filters." : "0 titles are stored in this account."}</strong>
-              <span className="ml-2">{entries.length ? "The loaded account data has no rows matching this view." : "The signed-in library returned no titles."}</span>
+              <strong className="text-zinc-200">{entries.length ? t("library.empty_filtered") : t("library.empty_account")}</strong>
+              <span className="ml-2">{entries.length ? t("library.empty_filtered_sub") : t("library.empty_account_sub")}</span>
             </p>
             {entries.length ? (
-              <button type="button" onClick={() => { setFilter("All"); setCollectionFilter("all"); setQuery(""); }} className="button-secondary shrink-0 px-3 py-2 text-xs">Clear filters</button>
+              <button type="button" onClick={() => { setFilter("All"); setCollectionFilter("all"); setQuery(""); }} className="button-secondary shrink-0 px-3 py-2 text-xs">{t("library.clear_filters")}</button>
             ) : (
               <div className="flex shrink-0 gap-2">
-                <Link href="/browse" className="button-primary px-3 py-2 text-xs">Browse live sources</Link>
-                <Link href="/import" className="button-secondary px-3 py-2 text-xs">Import account data</Link>
+                <Link href="/browse" className="button-primary px-3 py-2 text-xs">{t("library.browse_live")}</Link>
+                <Link href="/import" className="button-secondary px-3 py-2 text-xs">{t("library.import_account")}</Link>
               </div>
             )}
           </div>
@@ -654,14 +655,14 @@ export function LibraryView() {
         <div className="promo-strip relative mt-8 flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-dashed border-pink-400/45 px-5 py-5 sm:flex-row">
           <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-pink-400/10"><PachiCalico className="size-10" /></div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <div className="font-semibold text-zinc-100">A new chapter is always a good idea.</div>
-            <div className="mt-1 text-sm text-zinc-500">Keep reading, keep collecting, keep enjoying!</div>
+            <div className="font-semibold text-zinc-100">{t("library.promo_title")}</div>
+            <div className="mt-1 text-sm text-zinc-500">{t("library.promo_sub")}</div>
           </div>
           <div aria-hidden="true" className="hidden shrink-0 items-center gap-3 text-pink-400/40 md:flex">
             <PawPrint className="translate-y-2 rotate-[-12deg]" />
             <PawPrint className="-translate-y-1 rotate-[10deg]" />
           </div>
-          <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#fb923c] to-[#fdba74] px-5 py-3 text-sm font-bold text-[#2a1503] shadow-[0_10px_24px_rgba(249,115,22,.14)] transition hover:brightness-105">Browse Manga <span className="ml-2">→</span></Link>
+          <Link href="/browse" className="inline-flex items-center justify-center rounded-[11px] bg-gradient-to-r from-[#fb923c] to-[#fdba74] px-5 py-3 text-sm font-bold text-[#2a1503] shadow-[0_10px_24px_rgba(249,115,22,.14)] transition hover:brightness-105">{t("library.browse_manga")} <span className="ml-2">→</span></Link>
         </div>
       </div>
     </div>
