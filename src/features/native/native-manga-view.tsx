@@ -9,8 +9,10 @@ import {
   isTauriNative,
 } from "@/lib/native/tauri-bridge";
 import type { Chapter, Manga } from "@/types/models";
+import { useLocale } from "@/lib/i18n";
 
 export function NativeMangaView({ id }: { id: string }) {
+  const { t } = useLocale();
   const [data, setData] = useState<{ manga: Manga; chapters: Chapter[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,11 +21,11 @@ export function NativeMangaView({ id }: { id: string }) {
     queueMicrotask(() => {
       if (cancelled) return;
       if (!isTauriNative()) {
-        setError("This WeebCentral route requires the installed Pachimanga native app.");
+        setError("native.manga_needs_app");
         return;
       }
       if (!id.startsWith("wc-")) {
-        setError("This native route only supports WeebCentral titles.");
+        setError("native.titles_only");
         return;
       }
 
@@ -35,7 +37,7 @@ export function NativeMangaView({ id }: { id: string }) {
           if (!cancelled) setData({ manga, chapters });
         })
         .catch((reason) => {
-          if (!cancelled) setError(reason instanceof Error ? reason.message : "WeebCentral is unavailable from this device.");
+          if (!cancelled) setError(reason instanceof Error ? reason.message : "native.unavailable");
         });
     });
 
@@ -47,12 +49,12 @@ export function NativeMangaView({ id }: { id: string }) {
   if (error) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-        <p className="pixel-kicker text-[9px] text-pink-400">Native WeebCentral</p>
-        <h1 className="mt-3 text-2xl font-bold text-white">Unable to open this title</h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-zinc-500">{error}</p>
+        <p className="pixel-kicker text-[9px] text-pink-400">{t("native.kicker")}</p>
+        <h1 className="mt-3 text-2xl font-bold text-white">{t("native.cannot_open")}</h1>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-zinc-500">{t(error)}</p>
         <div className="mt-6 flex justify-center gap-3">
-          <Link href="/browse" className="button-primary px-4 py-2.5 text-sm">Back to Browse</Link>
-          <Link href="/" className="button-secondary px-4 py-2.5 text-sm">Library</Link>
+          <Link href="/browse" className="button-primary px-4 py-2.5 text-sm">{t("native.back_browse")}</Link>
+          <Link href="/" className="button-secondary px-4 py-2.5 text-sm">{t("nav.library")}</Link>
         </div>
       </div>
     );

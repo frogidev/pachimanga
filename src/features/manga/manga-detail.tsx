@@ -12,6 +12,7 @@ import { setLibraryReadingStatus } from "@/lib/storage/library-dashboard";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
 import { allReadableChaptersComplete, firstReadableChapter, latestReadableChapter, nextUnreadReadableChapter } from "./read-target";
 import { sourceDisplayName } from "@/lib/source-labels";
+import { useLocale } from "@/lib/i18n";
 
 type ExternalReadLink = { label: string; url: string };
 
@@ -38,11 +39,11 @@ function cleanDescription(description: string) {
     .trim();
 }
 
-function chapterDate(value?: string) {
-  if (!value) return "Date unknown";
+function chapterDate(value: string | undefined, locale: string, unknown: string) {
+  if (!value) return unknown;
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "Date unknown";
-  return new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(date);
+  if (!Number.isFinite(date.getTime())) return unknown;
+  return new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }).format(date);
 }
 
 function summarizeReadState(chapters: Chapter[], map: Record<string, number>) {
@@ -78,6 +79,7 @@ export function MangaDetail({
   readerBasePath?: string;
   backHref?: string;
 }) {
+  const { t, locale } = useLocale();
   const [inLibrary, setInLibrary] = useState(false);
   const [readingStatus, setReadingStatus] = useState<LibraryReadingStatus>("plan_to_read");
   const [readingStatusManual, setReadingStatusManual] = useState(false);
@@ -104,7 +106,7 @@ export function MangaDetail({
   );
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
   const description = useMemo(() => cleanDescription(manga.description), [manga.description]);
-  const provider = sourceDisplayName(manga.sourceId) ?? "this source";
+  const provider = sourceDisplayName(manga.sourceId) ?? t("detail.this_source");
   const chapterHref = (chapterId: string) => `${readerBasePath}/${chapterId}`;
 
   useEffect(() => {
@@ -247,7 +249,7 @@ export function MangaDetail({
 
   async function runBulkMark(targets: Chapter[], read: boolean, label: string) {
     if (!targets.length || bulk) return;
-    if (!window.confirm(`${label} (${targets.length} chapter${targets.length === 1 ? "" : "s"} of "${manga.title}")?`)) return;
+    if (!window.confirm(t(targets.length === 1 ? "detail.bulk_confirm_one" : "detail.bulk_confirm_other", { label, count: targets.length, title: manga.title }))) return;
     bulkCancel.current = false;
     setBulk({ done: 0, total: targets.length, label });
     const base = { ...chapterProgress };
@@ -289,7 +291,7 @@ export function MangaDetail({
     if (markingAll) return;
     setMarkingAll(true);
     try {
-      await runBulkMark(chapters, true, "Mark all as read");
+      await runBulkMark(chapters, true, t("detail.mark_all_read"));
     } finally {
       setMarkingAll(false);
     }
@@ -299,7 +301,7 @@ export function MangaDetail({
     if (markingAll) return;
     setMarkingAll(true);
     try {
-      await runBulkMark(chapters, false, "Mark all as unread");
+      await runBulkMark(chapters, false, t("detail.mark_all_unread"));
     } finally {
       setMarkingAll(false);
     }
@@ -309,12 +311,12 @@ export function MangaDetail({
     const targets = chapters.slice(index);
     const chapter = chapters[index];
     if (!chapter || bulk) return;
-    await runBulkMark(targets, true, `Mark "${chapter.title}" and older as read`);
+    await runBulkMark(targets, true, t("detail.mark_older_label", { title: chapter.title }));
   }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
-      <Link href={backHref} className="inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-pink-300">← Library</Link>
+      <Link href={backHref} className="inline-flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-zinc-500 transition hover:text-pink-300">{t("detail.back")}</Link>
 
       <section className="manga-detail-hero mt-5 overflow-hidden rounded-[22px] p-4 sm:p-6 lg:p-8">
         <div className="grid gap-7 sm:grid-cols-[190px_1fr] lg:grid-cols-[230px_1fr] lg:gap-10">
@@ -322,43 +324,43 @@ export function MangaDetail({
 {manga.coverUrl ? (
               <Image src={manga.coverUrl} alt={`${manga.title} cover`} fill className="object-cover" priority unoptimized />
             ) : (
-              <div className="grid h-full w-full place-items-center px-4 text-center text-xs text-zinc-600">No cover available</div>
+              <div className="grid h-full w-full place-items-center px-4 text-center text-xs text-zinc-600">{t("card.no_cover")}</div>
             )}
           </div>
 
           <div className="self-center">
-            <p className="pixel-kicker text-[9px] text-pink-400">Manga details</p>
+            <p className="pixel-kicker text-[9px] text-pink-400">{t("detail.kicker")}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {manga.genres.map((genre) => <span key={genre} className="rounded-full border border-white/[.08] bg-white/[.04] px-2.5 py-1 text-[11px] text-zinc-400">{genre}</span>)}
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-[-.045em] text-white sm:text-4xl">{manga.title}</h1>
-            <p className="mt-2 text-sm text-zinc-500">{manga.author || "Unknown author"} · <span className="capitalize">{manga.status}</span> · {provider}</p>
+            <p className="mt-2 text-sm text-zinc-500">{manga.author || t("detail.unknown_author")} · <span className="capitalize">{["complete", "ongoing", "hiatus", "cancelled"].includes(manga.status) ? t(`status.pub.${manga.status}`) : manga.status}</span> · {provider}</p>
             {description ? <p className="mt-5 max-w-3xl whitespace-pre-line text-sm leading-7 text-zinc-400 sm:text-[15px]">{description}</p> : null}
             <div className="mt-6 flex flex-wrap gap-3">
-              {!readStateLoaded && chapters.length ? <span role="status" className="button-primary px-5 py-3 text-sm opacity-60">Loading reading position…</span> : null}
-              {readStateLoaded && continueTo ? <Link href={chapterHref(continueTo.id)} className="button-primary px-5 py-3 text-sm">Continue · {continueTo.title}</Link> : null}
-              {readStateLoaded && !continueTo && !caughtUp && firstChapter ? <Link href={chapterHref(firstChapter.id)} className="button-primary px-5 py-3 text-sm">Start reading · {firstChapter.title}</Link> : null}
-              {readStateLoaded && caughtUp ? <span className="inline-flex items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[.06] px-5 py-3 text-sm font-medium text-emerald-200">Caught up · waiting for new chapters</span> : null}
-              {readStateLoaded && continueTo && latestChapter && latestChapter.id !== continueTo.id ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">Read latest</Link> : null}
-              {readStateLoaded && caughtUp && latestChapter ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">Reread latest</Link> : null}
-              {!chapters.length && external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-5 py-3 text-sm">Read on {external.label} ↗</a> : null}
-              <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? "Remove from library" : "Add to library"}</button>
+              {!readStateLoaded && chapters.length ? <span role="status" className="button-primary px-5 py-3 text-sm opacity-60">{t("detail.loading_position")}</span> : null}
+              {readStateLoaded && continueTo ? <Link href={chapterHref(continueTo.id)} className="button-primary px-5 py-3 text-sm">{t("detail.continue", { title: continueTo.title })}</Link> : null}
+              {readStateLoaded && !continueTo && !caughtUp && firstChapter ? <Link href={chapterHref(firstChapter.id)} className="button-primary px-5 py-3 text-sm">{t("detail.start", { title: firstChapter.title })}</Link> : null}
+              {readStateLoaded && caughtUp ? <span className="inline-flex items-center rounded-xl border border-emerald-300/20 bg-emerald-300/[.06] px-5 py-3 text-sm font-medium text-emerald-200">{t("detail.caught_up")}</span> : null}
+              {readStateLoaded && continueTo && latestChapter && latestChapter.id !== continueTo.id ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">{t("detail.read_latest")}</Link> : null}
+              {readStateLoaded && caughtUp && latestChapter ? <Link href={chapterHref(latestChapter.id)} className="button-secondary px-5 py-3 text-sm">{t("detail.reread_latest")}</Link> : null}
+              {!chapters.length && external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-5 py-3 text-sm">{t("detail.read_on", { label: external.label })}</a> : null}
+              <button type="button" onClick={toggleLibrary} disabled={busy} className="button-secondary px-5 py-3 text-sm font-medium disabled:opacity-50">{inLibrary ? t("detail.remove_library") : t("detail.add_library")}</button>
               {inLibrary ? (
                 <label className="grid gap-1 text-[11px] text-zinc-500">
-                  <span>My status</span>
+                  <span>{t("detail.my_status")}</span>
                   <select
                     value={readingStatusManual ? readingStatus : "automatic"}
                     disabled={busy}
                     onChange={(event) => void changeReadingStatus(event.target.value)}
                     className="field h-11 min-w-44 px-3 text-sm disabled:opacity-50"
-                    aria-label="My reading status"
+                    aria-label={t("detail.my_status_aria")}
                   >
-                    <option value="automatic">Automatic</option>
-                    <option value="reading">Reading</option>
-                    <option value="completed">Completed</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="dropped">Dropped</option>
-                    <option value="plan_to_read">Plan to Read</option>
+                    <option value="automatic">{t("detail.status_auto")}</option>
+                    <option value="reading">{t("status.reading")}</option>
+                    <option value="completed">{t("status.completed")}</option>
+                    <option value="on_hold">{t("status.on_hold")}</option>
+                    <option value="dropped">{t("status.dropped")}</option>
+                    <option value="plan_to_read">{t("status.plan_to_read")}</option>
                   </select>
                 </label>
               ) : null}
@@ -377,31 +379,31 @@ export function MangaDetail({
       <section className="mt-8">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="pixel-kicker text-[9px] text-pink-400">Read</p>
-            <h2 className="mt-1 text-xl font-bold tracking-[-.03em]">Chapters</h2>
+            <p className="pixel-kicker text-[9px] text-pink-400">{t("detail.read_kicker")}</p>
+            <h2 className="mt-1 text-xl font-bold tracking-[-.03em]">{t("detail.chapters")}</h2>
           </div>
-          <span className="text-xs text-zinc-600">{chapters.length ? `${readCount}/${chapters.length} read · ${chapters.length} available` : "No in-app chapters"}</span>
+          <span className="text-xs text-zinc-600">{chapters.length ? t("detail.read_count", { read: readCount, total: chapters.length }) : t("detail.no_chapters")}</span>
         </div>
         {chapters.length ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             {pageCount > 1 ? (
-              <div className="flex items-center gap-1" role="navigation" aria-label="Chapter pages">
+              <div className="flex items-center gap-1" role="navigation" aria-label={t("detail.chapter_pages")}>
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={safePage === 0}
                   className="rounded-xl px-3 py-2 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
                 >
-                  ← Newer
+                  {t("detail.newer")}
                 </button>
-                <span className="px-1 font-mono text-[11px] text-zinc-500" aria-live="polite">Page {safePage + 1}/{pageCount}</span>
+                <span className="px-1 font-mono text-[11px] text-zinc-500" aria-live="polite">{t("detail.page_of", { page: safePage + 1, total: pageCount })}</span>
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
                   disabled={safePage >= pageCount - 1}
                   className="rounded-xl px-3 py-2 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
                 >
-                  Older →
+                  {t("detail.older")}
                 </button>
               </div>
             ) : <span />}
@@ -417,7 +419,7 @@ export function MangaDetail({
                   onClick={() => { bulkCancel.current = true; }}
                   className="shrink-0 rounded-lg px-2 py-1 text-[11px] text-zinc-500 transition hover:bg-white/[.06] hover:text-zinc-200"
                 >
-                  Cancel
+                  {t("detail.cancel")}
                 </button>
               </div>
             ) : null}
@@ -427,7 +429,7 @@ export function MangaDetail({
               disabled={markingAll || bulk !== null}
               className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-pink-300 disabled:opacity-50"
             >
-              {markingAll ? "Marking…" : "Mark all as read"}
+              {markingAll ? t("detail.marking") : t("detail.mark_all_read")}
             </button>
             <button
               type="button"
@@ -435,7 +437,7 @@ export function MangaDetail({
               disabled={markingAll || bulk !== null}
               className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300 disabled:opacity-50"
             >
-              Mark all as unread
+              {t("detail.mark_all_unread")}
             </button>
             </div>
           </div>
@@ -449,18 +451,18 @@ export function MangaDetail({
               const busy = busyChapter === chapter.id;
               return (
               <Link key={chapter.id} href={chapterHref(chapter.id)} className="group flex min-h-14 items-center gap-3 px-4 py-3 text-sm transition hover:bg-white/[.035] sm:px-5">
-                <span aria-hidden="true" title={read ? "Read" : pct > 0 ? `${Math.round(pct)}% read` : "Unread"} className={`size-2 shrink-0 rounded-full ${read ? "bg-emerald-400" : pct > 0 ? "bg-sky-300" : "bg-zinc-700"}`} />
+                <span aria-hidden="true" title={read ? t("detail.read") : pct > 0 ? t("detail.percent_read", { percent: Math.round(pct) }) : t("detail.unread")} className={`size-2 shrink-0 rounded-full ${read ? "bg-emerald-400" : pct > 0 ? "bg-sky-300" : "bg-zinc-700"}`} />
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] font-mono text-[10px] text-zinc-600 group-hover:bg-pink-400/10 group-hover:text-pink-300">{String(chapters.length - globalIndex).padStart(2, "0")}</span>
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate font-medium ${read ? "text-zinc-500" : "text-zinc-200"}`}>{chapter.title}</span>
-                  <span className="mt-0.5 block text-[10px] text-zinc-600">{chapterDate(chapter.publishedAt)}</span>
+                  <span className="mt-0.5 block text-[10px] text-zinc-600">{chapterDate(chapter.publishedAt, locale, t("detail.date_unknown"))}</span>
                 </span>
                 <button
                   type="button"
                   disabled={busy}
                   aria-pressed={read}
-                  aria-label={read ? `Mark ${chapter.title} as unread` : `Mark ${chapter.title} as read`}
-                  title={read ? "Mark as unread" : "Mark as read"}
+                  aria-label={read ? t("detail.mark_title_unread", { title: chapter.title }) : t("detail.mark_title_read", { title: chapter.title })}
+                  title={read ? t("detail.mark_unread") : t("detail.mark_read")}
                   onClick={(event) => { event.preventDefault(); event.stopPropagation(); void toggleChapterRead(chapter); }}
                   className={`grid size-8 shrink-0 place-items-center rounded-lg text-sm transition disabled:opacity-50 ${read ? "bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20" : "bg-white/[.04] text-zinc-500 hover:bg-white/[.08] hover:text-zinc-200"}`}
                 >
@@ -469,47 +471,47 @@ export function MangaDetail({
                 <button
                   type="button"
                   disabled={busy || bulk !== null}
-                  aria-label={`Mark ${chapter.title} and older chapters as read`}
-                  title="Mark this chapter and older as read"
+                  aria-label={t("detail.mark_title_older_read", { title: chapter.title })}
+                  title={t("detail.mark_older_read")}
                   onClick={(event) => { event.preventDefault(); event.stopPropagation(); void markFromHere(globalIndex); }}
                   className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/[.04] text-sm text-zinc-500 transition hover:bg-white/[.08] hover:text-pink-300 disabled:opacity-50"
                 >
                   ⇣
                 </button>
-                <span className="shrink-0 text-xs text-zinc-600 transition group-hover:text-pink-300">Read →</span>
+                <span className="shrink-0 text-xs text-zinc-600 transition group-hover:text-pink-300">{t("detail.read_arrow")}</span>
               </Link>
               );
             })}
           </div>
         ) : null}
         {pageCount > 1 ? (
-          <div className="mt-4 flex items-center justify-center gap-1" role="navigation" aria-label="Chapter pages">
+          <div className="mt-4 flex items-center justify-center gap-1" role="navigation" aria-label={t("detail.chapter_pages")}>
             <button
               type="button"
               onClick={() => { setPage((p) => Math.max(0, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               disabled={safePage === 0}
               className="rounded-xl px-4 py-2.5 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
             >
-              ← Newer
+              {t("detail.newer")}
             </button>
-            <span className="px-2 font-mono text-[11px] text-zinc-500">Page {safePage + 1}/{pageCount}</span>
+            <span className="px-2 font-mono text-[11px] text-zinc-500">{t("detail.page_of", { page: safePage + 1, total: pageCount })}</span>
             <button
               type="button"
               onClick={() => { setPage((p) => Math.min(pageCount - 1, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               disabled={safePage >= pageCount - 1}
               className="rounded-xl px-4 py-2.5 text-xs text-zinc-400 transition hover:bg-white/[.06] hover:text-zinc-100 disabled:opacity-40"
             >
-              Older →
+              {t("detail.older")}
             </button>
           </div>
         ) : null}
         {!chapters.length ? (
           <div className="surface-card mt-4 px-5 py-8 sm:px-6">
-            <p className="text-sm font-semibold text-zinc-200">{provider} does not expose readable English chapters for this entry.</p>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Pachimanga can keep the title in your library, but it will not fabricate chapter links when the upstream source only provides metadata.</p>
+            <p className="text-sm font-semibold text-zinc-200">{t("detail.no_readable", { provider })}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">{t("detail.no_readable_sub")}</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              {external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-4 py-2.5 text-sm">Read on {external.label} ↗</a> : null}
-              <a href={manga.sourceUrl} target="_blank" rel="noreferrer noopener" className="button-secondary px-4 py-2.5 text-sm">Open {provider} ↗</a>
+              {external ? <a href={external.url} target="_blank" rel="noreferrer noopener" className="button-primary px-4 py-2.5 text-sm">{t("detail.read_on", { label: external.label })}</a> : null}
+              <a href={manga.sourceUrl} target="_blank" rel="noreferrer noopener" className="button-secondary px-4 py-2.5 text-sm">{t("detail.open_provider", { provider })}</a>
             </div>
           </div>
         ) : null}

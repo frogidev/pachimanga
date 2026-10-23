@@ -78,7 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
 
-        <nav className="mt-2 space-y-1.5 px-4" aria-label="Primary navigation">
+        <nav className="mt-2 space-y-1.5 px-4" aria-label={t("nav.primary")}>
           {navItems.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="sticky top-0 z-40 flex h-[calc(4rem+env(safe-area-inset-top))] items-end border-b border-white/[.07] bg-[#0b0910]/95 px-3 pb-3 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:hidden">
         {pathname !== "/" ? (
-          <button type="button" onClick={goBack} className="mr-2 grid size-10 shrink-0 place-items-center rounded-xl text-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label="Go back">←</button>
+          <button type="button" onClick={goBack} className="mr-2 grid size-10 shrink-0 place-items-center rounded-xl text-xl text-zinc-400 hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70" aria-label={t("nav.back")}>←</button>
         ) : null}
         <Link href="/" className="inline-flex"><PachiLogo /></Link>
         <div className="ml-auto flex items-center gap-1">
@@ -128,13 +128,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:ml-[252px] md:pb-0">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-6 border-t border-white/[.07] bg-[#0b0910]/96 px-1.5 pb-[calc(.55rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden" aria-label="Primary navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-7 border-t border-white/[.07] bg-[#0b0910]/96 px-1.5 pb-[calc(.55rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden" aria-label={t("nav.primary")}>
         {navItems.map((item) => {
           const active = isActive(pathname, item.href);
           return (
-            <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${active ? "text-pink-300" : "text-zinc-500"}`}>
+            <Link key={item.href} href={item.href} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[9px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 ${active ? "text-pink-300" : "text-zinc-500"}`}>
               <span aria-hidden="true"><NavIcon name={item.icon} /></span>
-              {t(item.labelKey)}
+              <span className="max-w-full truncate">{t(item.labelKey)}</span>
             </Link>
           );
         })}

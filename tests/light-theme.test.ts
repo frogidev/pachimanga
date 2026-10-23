@@ -31,7 +31,7 @@ test('art direction documents light mode as an intentional warm-paper theme', ()
 
 
 test('light auth keeps hero copy readable and neutralizes browser autofill blue', () => {
-  const authPage = readFileSync(join(ROOT, 'src/app/auth/page.tsx'), 'utf8');
+  const authPage = readFileSync(join(ROOT, 'src/components/auth-intro.tsx'), 'utf8');
   assert.match(authPage, /auth-intro-card/);
   assert.match(authPage, /auth-intro-note/);
   assert.match(css, /html\[data-theme="light"\] \.auth-intro-card/);

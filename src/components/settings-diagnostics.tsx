@@ -6,6 +6,7 @@ import { getOfflineStorageEstimate } from '@/lib/offline/chapter-cache';
 import { isInstalledPwa } from '@/lib/pwa/display-mode';
 import { idbGetAll } from '@/lib/storage/idb';
 import type { LibraryEntry } from '@/types/models';
+import { useLocale } from "@/lib/i18n";
 
 type ProviderFreshness = {
   sourceId: string;
@@ -132,6 +133,7 @@ function diagnosticsText(snapshot: DiagnosticSnapshot) {
 }
 
 export function SettingsDiagnostics() {
+  const { t } = useLocale();
   const [snapshot, setSnapshot] = useState<DiagnosticSnapshot | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [refreshing, setRefreshing] = useState(false);
@@ -181,54 +183,54 @@ export function SettingsDiagnostics() {
     <section className="surface-card p-5 sm:p-6" aria-labelledby="settings-diagnostics-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="pixel-kicker text-[9px] text-sky-300">Diagnostics</p>
-          <h2 id="settings-diagnostics-title" className="mt-1 text-lg font-semibold text-zinc-100">Safe app diagnostics</h2>
+          <p className="pixel-kicker text-[9px] text-sky-300">{t("diag.kicker")}</p>
+          <h2 id="settings-diagnostics-title" className="mt-1 text-lg font-semibold text-zinc-100">{t("diag.title")}</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
-            Useful app, sync, service-worker, storage, and provider-freshness status. Copied diagnostics never include account IDs, email addresses, tokens, relay secrets, provider cookies, or manga titles.
+            {t("diag.sub")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void refresh()} disabled={refreshing} className="button-secondary px-4 py-2.5 text-sm disabled:opacity-50">
-            {refreshing ? 'Refreshing…' : 'Refresh'}
+            {refreshing ? t("diag.refreshing") : t("diag.refresh")}
           </button>
           <button type="button" onClick={() => void copyDiagnostics()} disabled={!snapshot} className="button-primary px-4 py-2.5 text-sm disabled:opacity-50">
-            Copy diagnostics
+            {t("diag.copy")}
           </button>
         </div>
       </div>
 
       <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
         <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
-          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">App & session</dt>
-          <dd className="mt-2 leading-6 text-zinc-300">v{snapshot?.version ?? packageJson.version} · {snapshot?.installed ? 'Installed' : 'Browser'} · {snapshot?.cacheBound ? 'Account cache bound' : 'Cache binding unavailable'}</dd>
+          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">{t("diag.app_session")}</dt>
+          <dd className="mt-2 leading-6 text-zinc-300">v{snapshot?.version ?? packageJson.version} · {snapshot?.installed ? t("diag.installed") : t("diag.browser")} · {snapshot?.cacheBound ? t("diag.bound") : t("diag.unbound")}</dd>
         </div>
         <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
-          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">Sync</dt>
-          <dd className="mt-2 leading-6 text-zinc-300">{snapshot?.online === false ? 'Offline' : 'Online'} · {pending} pending ({snapshot?.pendingLibrary ?? 0} library, {snapshot?.pendingProgress ?? 0} progress, {snapshot?.pendingSettings ?? 0} settings)</dd>
+          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">{t("diag.sync")}</dt>
+          <dd className="mt-2 leading-6 text-zinc-300">{snapshot?.online === false ? t("diag.offline") : t("diag.online")} · {t("diag.pending", { pending, library: snapshot?.pendingLibrary ?? 0, progress: snapshot?.pendingProgress ?? 0, settings: snapshot?.pendingSettings ?? 0 })}</dd>
         </div>
         <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
-          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">Service worker</dt>
-          <dd className="mt-2 leading-6 text-zinc-300">{snapshot?.serviceWorker ?? 'Checking…'}</dd>
+          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">{t("diag.sw")}</dt>
+          <dd className="mt-2 leading-6 text-zinc-300">{snapshot?.serviceWorker ?? t("diag.checking")}</dd>
         </div>
         <div className="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
-          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">Site storage</dt>
-          <dd className="mt-2 leading-6 text-zinc-300">{snapshot ? `${formatBytes(snapshot.storageUsage)} / ${formatBytes(snapshot.storageQuota)}` : 'Checking…'}</dd>
+          <dt className="text-xs uppercase tracking-[.12em] text-zinc-600">{t("diag.storage")}</dt>
+          <dd className="mt-2 leading-6 text-zinc-300">{snapshot ? `${formatBytes(snapshot.storageUsage)} / ${formatBytes(snapshot.storageQuota)}` : t("diag.checking")}</dd>
         </div>
       </dl>
 
       <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.025] p-3.5">
-        <p className="text-xs uppercase tracking-[.12em] text-zinc-600">Provider freshness</p>
+        <p className="text-xs uppercase tracking-[.12em] text-zinc-600">{t("diag.freshness")}</p>
         {snapshot?.providers.length ? (
           <ul className="mt-2 grid gap-1.5 text-sm leading-6 text-zinc-400">
             {snapshot.providers.map((provider) => <li key={provider.sourceId}>{formatProviderLine(provider)}</li>)}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-zinc-500">No cached provider freshness metadata is available yet.</p>
+          <p className="mt-2 text-sm text-zinc-500">{t("diag.no_freshness")}</p>
         )}
       </div>
 
       <p className="mt-4 min-h-5 text-xs text-zinc-500" role="status" aria-live="polite">
-        {copyState === 'copied' ? 'Diagnostics copied.' : copyState === 'error' ? 'Copy failed. Your browser may block clipboard access.' : ''}
+        {copyState === 'copied' ? t("diag.copied") : copyState === 'error' ? t("diag.copy_failed") : ''}
       </p>
     </section>
   );

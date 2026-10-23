@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useLocale } from "@/lib/i18n";
 
 type AccountProfileSummary = {
   email: string;
@@ -55,6 +56,7 @@ export function ProfileAvatar({
 }
 
 export function AccountProfileBadge({ compact = false }: { compact?: boolean }) {
+  const { t } = useLocale();
   const [profile, setProfile] = useState<AccountProfileSummary | null>(null);
 
   const refresh = useCallback(async () => {
@@ -105,7 +107,7 @@ export function AccountProfileBadge({ compact = false }: { compact?: boolean }) 
     };
   }, [refresh]);
 
-  const displayName = profile?.displayName.trim() || profile?.email.split('@')[0] || 'Account';
+  const displayName = profile?.displayName.trim() || profile?.email.split('@')[0] || t("badge.account");
   const email = profile?.email || '';
   const avatarUrl = profile?.avatarUrl || '';
 
@@ -113,7 +115,7 @@ export function AccountProfileBadge({ compact = false }: { compact?: boolean }) 
     return (
       <Link
         href="/settings#account"
-        aria-label={`Open account settings for ${displayName}`}
+        aria-label={t('badge.open_settings', { name: displayName })}
         title={displayName}
         className="grid size-10 place-items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70"
       >
@@ -126,12 +128,12 @@ export function AccountProfileBadge({ compact = false }: { compact?: boolean }) 
     <Link
       href="/settings#account"
       className="group flex min-h-12 items-center gap-3 rounded-xl px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70"
-      aria-label={`Open account settings for ${displayName}`}
+      aria-label={t('badge.open_settings', { name: displayName })}
     >
       <ProfileAvatar displayName={displayName} email={email} avatarUrl={avatarUrl} className="size-10" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-semibold text-zinc-200 transition group-hover:text-white">{displayName}</span>
-        <span className="mt-0.5 block truncate text-[10px] text-zinc-600">{email || 'Account profile'}</span>
+        <span className="mt-0.5 block truncate text-[10px] text-zinc-600">{email || t("badge.profile")}</span>
       </span>
       <span aria-hidden="true" className="text-xs text-zinc-600 transition group-hover:translate-x-0.5 group-hover:text-zinc-400">→</span>
     </Link>

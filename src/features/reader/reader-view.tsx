@@ -14,11 +14,13 @@ import { useScreenWakeLock } from "@/features/reader/use-screen-wake-lock";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { DEFAULT_READER_SETTINGS, getProgress, getReaderSettingsSnapshot, saveProgress, saveReaderSettings, subscribeReaderSettings } from "@/lib/storage/reader-storage";
 import type { Chapter, Manga, Page, ReaderSettings, ReadingProgress } from "@/types/models";
+import { useLocale } from "@/lib/i18n";
 
 export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/reader", mangaBasePath = "/manga" }: {
   manga: Manga; chapter: Chapter; chapters: Chapter[]; pages: Page[]; routeBasePath?: string; mangaBasePath?: string;
 }) {
   const router = useRouter();
+  const { t } = useLocale();
   const [state, dispatch] = useReducer(readerReducer, initialReaderState);
   const storedSettings = useSyncExternalStore(subscribeReaderSettings, getReaderSettingsSnapshot, () => DEFAULT_READER_SETTINGS);
   const settings = useMemo(() => effectiveReaderSettings(storedSettings, manga.id), [manga.id, storedSettings]);
@@ -84,8 +86,8 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
       failedPages[chapter.id]?.[index] ? (
         <div className="grid min-h-80 w-full max-w-[800px] place-items-center px-6 py-12 text-center">
           <div>
-            <p className="text-sm font-medium text-zinc-300">Page {index + 1} could not be loaded.</p>
-            <p className="mt-2 text-xs leading-5 text-zinc-600">The provider image may be temporarily unavailable. Retrying does not change reading progress.</p>
+            <p className="text-sm font-medium text-zinc-300">{t("reader.page_failed", { page: index + 1 })}</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-600">{t("reader.image_hint")}</p>
             <button
               type="button"
               onClick={(event) => {
@@ -104,7 +106,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
               }}
               className="button-secondary mt-4 px-4 py-2 text-xs"
             >
-              Retry page
+              {t("reader.retry_page")}
             </button>
           </div>
         </div>
@@ -129,7 +131,7 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         />
       )
     );
-  }, [chapter.id, chapter.title, manga.title, settings, shouldUseSpread, failedPages, pageRetryVersion, setFailedPages, setPageRetryVersion]);
+  }, [t, chapter.id, chapter.title, manga.title, settings, shouldUseSpread, failedPages, pageRetryVersion, setFailedPages, setPageRetryVersion]);
 
   // Render pages - extracted to avoid IIFE in JSX
   const renderPages = useMemo(() => {
@@ -402,16 +404,16 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
           savedCount: result.saved,
           total: result.total,
         });
-        if (result.failed) setOfflineError(`${result.failed} page${result.failed === 1 ? "" : "s"} could not be cached.`);
+        if (result.failed) setOfflineError(t(result.failed === 1 ? "reader.cache_failed_one" : "reader.cache_failed_other", { count: result.failed }));
       }
       window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
     } catch (error) {
       setOfflineError(
         error instanceof Error && error.name === "AbortError"
-          ? "Offline save cancelled."
+          ? t("reader.save_cancelled")
           : error instanceof Error
             ? error.message
-            : "Offline chapter storage is unavailable.",
+            : t("reader.offline_unavailable"),
       );
     } finally {
       if (offlineAbortRef.current === controller) offlineAbortRef.current = null;
@@ -423,41 +425,41 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
 
   return (
     <div className="min-h-dvh bg-black text-white" onClick={toggleControls} onMouseMove={() => dispatch({ type: "show-controls" })}>
-      <div ref={progressBarRef} role="progressbar" aria-label="Chapter reading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={0} className="fixed inset-x-0 top-0 z-[70] h-1 origin-left scale-x-0 bg-sky-400 transition-transform duration-75 motion-reduce:transition-none" />
+      <div ref={progressBarRef} role="progressbar" aria-label={t("reader.progress_aria")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={0} className="fixed inset-x-0 top-0 z-[70] h-1 origin-left scale-x-0 bg-sky-400 transition-transform duration-75 motion-reduce:transition-none" />
 
-      <button type="button" onClick={(event) => { event.stopPropagation(); scrollToPage(state.currentPageIndex - 1); }} disabled={state.currentPageIndex <= 0} className="fixed bottom-[24%] left-0 top-[24%] z-20 w-[18vw] opacity-0 focus-visible:opacity-100 focus-visible:bg-white/[.04] disabled:pointer-events-none sm:hidden" aria-label="Previous page" />
-      <button type="button" onClick={(event) => { event.stopPropagation(); scrollToPage(state.currentPageIndex + 1); }} disabled={state.currentPageIndex >= pages.length - 1} className="fixed bottom-[24%] right-0 top-[24%] z-20 w-[18vw] opacity-0 focus-visible:opacity-100 focus-visible:bg-white/[.04] disabled:pointer-events-none sm:hidden" aria-label="Next page" />
+      <button type="button" onClick={(event) => { event.stopPropagation(); scrollToPage(state.currentPageIndex - 1); }} disabled={state.currentPageIndex <= 0} className="fixed bottom-[24%] left-0 top-[24%] z-20 w-[18vw] opacity-0 focus-visible:opacity-100 focus-visible:bg-white/[.04] disabled:pointer-events-none sm:hidden" aria-label={t("reader.prev_page")} />
+      <button type="button" onClick={(event) => { event.stopPropagation(); scrollToPage(state.currentPageIndex + 1); }} disabled={state.currentPageIndex >= pages.length - 1} className="fixed bottom-[24%] right-0 top-[24%] z-20 w-[18vw] opacity-0 focus-visible:opacity-100 focus-visible:bg-white/[.04] disabled:pointer-events-none sm:hidden" aria-label={t("reader.next_page")} />
 
       <div className="mx-auto flex min-h-dvh w-full max-w-[1200px] flex-col items-center bg-zinc-950">
         {!hydrated ? (
-          <div role="status" aria-label="Loading chapter" className="flex w-full flex-col items-center gap-3 py-10">
+          <div role="status" aria-label={t("reader.loading")} className="flex w-full flex-col items-center gap-3 py-10">
             {[0, 1].map((skeleton) => (
               <div key={skeleton} aria-hidden="true" className="aspect-[3/4] w-full max-w-[800px] animate-pulse rounded-lg bg-white/[.05]" />
             ))}
-            <span className="text-sm text-zinc-500">Loading chapter…</span>
+            <span className="text-sm text-zinc-500">{t("reader.loading_dots")}</span>
           </div>
         ) : renderPages}
       </div>
 
       <div className={`fixed inset-x-0 top-0 z-50 transition duration-200 motion-reduce:transition-none ${state.controlsVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}`} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center gap-2 border-b border-white/10 bg-black/80 px-3 pb-2.5 pt-[calc(.6rem+env(safe-area-inset-top))] backdrop-blur-xl sm:gap-3 sm:px-5">
-          <Link href={`${mangaBasePath}/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300" aria-label="Close reader">×</Link>
+          <Link href={`${mangaBasePath}/${manga.id}`} className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300" aria-label={t("reader.close")}>×</Link>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{manga.title}</p>
-            <p className="truncate text-xs text-zinc-500">{chapter.title} · page {state.currentPageIndex + 1}/{pages.length}</p>
+            <p className="truncate text-xs text-zinc-500">{t("reader.page_of", { title: chapter.title, page: state.currentPageIndex + 1, total: pages.length })}</p>
           </div>
           <label className="hidden max-w-56 sm:block">
-            <span className="sr-only">Jump to chapter</span>
+            <span className="sr-only">{t("reader.jump")}</span>
             <select value={chapter.id} onChange={(event) => navigateChapter(event.target.value)} className="h-10 max-w-56 rounded-xl border border-white/10 bg-zinc-950 px-2 text-xs text-zinc-300 outline-none focus:border-sky-300/60">
               {chapters.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => void toggleChapterOffline()} className="rounded-xl bg-white/8 px-2.5 py-2 text-xs text-zinc-300 hover:bg-white/12" aria-label={offlineBusy ? "Cancel offline chapter save" : offlineComplete ? "Remove downloaded chapter pages" : "Save chapter pages for offline reading"}>
-            {offlineBusy ? `Cancel ${offlineState?.saved ?? 0}/${offlineState?.total ?? pages.length}` : offlineComplete ? "✓ Offline" : "↓ Offline"}
+          <button type="button" onClick={() => void toggleChapterOffline()} className="rounded-xl bg-white/8 px-2.5 py-2 text-xs text-zinc-300 hover:bg-white/12" aria-label={offlineBusy ? t("reader.offline_cancel_aria") : offlineComplete ? t("reader.offline_remove_aria") : t("reader.offline_save_aria")}>
+            {offlineBusy ? t("reader.cancel_progress", { saved: offlineState?.saved ?? 0, total: offlineState?.total ?? pages.length }) : offlineComplete ? t("reader.offline_done") : t("reader.offline_save")}
           </button>
           {wakeLock.supported ? (
-            <button type="button" onClick={() => updateSettings({ keepScreenAwake: !settings.keepScreenAwake })} className={`hidden rounded-xl px-3 py-2 text-xs sm:block ${settings.keepScreenAwake ? "bg-amber-300/15 text-amber-200" : "bg-white/8 text-zinc-400 hover:bg-white/12"}`} aria-pressed={Boolean(settings.keepScreenAwake)} title={wakeLock.active ? "Screen wake lock active" : "Keep screen awake while reading"}>
-              {wakeLock.active ? "Awake" : "Wake"}
+            <button type="button" onClick={() => updateSettings({ keepScreenAwake: !settings.keepScreenAwake })} className={`hidden rounded-xl px-3 py-2 text-xs sm:block ${settings.keepScreenAwake ? "bg-amber-300/15 text-amber-200" : "bg-white/8 text-zinc-400 hover:bg-white/12"}`} aria-pressed={Boolean(settings.keepScreenAwake)} title={wakeLock.active ? t("reader.wake_active") : t("reader.wake_keep")}>
+              {wakeLock.active ? t("reader.awake") : t("reader.wake")}
             </button>
           ) : null}
           <button
@@ -471,11 +473,11 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
             }}
             className="hidden rounded-xl px-3 py-2 text-xs sm:block"
             style={shouldUseSpread ? { background: 'rgba(244, 114, 182, 0.15)', color: '#f9a8d4' } : { background: 'rgba(255,255,255,0.05)', color: '#a1a1aa' }}
-            title={spreadMode === 'auto' ? 'Spread: Auto (landscape only)' : spreadMode === 'always' ? 'Spread: Always' : 'Spread: Never'}
+            title={t(`reader.spread_${spreadMode}`)}
           >
-            {shouldUseSpread ? 'Spread' : 'Single'}
+            {shouldUseSpread ? t("reader.spread") : t("reader.single")}
           </button>
-          <button type="button" onClick={() => void toggleFullscreen()} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 sm:block">Fullscreen</button>
+          <button type="button" onClick={() => void toggleFullscreen()} className="hidden rounded-xl bg-white/8 px-3 py-2 text-xs text-zinc-300 hover:bg-white/12 sm:block">{t("reader.fullscreen")}</button>
         </div>
         {offlineError ? <div className="mx-auto mt-2 w-fit max-w-[calc(100vw-2rem)] rounded-xl bg-red-950/90 px-3 py-2 text-xs text-red-200">{offlineError}</div> : null}
       </div>
@@ -484,24 +486,24 @@ export function ReaderView({ manga, chapter, chapters, pages, routeBasePath = "/
         <div className="mx-auto max-w-xl px-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-4">
           <div className="rounded-3xl border border-white/10 bg-black/85 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-4">
             <div className="flex items-center gap-3">
-              <button type="button" onClick={() => dispatch({ type: "toggle-play" })} disabled={reducedMotion} title={reducedMotion ? "Auto-scroll stays off while your system requests reduced motion" : undefined} className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-base font-black text-zinc-950 hover:bg-emerald-300 disabled:opacity-40 disabled:hover:bg-emerald-400" aria-label={reducedMotion ? "Auto-scroll unavailable with reduced motion" : state.autoScrollPlaying ? "Pause auto-scroll" : "Play auto-scroll"}>{state.autoScrollPlaying && !reducedMotion ? "Ⅱ" : "▶"}</button>
-              <div className="min-w-0 flex-1"><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-medium text-zinc-200">Auto-scroll</span><span className="tabular-nums text-zinc-500">{settings.autoScrollMultiplier.toFixed(settings.autoScrollMultiplier % 1 ? 2 : 0)}× · {Math.round(speed)} px/s</span></div><input type="range" min="0.1" max="5" step="0.05" value={settings.autoScrollMultiplier} onChange={(event) => updateSettings({ autoScrollMultiplier: Number(event.target.value) })} className="w-full accent-emerald-400" aria-label="Auto-scroll speed" /></div>
-              <div className="flex shrink-0 gap-1"><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Decrease auto-scroll speed">−</button><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, 1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label="Increase auto-scroll speed">+</button></div>
+              <button type="button" onClick={() => dispatch({ type: "toggle-play" })} disabled={reducedMotion} title={reducedMotion ? t("reader.rm_off") : undefined} className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-base font-black text-zinc-950 hover:bg-emerald-300 disabled:opacity-40 disabled:hover:bg-emerald-400" aria-label={reducedMotion ? t("reader.rm_unavailable") : state.autoScrollPlaying ? t("reader.pause") : t("reader.play")}>{state.autoScrollPlaying && !reducedMotion ? "Ⅱ" : "▶"}</button>
+              <div className="min-w-0 flex-1"><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-medium text-zinc-200">{t("reader.autoscroll")}</span><span className="tabular-nums text-zinc-500">{settings.autoScrollMultiplier.toFixed(settings.autoScrollMultiplier % 1 ? 2 : 0)}× · {Math.round(speed)} px/s</span></div><input type="range" min="0.1" max="5" step="0.05" value={settings.autoScrollMultiplier} onChange={(event) => updateSettings({ autoScrollMultiplier: Number(event.target.value) })} className="w-full accent-emerald-400" aria-label={t("reader.speed")} /></div>
+              <div className="flex shrink-0 gap-1"><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, -1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label={t("reader.speed_down")}>−</button><button type="button" onClick={() => updateSettings({ autoScrollMultiplier: nextMultiplier(settings.autoScrollMultiplier, 1) })} className="grid size-9 place-items-center rounded-xl bg-white/8 text-lg hover:bg-white/12" aria-label={t("reader.speed_up")}>+</button></div>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/8 pt-3 text-xs sm:hidden">
-              <button type="button" disabled={state.currentPageIndex <= 0} onClick={() => scrollToPage(state.currentPageIndex - 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↑</button>
-              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
-              <button type="button" disabled={state.currentPageIndex >= pages.length - 1} onClick={() => scrollToPage(state.currentPageIndex + 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">Page ↓</button>
+              <button type="button" disabled={state.currentPageIndex <= 0} onClick={() => scrollToPage(state.currentPageIndex - 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">{t("reader.page_up")}</button>
+              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300">{settings.fitMode === "width" ? t("settings.reader.fit.width") : t("settings.reader.fit.screen")}</button>
+              <button type="button" disabled={state.currentPageIndex >= pages.length - 1} onClick={() => scrollToPage(state.currentPageIndex + 1)} className="rounded-xl bg-white/8 px-2 py-2 text-zinc-300 disabled:opacity-25">{t("reader.page_down")}</button>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/8 pt-3 text-xs">
-              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "manga"} onClick={() => applyTitlePreset("manga")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Manga preset</button>
-              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "webtoon"} onClick={() => applyTitlePreset("webtoon")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">Webtoon preset</button>
-              {storedSettings.titlePresets?.[manga.id] ? <button type="button" onClick={() => applyTitlePreset(null)} className="rounded-xl px-3 py-2 text-zinc-500 hover:bg-white/8 hover:text-white">Account default</button> : null}
+              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "manga"} onClick={() => applyTitlePreset("manga")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">{t("reader.preset_manga")}</button>
+              <button type="button" aria-pressed={storedSettings.titlePresets?.[manga.id] === "webtoon"} onClick={() => applyTitlePreset("webtoon")} className="rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12">{t("reader.preset_webtoon")}</button>
+              {storedSettings.titlePresets?.[manga.id] ? <button type="button" onClick={() => applyTitlePreset(null)} className="rounded-xl px-3 py-2 text-zinc-500 hover:bg-white/8 hover:text-white">{t("reader.account_default")}</button> : null}
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-              <button type="button" disabled={!previousChapter} onClick={() => previousChapter && navigateChapter(previousChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">← Previous chapter</button>
-              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="hidden rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12 sm:block">Fit {settings.fitMode === "width" ? "width" : "screen"}</button>
-              <button type="button" disabled={!nextChapter} onClick={() => nextChapter && navigateChapter(nextChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">Next chapter →</button>
+              <button type="button" disabled={!previousChapter} onClick={() => previousChapter && navigateChapter(previousChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">{t("reader.prev_chapter")}</button>
+              <button type="button" onClick={() => updateSettings({ fitMode: settings.fitMode === "width" ? "screen" : "width" })} className="hidden rounded-xl bg-white/8 px-3 py-2 text-zinc-300 hover:bg-white/12 sm:block">{settings.fitMode === "width" ? t("settings.reader.fit.width") : t("settings.reader.fit.screen")}</button>
+              <button type="button" disabled={!nextChapter} onClick={() => nextChapter && navigateChapter(nextChapter.id)} className="rounded-xl px-3 py-2 text-zinc-400 hover:bg-white/8 hover:text-white disabled:opacity-25">{t("reader.next_chapter")}</button>
             </div>
           </div>
         </div>

@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import test from 'node:test';
+import { readUi } from './ui-source.ts';
 
-const ROOT = process.cwd();
-const reader = readFileSync(join(ROOT, 'src/features/reader/reader-view.tsx'), 'utf8');
-const shell = readFileSync(join(ROOT, 'src/components/app-shell.tsx'), 'utf8');
+const reader = readUi('src/features/reader/reader-view.tsx');
+const shell = readUi('src/components/app-shell.tsx');
 
 test('reader chapter changes replace the current reader history entry', () => {
   assert.match(reader, /const navigateChapter = useCallback/);

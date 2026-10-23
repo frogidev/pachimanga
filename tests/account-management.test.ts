@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import test from 'node:test';
+import { readUi } from './ui-source.ts';
 
-const ROOT = process.cwd();
 
 function source(path: string) {
-  return readFileSync(join(ROOT, path), 'utf8');
+  return readUi(path);
 }
 
 const accountPage = source('src/app/account/page.tsx');
@@ -54,7 +52,7 @@ test('registration can resend confirmation without weakening confirmation requir
   assert.match(authForm, /auth\.resend\(\{/);
   assert.match(authForm, /type: 'signup'/);
   assert.match(authForm, /Resend confirmation/);
-  assert.match(authForm, /mode === 'signup' \|\| urlMessage\.includes\('confirmation'\)/);
+  assert.match(authForm, /mode === 'signup' \|\| urlMessageKey === 'auth\.err\.confirmation'/);
   assert.match(authForm, /emailRedirectTo: confirmationRedirect\(\)/);
   assert.doesNotMatch(authForm, /mailer_autoconfirm|enable_confirmations\s*=\s*false/i);
 });

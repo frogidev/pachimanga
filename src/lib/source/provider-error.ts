@@ -104,3 +104,13 @@ export function providerErrorPayload(error: unknown) {
     },
   };
 }
+
+/** Localized title/message for a classified error; falls back to the English text for unknown kinds. */
+export function providerErrorText(t: (key: string) => string, info: ProviderErrorInfo) {
+  const title = t(`providererr.${info.kind}.title`);
+  const message = t(`providererr.${info.kind}.message`);
+  return {
+    title: title === `providererr.${info.kind}.title` ? info.title : title,
+    message: message === `providererr.${info.kind}.message` ? info.message : message,
+  };
+}
