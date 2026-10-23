@@ -58,6 +58,22 @@ export async function getOfflineStorageEstimate(): Promise<{ usage: number; quot
   } catch { return null; }
 }
 
+/**
+ * Prefer a CORS fetch so the saved bytes stay readable (needed for PDF export); hosts that do not
+ * allow CORS fall back to an opaque response, which still displays offline but cannot be read.
+ */
+async function fetchPage(url: string, signal?: AbortSignal): Promise<Response> {
+  const init = { credentials: "omit", referrerPolicy: "no-referrer", signal } as const;
+  try {
+    const response = await fetch(url, { ...init, mode: "cors" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response;
+  } catch (error) {
+    if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+    return fetch(url, { ...init, mode: "no-cors" });
+  }
+}
+
 export async function cacheChapterPages(
   urls: string[],
   onProgress?: (saved: number, total: number) => void,
@@ -80,8 +96,7 @@ export async function cacheChapterPages(
     try {
       const hit = await cache.match(url);
       if (!hit) {
-        const response = await fetch(url, { mode: "no-cors", credentials: "omit", referrerPolicy: "no-referrer", signal: options.signal });
-        await cache.put(url, response);
+        await cache.put(url, await fetchPage(url, options.signal));
       }
       saved += 1;
     } catch (error) {
@@ -134,6 +149,14 @@ export async function retryOfflineChapter(record: OfflineChapterRecord) {
   const result = await cacheChapterPages(record.urls);
   await rememberOfflineChapter({ mangaId: record.mangaId, mangaTitle: record.mangaTitle, chapterId: record.chapterId, chapterTitle: record.chapterTitle, urls: record.urls, savedCount: result.saved, total: result.total });
   return result;
+}
+
+/** Deletes every saved chapter but keeps the account binding (unlike clearChapterCache, used on sign-out). */
+export async function clearAllOfflineChapters(): Promise<void> {
+  const { idbClear } = await import("@/lib/storage/idb");
+  await idbClear("offlineChapters");
+  if (!hasCacheApi()) return;
+  try { await caches.delete(CHAPTER_CACHE); } catch { /* already gone */ }
 }
 
 export async function clearChapterCache(): Promise<void> {

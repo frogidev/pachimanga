@@ -1,6 +1,7 @@
 'use client';
 
 import { LocalArchiveReader } from '@/components/archive/LocalArchiveReader';
+import { OfflineDownloadManager } from '@/components/offline-download-manager';
 import { PageHeading } from '@/components/page-heading';
 
 export default function ArchivePage() {
@@ -11,7 +12,10 @@ export default function ArchivePage() {
         title="archivepage.title"
         description="archivepage.sub"
       />
-      <LocalArchiveReader />
+      <div className="mt-6 grid gap-6">
+        <OfflineDownloadManager />
+        <LocalArchiveReader />
+      </div>
     </div>
   );
 }

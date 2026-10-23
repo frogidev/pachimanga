@@ -12,6 +12,7 @@ import { setLibraryReadingStatus } from "@/lib/storage/library-dashboard";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
 import { allReadableChaptersComplete, firstReadableChapter, latestReadableChapter, nextUnreadReadableChapter } from "./read-target";
 import { sourceDisplayName } from "@/lib/source-labels";
+import { saveAllChaptersOffline, type BulkSaveProgress } from "@/lib/offline/bulk-save";
 import { useLocale } from "@/lib/i18n";
 
 type ExternalReadLink = { label: string; url: string };
@@ -89,6 +90,9 @@ export function MangaDetail({
   const [markingAll, setMarkingAll] = useState(false);
   const [bulk, setBulk] = useState<{ done: number; total: number; label: string } | null>(null);
   const bulkCancel = useRef(false);
+  const [offlineSave, setOfflineSave] = useState<BulkSaveProgress | null>(null);
+  const [offlineMessage, setOfflineMessage] = useState("");
+  const offlineAbort = useRef<AbortController | null>(null);
   const [continueTo, setContinueTo] = useState<{ id: string; title: string } | null>(null);
   const [caughtUp, setCaughtUp] = useState(false);
   const [readStateLoaded, setReadStateLoaded] = useState(false);
@@ -107,6 +111,8 @@ export function MangaDetail({
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
   const description = useMemo(() => cleanDescription(manga.description), [manga.description]);
   const provider = sourceDisplayName(manga.sourceId) ?? t("detail.this_source");
+  // Saving needs the server pages route, which only exists for the web providers (not the native bridge).
+  const canSaveOffline = (manga.sourceId === "weebcentral" || manga.sourceId === "zonatmo") && readerBasePath === "/reader" && chapters.length > 0;
   const chapterHref = (chapterId: string) => `${readerBasePath}/${chapterId}`;
 
   useEffect(() => {
@@ -287,6 +293,23 @@ export function MangaDetail({
     }
   }
 
+  async function saveAllOffline() {
+    if (offlineAbort.current) return;
+    const controller = new AbortController();
+    offlineAbort.current = controller;
+    setOfflineMessage("");
+    setOfflineSave({ done: 0, total: chapters.length, current: "", failed: 0 });
+    try {
+      const result = await saveAllChaptersOffline(manga, chapters, setOfflineSave, controller.signal);
+      const key = result.stoppedReason === "storage" ? "detail.offline_storage" : result.stoppedReason === "cancelled" ? "detail.offline_cancelled" : "detail.offline_done";
+      setOfflineMessage(t(key, { saved: result.saved, skipped: result.skipped, failed: result.failed }));
+    } finally {
+      offlineAbort.current = null;
+      setOfflineSave(null);
+      window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
+    }
+  }
+
   async function markAllRead() {
     if (markingAll) return;
     setMarkingAll(true);
@@ -423,6 +446,17 @@ export function MangaDetail({
                 </button>
               </div>
             ) : null}
+            {canSaveOffline ? (
+              offlineSave ? (
+                <button type="button" onClick={() => offlineAbort.current?.abort()} className="rounded-xl px-3 py-2 text-xs text-amber-300 transition hover:bg-white/[.06]">
+                  {t("detail.offline_cancel", { done: offlineSave.done, total: offlineSave.total })}
+                </button>
+              ) : (
+                <button type="button" onClick={() => void saveAllOffline()} disabled={bulk !== null} className="rounded-xl px-3 py-2 text-xs text-sky-300 transition hover:bg-white/[.06] disabled:opacity-50">
+                  {t("detail.offline_save_all")}
+                </button>
+              )
+            ) : null}
             <button
               type="button"
               onClick={() => void markAllRead()}
@@ -440,6 +474,11 @@ export function MangaDetail({
               {t("detail.mark_all_unread")}
             </button>
             </div>
+            {offlineSave?.current || offlineMessage ? (
+              <p className="basis-full text-xs text-zinc-500" role="status" aria-live="polite">
+                {offlineSave?.current ? t("detail.offline_progress", { title: offlineSave.current }) : offlineMessage}
+              </p>
+            ) : null}
           </div>
         ) : null}
         {chapters.length ? (

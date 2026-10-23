@@ -211,7 +211,7 @@ Current hardening includes:
 - bounded preload/lazy image behavior;
 - `content-visibility` containment for distant long-strip pages;
 - optional Screen Wake Lock;
-- explicit offline chapter save/remove controls.
+- explicit offline chapter save/remove controls, a per-title "save all chapters" action, and client-side PDF export managed from Archive.
 
 Real-device memory/safe-area/Wake Lock/update/offline behavior remains release evidence, not an automated claim.
 

@@ -61,7 +61,10 @@ Offline support is intentionally scoped to page bytes rather than the whole priv
 - cross-origin manga images can be served from that cache when offline;
 - removing/clearing offline downloads deletes those page bytes;
 - account changes/sign-out clear the previous owner's chapter cache;
-- Settings reports browser storage estimate where supported.
+- saved chapters are managed in **Archive** (grouped by title): retry, remove, remove all, clear everything, with the browser storage estimate;
+- **Save all chapters offline** on a title page fetches chapter pages one chapter at a time through the authenticated `/api/source/pages` route (WeebCentral and ZonaTMO only), skips chapters that are already complete, and stops on cancel or low storage;
+- pages are saved with a CORS fetch first so their bytes stay readable; hosts without CORS fall back to an opaque response that still displays offline;
+- **PDF export** is client-side (no server, no proxy): each chapter becomes a PDF, and a title can be exported as a ZIP of PDFs. Hosts that block cross-origin reads (e.g. WeebCentral images) cannot be read directly, so those chapters open a print view and use the browser's Save as PDF.
 
 A cold offline launch may still reach `/offline` if authenticated route metadata cannot be fetched. Pachimanga does not cache authenticated HTML or provider API responses as a public shell.
 

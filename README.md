@@ -54,7 +54,7 @@ Pachimanga has no guest, demo, or anonymous reader mode.
 - Bounded provider refresh behavior: duplicate refreshes are coalesced, very recent checks can be reused, provider refresh has a hard timeout, and oversized WeebCentral raw chapter HTML is not placed in the Next.js data cache.
 - Conventional page and long-strip/manhwa reader layouts, progress/resume, navigation, auto-scroll, keyboard/touch controls, and optional Screen Wake Lock.
 - **Reader spread/double-page mode** (auto/always/never) with landscape auto-detection for manga preset.
-- Explicit account-bound offline chapter downloads with cancellation/quota guards, a Settings retry/remove manager, bounded PWA runtime cache, and explicit service-worker update lifecycle.
+- Explicit account-bound offline chapter downloads with cancellation/quota guards, an Archive manager (retry/remove/clear, save-all-chapters per title, PDF/ZIP export), bounded PWA runtime cache, and explicit service-worker update lifecycle.
 - **Local archive reader** (`/archive` route) for CBZ/ZIP files with thumbnail strip, keyboard/touch navigation, and fullscreen.
 - OCR/image import, Tachiyomi/Mihon backup import, Tachimanga import, validated JSON fallback, versioned account backup/restore, and non-secret tracker-link restoration.
 - **Library language filter** (EN, ES, JA, ZH, KO, FR, DE, PT, IT, RU, Other, All).
