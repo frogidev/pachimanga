@@ -6,8 +6,10 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeading } from "@/components/page-heading";
 import { getHistory, getLibraryEntries, getReadingStats, type ReadingStats } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, ReadingHistoryEntry } from "@/types/models";
+import { useLocale } from "@/lib/i18n";
 
 export function HistoryView() {
+  const { t, locale } = useLocale();
   const [history, setHistory] = useState<ReadingHistoryEntry[]>([]);
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,11 +25,11 @@ export function HistoryView() {
       setStats(nextStats);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load reading history for this account.");
+      setError(loadError instanceof Error ? loadError.message : t("history.err.load"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => void load(), 0);
@@ -41,46 +43,46 @@ export function HistoryView() {
 
   return (
     <div className="app-page">
-      <PageHeading eyebrow="Activity" title="Reading history" subtitle="Actual reading events stored for the signed-in account." />
+      <PageHeading eyebrow={t("history.kicker")} title={t("history.title")} subtitle={t("history.subtitle")} />
 
       {error ? (
         <div className="mt-6 flex flex-col gap-3 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80 sm:flex-row sm:items-center sm:justify-between" role="alert">
           <span>{error}</span>
-          <button type="button" onClick={() => void load()} className="button-secondary shrink-0 px-3 py-2 text-xs">Retry history load</button>
+          <button type="button" onClick={() => void load()} className="button-secondary shrink-0 px-3 py-2 text-xs">{t("history.retry")}</button>
         </div>
       ) : null}
 
       {stats ? (
-        <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Reading statistics">
+        <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("history.stats_aria")}>
           <div className="surface-card p-4">
-            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Tracked chapters</p>
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">{t("history.tracked")}</p>
             <strong className="mt-2 block text-2xl text-zinc-100">{stats.trackedChapters}</strong>
           </div>
           <div className="surface-card p-4">
-            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Completed chapters</p>
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">{t("history.completed")}</p>
             <strong className="mt-2 block text-2xl text-zinc-100">{stats.completedChapters}</strong>
           </div>
           <div className="surface-card p-4">
-            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Active titles</p>
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">{t("history.active")}</p>
             <strong className="mt-2 block text-2xl text-zinc-100">{stats.activeTitles}</strong>
           </div>
           <div className="surface-card p-4">
-            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Average saved progress</p>
+            <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">{t("history.average")}</p>
             <strong className="mt-2 block text-2xl text-zinc-100">{Math.round(stats.averageProgress)}%</strong>
-            {stats.lastUpdatedAt ? <p className="mt-1 text-[10px] text-zinc-600">Latest save {new Date(stats.lastUpdatedAt).toLocaleString()}</p> : null}
+            {stats.lastUpdatedAt ? <p className="mt-1 text-[10px] text-zinc-600">{t("history.latest_save", { time: new Date(stats.lastUpdatedAt).toLocaleString(locale) })}</p> : null}
           </div>
         </section>
       ) : null}
 
       <div className="mt-6 space-y-3">
         {loading ? (
-          <div className="space-y-3" aria-label="Loading reading history">
+          <div className="space-y-3" aria-label={t("history.loading_aria")}>
             {Array.from({ length: 4 }, (_, index) => <div key={index} className="h-28 animate-pulse rounded-xl bg-white/[.045]" />)}
           </div>
         ) : error && history.length === 0 ? null : history.length === 0 ? (
           <div className="surface-card px-5 py-5 text-sm text-zinc-400">
-            <strong className="text-zinc-200">0 reading events are stored for this account.</strong>
-            <span className="ml-2">There is no synchronized history to render.</span>
+            <strong className="text-zinc-200">{t("history.empty")}</strong>
+            <span className="ml-2">{t("history.empty_sub")}</span>
           </div>
         ) : history.map((entry) => {
           const manga = library.find((item) => item.mangaId === entry.mangaId)?.manga;
@@ -91,22 +93,22 @@ export function HistoryView() {
                 {manga?.coverUrl ? (
                   <Image src={manga.coverUrl} alt="" fill className="object-cover" unoptimized />
                 ) : (
-                  <span className="px-1 text-center text-[9px] uppercase tracking-[.12em] text-zinc-600">No cover</span>
+                  <span className="px-1 text-center text-[9px] uppercase tracking-[.12em] text-zinc-600">{t("history.no_cover")}</span>
                 )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-zinc-100 group-hover:text-white">{manga?.title || "Metadata unavailable"}</p>
-                    <p className="mt-1 truncate text-xs text-zinc-500">Chapter {entry.chapterId}</p>
-                    {!manga ? <p className="mt-1 truncate font-mono text-[9px] text-zinc-700">Manga ID: {entry.mangaId}</p> : null}
+                    <p className="truncate font-semibold text-zinc-100 group-hover:text-white">{manga?.title || t("history.metadata_unavailable")}</p>
+                    <p className="mt-1 truncate text-xs text-zinc-500">{t("history.chapter_id", { id: entry.chapterId })}</p>
+                    {!manga ? <p className="mt-1 truncate font-mono text-[9px] text-zinc-700">{t("history.manga_id", { id: entry.mangaId })}</p> : null}
                   </div>
                   <span className="rounded-full bg-pink-400/10 px-2.5 py-1 font-mono text-[9px] text-pink-300">{Math.round(percentage)}%</span>
                 </div>
                 <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[.07]">
                   <div className="h-full rounded-full bg-gradient-to-r from-pink-400 to-sky-300" style={{ width: `${percentage}%` }} />
                 </div>
-                <p className="mt-2 text-[10px] text-zinc-600">Continue reading →</p>
+                <p className="mt-2 text-[10px] text-zinc-600">{t("history.continue")}</p>
               </div>
             </Link>
           );

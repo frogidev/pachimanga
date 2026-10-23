@@ -40,9 +40,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <PwaRegister />
         <WebVitalsReporter />
         <LocaleProvider>
+          <PwaRegister />
           <AppShell>{children}</AppShell>
         </LocaleProvider>
       </body>

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { readArchive, revokePageUrls, createObjectUrl, getMimeType, type ArchiveResult } from '@/lib/archive/archive-reader';
 import type { Page } from '@/types/models';
+import { useLocale } from "@/lib/i18n";
 
 interface LocalArchiveReaderProps {
   onPagesLoad?: (pages: Page[], archive: ArchiveResult) => void;
@@ -10,6 +11,7 @@ interface LocalArchiveReaderProps {
 }
 
 export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderProps) {
+  const { t } = useLocale();
   const [archive, setArchive] = useState<ArchiveResult | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,13 +53,13 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
       setShowReader(true);
       onPagesLoad?.(newPages, result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to read archive';
+      const message = err instanceof Error ? err.message : t("archive.err.read");
       setError(message);
       onError?.(message);
     } finally {
       setLoading(false);
     }
-  }, [onPagesLoad, onError]);
+  }, [onPagesLoad, onError, t]);
 
   const goToPage = (page: number) => {
     if (page >= 0 && page < pages.length) {
@@ -72,9 +74,9 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
     return (
       <div className="surface-card p-8 rounded-xl border border-white/[.06] text-center">
         <div className="text-4xl mb-3">📚</div>
-        <h3 className="font-semibold text-zinc-100 mb-2">Local Archive Reader</h3>
+        <h3 className="font-semibold text-zinc-100 mb-2">{t("archive.title")}</h3>
         <p className="text-zinc-500 mb-6 max-w-md mx-auto">
-          Open CBZ, ZIP, or CBR archives directly in your browser. No upload required — everything stays on your device.
+          {t("archive.hint")}
         </p>
         <input
           type="file"
@@ -85,7 +87,7 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
           disabled={loading}
         />
         <label htmlFor="archive-input" className="button-primary px-6 py-3 inline-block cursor-pointer">
-          {loading ? 'Loading...' : 'Select Archive'}
+          {loading ? t("archive.loading") : t("archive.select")}
         </label>
         {progress > 0 && progress < 1 && (
           <div className="mt-4 w-64 mx-auto h-2 bg-white/[.1] rounded-full overflow-hidden">
@@ -103,16 +105,16 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
     <div className="relative">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-zinc-100">{archive.entries[currentPage]?.name || 'Archive'}</h3>
+          <h3 className="font-semibold text-zinc-100">{archive.entries[currentPage]?.name || t("archive.default_name")}</h3>
           <p className="text-sm text-zinc-500">
-            Page {currentPage + 1} of {archive.totalPages}
+            {t("archive.page_of", { page: currentPage + 1, total: archive.totalPages })}
           </p>
         </div>
         <button
           className="button-secondary px-3 py-1.5 text-sm"
           onClick={() => { setShowReader(false); setPages([]); setArchive(null); }}
         >
-          Close
+          {t("archive.close")}
         </button>
       </div>
 
@@ -121,7 +123,7 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
           // eslint-disable-next-line @next/next/no-img-element -- local blob: URL, nothing for next/image to optimize
           <img
             src={pages[currentPage].imageUrl}
-            alt={`Page ${currentPage + 1}`}
+            alt={t("archive.page_n", { page: currentPage + 1 })}
             className="w-full h-full object-contain"
             onError={() => setError('Failed to load image')}
           />
@@ -132,7 +134,7 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
           className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
           onClick={prevPage}
           disabled={currentPage === 0}
-          aria-label="Previous page"
+          aria-label={t("reader.prev_page")}
         >
           <svg className="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="15 18 9 12 15 6" />
@@ -142,7 +144,7 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
           onClick={nextPage}
           disabled={currentPage === pages.length - 1}
-          aria-label="Next page"
+          aria-label={t("reader.next_page")}
         >
           <svg className="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="9 18 15 12 9 6" />
@@ -163,18 +165,18 @@ export function LocalArchiveReader({ onPagesLoad, onError }: LocalArchiveReaderP
                     : 'border-transparent hover:border-white/[.2]'
                 }`}
                 onClick={() => goToPage(index)}
-                aria-label={`Page ${index + 1}`}
+                aria-label={t("archive.page_n", { page: index + 1 })}
                 aria-current={index === currentPage ? 'page' : undefined}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- local blob: URL */}
                 <img
                   src={pages[index]?.imageUrl}
-                  alt={`Page ${index + 1}`}
+                  alt={t("archive.page_n", { page: index + 1 })}
                   className="w-full h-full object-cover rounded"
                   loading="lazy"
                 />
                 {index === archive.coverIndex && (
-                  <span className="absolute top-1 left-1 text-xs bg-pink-400 text-black px-1 rounded">Cover</span>
+                  <span className="absolute top-1 left-1 text-xs bg-pink-400 text-black px-1 rounded">{t("archive.cover")}</span>
                 )}
               </button>
             ))}

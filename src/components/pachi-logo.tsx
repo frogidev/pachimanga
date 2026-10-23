@@ -1,6 +1,10 @@
+"use client";
+
 import { PachiCalico } from "@/components/pachi-calico";
+import { useLocale } from "@/lib/i18n";
 
 export function PachiLogo({ compact = false }: { compact?: boolean }) {
+  const { t } = useLocale();
   return (
     <span className="inline-flex items-center gap-3">
       <PachiCalico
@@ -12,7 +16,7 @@ export function PachiLogo({ compact = false }: { compact?: boolean }) {
             Pachi<span className="text-pink-400">manga</span>
           </span>
           <span className="mt-1.5 block whitespace-nowrap text-[8px] font-semibold uppercase tracking-[.22em] text-zinc-500">
-            Your manga · everywhere
+            {t("brand.tagline")}
           </span>
         </span>
       )}

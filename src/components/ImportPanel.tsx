@@ -21,6 +21,7 @@ import {
 } from '@/lib/storage/library-collections';
 import type { Manga } from '@/types/models';
 import { sourceDisplayName } from '@/lib/source-labels';
+import { useLocale } from "@/lib/i18n";
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
 const REVIEW_PAGE_SIZE = 50;
@@ -134,6 +135,7 @@ function importedManga(item: Candidate, index: number): Manga {
 }
 
 export function ImportPanel() {
+  const { t } = useLocale();
   const [items, setItems] = useState<Candidate[]>([]);
   const [status, setStatus] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -162,7 +164,7 @@ export function ImportPanel() {
   }, []);
 
   async function wipe() {
-    if (!window.confirm('Remove your ENTIRE library, including all reading progress and history for this account? This affects matched, manually added, and imported titles and cannot be undone.')) return;
+    if (!window.confirm(t("import.confirm_wipe"))) return;
     setWiping(true);
     try {
       await clearAccountLibrary();
@@ -173,16 +175,16 @@ export function ImportPanel() {
       setRestoredCollectionMemberships([]);
       setImportedCount(null);
       await refreshLibraryCount();
-      setStatus('Library cleared. Re-import any time from a backup file.');
+      setStatus(t("import.cleared"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not clear the library');
+      setStatus(error instanceof Error ? error.message : t("import.err.clear"));
     } finally {
       setWiping(false);
     }
   }
 
   async function backup(file: File) {
-    setStatus('Reading backup…');
+    setStatus(t("import.reading"));
     try {
       const out = await parseBackup(file);
       const deduped = dedupeCandidates(out.manga);
@@ -198,14 +200,14 @@ export function ImportPanel() {
       const dupes = linked.filter((item) => item.match && item.match.sourceId !== 'weebcentral').length;
       const extra = linked.filter((item) => item.favorite === false).length;
       const selected = linked.filter((item) => item.selected).length;
-      setStatus(`Found ${out.manga.length} titles${deduped.merged ? `, ${deduped.merged} duplicate rows merged` : ''}${auto ? `, ${auto} linked to WeebCentral` : ''}${dupes ? `, ${dupes} already in your library` : ''}. ${selected} library titles pre-selected${extra ? ` (${extra} non-library rows left unticked)` : ''}. Review and match them before importing.`);
+      setStatus([[t('import.found', { count: out.manga.length }), deduped.merged ? t('import.merged', { count: deduped.merged }) : '', auto ? t('import.linked', { count: auto }) : '', dupes ? t('import.dupes', { count: dupes }) : ''].filter(Boolean).join(', '), ' ', t('import.preselected', { count: selected }), extra ? ` ${t('import.unticked', { count: extra })}` : '', ' ', t('import.review_first')].join(''));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Import failed');
+      setStatus(error instanceof Error ? error.message : t("import.err.import"));
     }
   }
 
   async function image(file: File) {
-    setStatus('Scanning image on this device…');
+    setStatus(t("import.scanning"));
     setProgress(0);
     try {
       const titles = await extractTitlesFromImage(file, setProgress);
@@ -214,9 +216,9 @@ export function ImportPanel() {
       setRestoredReaderSettings(null);
       setRestoredCollections([]);
       setRestoredCollectionMemberships([]);
-      setStatus(`OCR found ${titles.length} candidate titles. Tick only the real manga titles, then match and import.`);
+      setStatus(t('import.ocr_found', { count: titles.length }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'OCR failed');
+      setStatus(error instanceof Error ? error.message : t("import.err.ocr"));
     }
   }
 
@@ -255,12 +257,12 @@ export function ImportPanel() {
     let found = 0;
     try {
       for (let n = 0; n < pending.length; n += 1) {
-        setStatus(`Matching ${n + 1} of ${pending.length} titles…`);
+        setStatus(t('import.matching_n', { n: n + 1, total: pending.length }));
         setTaskProgress({ done: n + 1, total: pending.length });
         if (await findMatch(pending[n].index)) found += 1;
         await sleep(250);
       }
-      setStatus(`Matched ${found} of ${pending.length} titles. Review the rest individually or import the remainder as-is.`);
+      setStatus(t('import.matched_n', { found, total: pending.length }));
     } finally {
       setMatching(false);
       setTaskProgress(null);
@@ -271,11 +273,11 @@ export function ImportPanel() {
     const chosen = items.filter((item) => item.selected !== false);
     const unreviewed = chosen.filter((item) => !item.reviewed);
     if (unreviewed.length) {
-      setStatus(`Review all selected titles before importing. ${unreviewed.length} selected title${unreviewed.length === 1 ? '' : 's'} still need review.`);
+      setStatus(t(unreviewed.length === 1 ? 'import.need_review_one' : 'import.need_review_other', { count: unreviewed.length }));
       return;
     }
     if (!chosen.length) {
-      setStatus('Select at least one title first.');
+      setStatus(t("import.select_first"));
       return;
     }
     setImporting(true);
@@ -285,7 +287,7 @@ export function ImportPanel() {
     let withProgress = 0;
     try {
       for (let index = 0; index < chosen.length; index += 1) {
-        setStatus(`Importing ${index + 1} of ${chosen.length} titles into your account…`);
+        setStatus(t('import.importing_n', { n: index + 1, total: chosen.length }));
         setTaskProgress({ done: index + 1, total: chosen.length });
         try {
           const manga = importedManga(chosen[index], index);
@@ -336,7 +338,7 @@ export function ImportPanel() {
             }
           }
         } catch (error) {
-          failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : 'failed'})`);
+          failed.push(`${chosen[index].title} (${error instanceof Error ? error.message : t('import.failed_word')})`);
         }
       }
       if (exactProgress.length) {
@@ -399,8 +401,8 @@ export function ImportPanel() {
           setWarnings((current) => [
             ...current,
             error instanceof Error
-              ? `Library titles restored, but collections could not be restored: ${error.message}`
-              : 'Library titles restored, but collections could not be restored.',
+              ? t('import.collections_failed_detail', { detail: error.message })
+              : t("import.collections_failed"),
           ]);
         }
       }
@@ -410,8 +412,8 @@ export function ImportPanel() {
       setImportedCount(done);
       setStatus(
         failed.length
-          ? `Imported ${done} of ${chosen.length} titles (${withProgress} with progress). Failed: ${failed.slice(0, 5).join('; ')}${failed.length > 5 ? ` (+${failed.length - 5} more)` : ''}`
-          : `Imported ${done} titles (${withProgress} with progress) into your private library.${exactProgress.length ? ` Restored ${exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length} exact chapter progress rows.` : ''}${restoredReaderSettings ? ' Reader settings were restored.' : ''}${restoredMembershipCount ? ` Restored ${restoredMembershipCount} collection membership${restoredMembershipCount === 1 ? '' : 's'}.` : ''} Unmatched titles remain marked as imported until you match them to a source.`
+          ? t('import.partial', { done, total: chosen.length, progress: withProgress, failed: failed.slice(0, 5).join('; ') }) + (failed.length > 5 ? ` ${t('import.more', { count: failed.length - 5 })}` : '')
+          : [t('import.done', { done, progress: withProgress }), exactProgress.length ? t('import.restored_progress', { count: exactProgress.filter((item) => savedMangaIds.has(item.mangaId)).length }) : '', restoredReaderSettings ? t('import.restored_settings') : '', restoredMembershipCount ? t(restoredMembershipCount === 1 ? 'import.restored_membership_one' : 'import.restored_membership_other', { count: restoredMembershipCount }) : '', t('import.unmatched_note')].filter(Boolean).join(' ')
       );
     } finally {
       setImporting(false);
@@ -433,23 +435,23 @@ export function ImportPanel() {
       <div className="grid gap-4 md:grid-cols-2">
         <label className="surface-card group cursor-pointer p-5 transition hover:border-pink-300/20 hover:bg-[#171520]">
           <div className="grid size-11 place-items-center rounded-xl bg-pink-400/10 text-xl text-pink-300">⌕</div>
-          <h2 className="mt-4 font-semibold text-zinc-100">Scan screenshot or image</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">OCR runs in your browser. The image itself is not uploaded to Pachimanga.</p>
+          <h2 className="mt-4 font-semibold text-zinc-100">{t("import.scan_title")}</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">{t("import.scan_hint")}</p>
           <input className="mt-5 block w-full text-xs text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-pink-400 file:px-3 file:py-2 file:font-semibold file:text-[#28101c]" type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && void image(event.target.files[0])} />
           {progress > 0 && progress < 1 ? <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/[.06]"><div className="h-full rounded-full bg-gradient-to-r from-pink-400 to-sky-300" style={{ width: `${progress * 100}%` }} /></div> : null}
         </label>
 
         <label className="surface-card group cursor-pointer p-5 transition hover:border-sky-300/20 hover:bg-[#171520]">
           <div className="grid size-11 place-items-center rounded-xl bg-sky-400/10 text-xl text-sky-300">⇩</div>
-          <h2 className="mt-4 font-semibold text-zinc-100">Import app backup</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Tachiyomi/Mihon <code>.tachibk</code>, Tachimanga <code>.tmb</code>, or JSON backups.</p>
+          <h2 className="mt-4 font-semibold text-zinc-100">{t("import.backup_title")}</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">{t("import.backup_hint")}</p>
           <input className="mt-5 block w-full text-xs text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-300 file:px-3 file:py-2 file:font-semibold file:text-[#10202a]" type="file" accept=".tachibk,.proto.gz,.gz,.tmb,.json" onChange={(event) => event.target.files?.[0] && void backup(event.target.files[0])} />
         </label>
       </div>
 
-      {status ? <div className="rounded-xl border border-white/[.07] bg-white/[.03] px-4 py-3 text-sm text-zinc-400">{status}{importedCount !== null && importedCount > 0 ? <> <Link href="/library" className="text-pink-300 hover:text-pink-200">View your library →</Link></> : null}</div> : null}
+      {status ? <div className="rounded-xl border border-white/[.07] bg-white/[.03] px-4 py-3 text-sm text-zinc-400">{status}{importedCount !== null && importedCount > 0 ? <> <Link href="/library" className="text-pink-300 hover:text-pink-200">{t("import.view_library")}</Link></> : null}</div> : null}
       {taskProgress ? (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.06]" role="progressbar" aria-valuenow={taskProgress.done} aria-valuemin={0} aria-valuemax={taskProgress.total} aria-label="Import progress">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.06]" role="progressbar" aria-valuenow={taskProgress.done} aria-valuemin={0} aria-valuemax={taskProgress.total} aria-label={t("import.progress_aria")}>
           <div className="h-full rounded-full bg-gradient-to-r from-pink-400 to-sky-300 transition-[width]" style={{ width: `${Math.round((taskProgress.done / Math.max(1, taskProgress.total)) * 100)}%` }} />
         </div>
       ) : null}
@@ -459,14 +461,14 @@ export function ImportPanel() {
         <section className="surface-card overflow-hidden">
           <div className="flex flex-wrap items-center gap-3 border-b border-white/[.06] px-4 py-4 sm:px-5">
             <div>
-              <p className="pixel-kicker text-[9px] text-pink-400">Review</p>
-              <strong className="mt-1 block text-zinc-100">{items.length} candidates</strong>
+              <p className="pixel-kicker text-[9px] text-pink-400">{t("import.review")}</p>
+              <strong className="mt-1 block text-zinc-100">{t('import.candidates', { count: items.length })}</strong>
             </div>
             <span className="flex-1" />
-            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true, reviewed: true })))}>Select all</button>
-            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false, reviewed: true })))}>Select none</button>
-            <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? 'Matching…' : 'Match all'}</button>
-            <button disabled={importing} className="button-primary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void save()}>{importing ? 'Importing…' : 'Import selected'}</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: true, reviewed: true })))}>{t("import.select_all")}</button>
+            <button className="button-secondary px-4 py-2 text-sm disabled:opacity-50" disabled={importing || matching} onClick={() => setItems((value) => value.map((candidate) => ({ ...candidate, selected: false, reviewed: true })))}>{t("import.select_none")}</button>
+            <button disabled={matching || importing} className="button-secondary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void matchBatch()}>{matching ? t("import.matching") : t("import.match_all")}</button>
+            <button disabled={importing} className="button-primary px-4 py-2 text-sm disabled:opacity-50" onClick={() => void save()}>{importing ? t("import.importing") : t("import.import_selected")}</button>
           </div>
 
           <div className="grid gap-2 p-3 sm:p-4">
@@ -477,30 +479,30 @@ export function ImportPanel() {
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
                   <input className="w-full bg-transparent font-medium text-zinc-200 outline-none" value={manga.title} onChange={(event) => patch(index, { title: event.target.value, match: undefined })} />
-                  <div className="mt-1 text-xs text-zinc-600">{!manga.reviewed ? 'Needs review · ' : ''}{manga.match ? `Matched: ${manga.match.title} · ${(sourceDisplayName(manga.match.sourceId) ?? 'your library')}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{!manga.reviewed ? `${t('import.needs_review')} · ` : ''}{manga.match ? t('import.matched', { title: manga.match.title, source: sourceDisplayName(manga.match.sourceId) ?? t('import.your_library') }) : manga.lastChapterRead ? t('import.progress_ref', { chapter: manga.lastChapterRead }) + (manga.lastPageRead ? ` · ${t('import.page_n', { page: manga.lastPageRead })}` : '') : t("import.not_matched")}</div>
                 </div>
-                <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
-                <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
+                <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">{t("import.find_match")}</button>
+                <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={t('import.discard', { title: manga.title })}>✕</button>
               </div>
               );
             })}
           </div>
           {reviewPageCount > 1 ? (
             <div className="flex items-center justify-center gap-2 border-t border-white/[.06] px-4 py-3">
-              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>← Previous</button>
-              <span className="font-mono text-[11px] text-zinc-500">Review page {safeReviewPage + 1}/{reviewPageCount}</span>
-              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage >= reviewPageCount - 1} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>Next →</button>
+              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage === 0} onClick={() => setReviewPage((page) => Math.max(0, page - 1))}>{t("import.previous")}</button>
+              <span className="font-mono text-[11px] text-zinc-500">{t('import.review_page', { page: safeReviewPage + 1, total: reviewPageCount })}</span>
+              <button type="button" className="button-secondary px-3 py-2 text-xs disabled:opacity-40" disabled={safeReviewPage >= reviewPageCount - 1} onClick={() => setReviewPage((page) => Math.min(reviewPageCount - 1, page + 1))}>{t("import.next")}</button>
             </div>
           ) : null}
         </section>
       ) : null}
 
       <section className="rounded-2xl border border-red-300/15 bg-red-400/[.03] p-4 sm:p-5">
-        <p className="pixel-kicker text-[9px] text-red-300/80">Danger zone</p>
-        <strong className="mt-1 block text-sm text-zinc-100">Start over</strong>
+        <p className="pixel-kicker text-[9px] text-red-300/80">{t("import.danger")}</p>
+        <strong className="mt-1 block text-sm text-zinc-100">{t("import.start_over")}</strong>
         <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Removes every title, reading progress entry and history item in this account, on this device and in cloud sync.
-          {libraryCount !== null ? ` Current library: ${libraryCount} titles.` : ''}
+          {t("import.wipe_hint")}
+          {libraryCount !== null ? ` ${t('import.current_library', { count: libraryCount })}` : ''}
         </p>
         <button
           type="button"
@@ -508,7 +510,7 @@ export function ImportPanel() {
           onClick={() => void wipe()}
           className="mt-3 rounded-xl border border-red-300/25 px-4 py-2 text-sm text-red-300 transition hover:bg-red-400/10 disabled:opacity-50"
         >
-          {wiping ? 'Removing…' : 'Remove entire library'}
+          {wiping ? t("import.removing") : t("import.remove_all")}
         </button>
       </section>
     </div>

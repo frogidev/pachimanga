@@ -89,12 +89,13 @@ export async function POST(request: Request) {
   const { data: row, error: rowError } = await query.maybeSingle();
   if (rowError) return json({ error: { kind: 'upstream', title: 'Library unavailable', message: 'Could not load the library entry.', retryable: true } }, 500);
   if (!row) return json({ error: { kind: 'missing', title: 'Library entry not found', message: 'This title is no longer in the signed-in account library.', retryable: false } }, 404);
-  if (row.source_id === 'import') return json({ skipped: true, reason: 'Imported titles do not have a live provider.' });
-  if (REMOVED_PROVIDERS.has(row.source_id)) return json({ skipped: true, reason: 'This provider is no longer supported.' });
+  if (row.source_id === 'import') return json({ skipped: true, reasonCode: 'import', reason: 'Imported titles do not have a live provider.' });
+  if (REMOVED_PROVIDERS.has(row.source_id)) return json({ skipped: true, reasonCode: 'removed', reason: 'This provider is no longer supported.' });
 
   if (!force && checkedRecently(row.last_checked_at)) {
     return json({
       skipped: true,
+      reasonCode: 'recent',
       reason: 'This title was checked moments ago.',
       publicationStatus: row.publication_status,
       chapterCount: Number(row.chapter_count || 0),

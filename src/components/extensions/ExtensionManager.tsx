@@ -48,12 +48,12 @@ export function ExtensionManager() {
     if (installTab === 'code') {
       const result = await installExtension(installCode);
       if (result.success) {
-        setInstallStatus({ type: 'success', message: `Extension "${result.extension?.manifest.name}" installed successfully` });
+        setInstallStatus({ type: 'success', message: `ext.installed|${result.extension?.manifest.name}` });
         setInstallCode('');
         setShowInstall(false);
         refreshExtensions();
       } else {
-        setInstallStatus({ type: 'error', message: result.error || 'Installation failed' });
+        setInstallStatus({ type: 'error', message: result.error || 'ext.err.install_failed' });
       }
     }
   }
@@ -69,7 +69,7 @@ export function ExtensionManager() {
 
       const manifestFile = zip.file('manifest.json');
       if (!manifestFile) {
-        setZipValidation({ valid: false, error: 'No manifest.json found in zip' });
+        setZipValidation({ valid: false, error: 'ext.err.no_manifest' });
         return;
       }
 
@@ -79,24 +79,24 @@ export function ExtensionManager() {
       try {
         manifest = JSON.parse(manifestContent);
       } catch {
-        setZipValidation({ valid: false, error: 'Invalid manifest format' });
+        setZipValidation({ valid: false, error: 'ext.err.invalid_manifest_format' });
         return;
       }
 
       const sourceFile = zip.file('source.js') || zip.file('index.js') || zip.file('main.js');
       if (!sourceFile) {
-        setZipValidation({ valid: false, error: 'No source.js, index.js, or main.js found in zip' });
+        setZipValidation({ valid: false, error: 'ext.err.no_source' });
         return;
       }
 
       const requiredFields = ['id', 'name', 'version', 'description', 'author', 'sourceId', 'sourceName'];
       if (!manifest) {
-        setZipValidation({ valid: false, error: 'Manifest is null after parsing' });
+        setZipValidation({ valid: false, error: 'ext.err.manifest_null' });
         return;
       }
       for (const field of requiredFields) {
         if (!manifest[field]) {
-          setZipValidation({ valid: false, error: `Manifest missing required field: ${field}` });
+          setZipValidation({ valid: false, error: `ext.err.missing_field|${field}` });
           return;
         }
       }
@@ -123,7 +123,7 @@ export function ExtensionManager() {
         },
       });
     } catch (error) {
-      setZipValidation({ valid: false, error: error instanceof Error ? error.message : 'Validation failed' });
+      setZipValidation({ valid: false, error: error instanceof Error ? error.message : 'ext.err.validation' });
     } finally {
       setZipValidating(false);
     }
@@ -133,19 +133,19 @@ export function ExtensionManager() {
     if (!zipFile) return;
     const result = await installExtensionFromZip(zipFile);
     if (result.success) {
-      setInstallStatus({ type: 'success', message: `Extension "${result.extension?.manifest.name}" installed successfully` });
+      setInstallStatus({ type: 'success', message: `ext.installed|${result.extension?.manifest.name}` });
       setZipFile(null);
       setZipValidation(null);
       setShowInstall(false);
       refreshExtensions();
     } else {
-      setInstallStatus({ type: 'error', message: result.error || 'Installation failed' });
+      setInstallStatus({ type: 'error', message: result.error || 'ext.err.install_failed' });
     }
   }
 
   function handleFile(file: File) {
     if (!file.name.endsWith('.zip')) {
-      setInstallStatus({ type: 'error', message: 'Please select a .zip file' });
+      setInstallStatus({ type: 'error', message: 'ext.err.select_zip' });
       return;
     }
     setZipFile(file);
@@ -194,7 +194,7 @@ export function ExtensionManager() {
             <button
               className="text-zinc-500 hover:text-red-300 transition"
               onClick={clearZip}
-              aria-label="Remove file"
+              aria-label={t("ext.remove_file")}
             >
               <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12" />
@@ -206,7 +206,7 @@ export function ExtensionManager() {
             className="button-secondary w-full px-4 py-2"
             onClick={handleValidateZip}
           >
-            {zipValidating ? 'Validating...' : 'Validate Zip'}
+            {zipValidating ? t("ext.validating") : t("ext.validate")}
           </button>
 
           {zipValidation && !zipValidating && (
@@ -218,13 +218,13 @@ export function ExtensionManager() {
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                       <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
-                    <span className="font-medium">Valid extension package</span>
+                    <span className="font-medium">{t("ext.valid")}</span>
                   </div>
                   <div className="grid gap-2 text-sm text-zinc-300 mt-2">
                     <div><span className="text-zinc-500">ID:</span> {zipValidation.manifest?.id}</div>
-                    <div><span className="text-zinc-500">Name:</span> {zipValidation.manifest?.name}</div>
-                    <div><span className="text-zinc-500">Version:</span> {zipValidation.manifest?.version}</div>
-                    <div><span className="text-zinc-500">Source ID:</span> {zipValidation.manifest?.sourceId}</div>
+                    <div><span className="text-zinc-500">{t("ext.name")}</span> {zipValidation.manifest?.name}</div>
+                    <div><span className="text-zinc-500">{t("ext.version")}</span> {zipValidation.manifest?.version}</div>
+                    <div><span className="text-zinc-500">{t("ext.source_id")}</span> {zipValidation.manifest?.sourceId}</div>
                   </div>
                 </>
               ) : (
@@ -234,7 +234,7 @@ export function ExtensionManager() {
                     <line x1="15" y1="9" x2="9" y2="15" />
                     <line x1="9" y1="9" x2="15" y2="15" />
                   </svg>
-                  <span>{zipValidation.error}</span>
+                  <span>{errText(zipValidation.error ?? "")}</span>
                 </div>
               )}
             </div>
@@ -245,14 +245,14 @@ export function ExtensionManager() {
               className="button-secondary px-4 py-2"
               onClick={clearZip}
             >
-              Choose Different
+              {t("ext.choose_different")}
             </button>
             {zipValidation?.valid && (
               <button
                 className="button-primary px-4 py-2"
                 onClick={handleInstallZip}
               >
-                Install Extension
+                {t("extensions.install")}
               </button>
             )}
           </div>
@@ -262,15 +262,15 @@ export function ExtensionManager() {
       return (
         <div>
           <div className="size-16 mx-auto mb-3 text-zinc-500">📦</div>
-          <p className="text-zinc-400 mb-1">Drag & drop a .zip file here</p>
+          <p className="text-zinc-400 mb-1">{t("ext.drag")}</p>
           <p className="text-xs text-zinc-600 mb-4">or</p>
           <button
             className="button-secondary px-4 py-2"
             onClick={() => fileInputRef.current?.click()}
           >
-            Browse Files
+            {t("ext.browse_files")}
           </button>
-          <p className="text-xs text-zinc-600 mt-2">Accepts .zip files only</p>
+          <p className="text-xs text-zinc-600 mt-2">{t("ext.zip_only")}</p>
         </div>
       )
     }
@@ -281,14 +281,14 @@ export function ExtensionManager() {
       <div className="mt-4">
         <h3 className="font-semibold text-zinc-100 mb-4">{t("extensions.install_zip")}</h3>
         <p className="text-sm text-zinc-500 mb-4">
-          The zip file should contain <code>manifest.json</code> and <code>source.js</code> (or <code>index.js</code>/<code>main.js</code>).
+          {t('ext.zip_hint')}
         </p>
 
         <div
           className={`relative border-2 border-dashed rounded-xl p-8 text-center transition ${zipFile ? 'border-pink-400 bg-pink-400/[.05]' : 'border-white/[.1] hover:border-pink-400/50 hover:bg-white/[.02]'}`}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files[0]; if (file && file.name.endsWith('.zip')) handleFile(file); else alert('Please drop a .zip file'); }}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files[0]; if (file && file.name.endsWith('.zip')) handleFile(file); else alert(t('ext.err.drop_zip')); }}
         >
           <input
             ref={fileInputRef}
@@ -313,6 +313,11 @@ export function ExtensionManager() {
   }
 
   const { t } = useLocale();
+  const errText = (raw: string) => {
+    if (!raw.startsWith('ext.')) return raw;
+    const [key, ...rest] = raw.split('|');
+    return t(key, { value: rest.join('|') });
+  };
 
   useEffect(() => {
     refreshExtensions();
@@ -336,7 +341,7 @@ export function ExtensionManager() {
             ? 'border border-green-300/20 bg-green-400/[.05] text-green-300'
             : 'border border-red-300/20 bg-red-400/[.05] text-red-300'
         }`}>
-          {installStatus.message}
+          {errText(installStatus.message)}
         </div>
       )}
 
@@ -367,20 +372,20 @@ export function ExtensionManager() {
 
           {installTab === 'code' ? (
             <div className="mt-4">
-              <h3 className="font-semibold text-zinc-100 mb-4">Install from Code</h3>
+              <h3 className="font-semibold text-zinc-100 mb-4">{t("ext.install_from_code")}</h3>
               <p className="text-sm text-zinc-500 mb-4">
-                Paste the extension JavaScript code below. The extension must export a <code>manifest</code> object and a <code>source</code> object.
+                {t("ext.code_hint")}
               </p>
               <textarea
                 className="w-full h-64 bg-[#0e0d14] border border-white/[.1] rounded-lg p-3 text-zinc-100 font-mono text-sm resize-y"
                 value={installCode}
                 onChange={(e) => setInstallCode(e.target.value)}
-                placeholder="// Extension code here..."
+                placeholder={t("ext.code_placeholder")}
                 spellCheck={false}
               />
               <div className="mt-4 flex gap-3">
-                <button className="button-primary px-4 py-2" onClick={handleInstall}>Install</button>
-                <button className="button-secondary px-4 py-2" onClick={() => { setShowInstall(false); setInstallCode(''); }}>Cancel</button>
+                <button className="button-primary px-4 py-2" onClick={handleInstall}>{t("ext.install_btn")}</button>
+                <button className="button-secondary px-4 py-2" onClick={() => { setShowInstall(false); setInstallCode(''); }}>{t("common.cancel")}</button>
               </div>
             </div>
           ) : (
@@ -388,7 +393,7 @@ export function ExtensionManager() {
           )}
 
           <div className="mt-4 flex gap-3 justify-end">
-            <button className="button-secondary px-4 py-2" onClick={() => { setShowInstall(false); setInstallCode(''); setZipFile(null); setZipValidation(null); }}>Cancel</button>
+            <button className="button-secondary px-4 py-2" onClick={() => { setShowInstall(false); setInstallCode(''); setZipFile(null); setZipValidation(null); }}>{t("common.cancel")}</button>
           </div>
         </div>
       )}
@@ -436,6 +441,7 @@ function ExtensionCard({
   onUninstall: () => void;
   onSettingsChange: (id: string, settings: Record<string, unknown>) => void;
 }) {
+  const { t, locale } = useLocale();
   const { manifest, enabled, installedAt, settings } = extension;
 
   return (
@@ -455,30 +461,30 @@ function ExtensionCard({
           <div className="flex items-center gap-3">
             <h3 className="font-semibold text-zinc-100 truncate">{manifest.name}</h3>
             <span className={`px-2 py-0.5 text-xs rounded-full ${enabled ? 'bg-green-400/20 text-green-300' : 'bg-zinc-700 text-zinc-500'}`}>
-              {enabled ? 'Enabled' : 'Disabled'}
+              {enabled ? t("ext.enabled") : t("ext.disabled")}
             </span>
           </div>
           <p className="mt-1 text-sm text-zinc-500 truncate">{manifest.description}</p>
           <div className="mt-1 flex items-center gap-3 text-xs text-zinc-600">
             <span>v{manifest.version}</span>
             <span>•</span>
-            <span>Source: {manifest.sourceName}</span>
+            <span>{t('ext.source_name', { name: manifest.sourceName })}</span>
             <span>•</span>
-            <span>Installed: {new Date(installedAt).toLocaleDateString()}</span>
+            <span>{t('ext.installed_on', { date: new Date(installedAt).toLocaleDateString(locale) })}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             className={`toggle-switch ${enabled ? 'active' : ''}`}
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            aria-label={enabled ? 'Disable' : 'Enable'}
+            aria-label={enabled ? t("ext.disable") : t("ext.enable")}
           >
             <span className="toggle-thumb" />
           </button>
           <button
             className="p-2 text-zinc-500 hover:text-red-300 transition"
             onClick={(e) => { e.stopPropagation(); onUninstall(); }}
-            aria-label="Uninstall"
+            aria-label={t("ext.uninstall")}
           >
             <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="3 6 5 6 21 6" />
@@ -492,20 +498,20 @@ function ExtensionCard({
         <div className="border-t border-white/[.06] p-4 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Extension ID</label>
+              <label className="block text-xs text-zinc-500 mb-1">{t("ext.id")}</label>
               <code className="text-xs text-zinc-400 bg-[#0e0d14] px-2 py-1 rounded block break-all">{manifest.id}</code>
             </div>
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Source ID</label>
+              <label className="block text-xs text-zinc-500 mb-1">{t("ext.source_id_label")}</label>
               <code className="text-xs text-zinc-400 bg-[#0e0d14] px-2 py-1 rounded block break-all">{manifest.sourceId}</code>
             </div>
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Author</label>
+              <label className="block text-xs text-zinc-500 mb-1">{t("ext.author")}</label>
               <span className="text-sm text-zinc-300">{manifest.author}</span>
             </div>
             {manifest.website && (
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">Website</label>
+                <label className="block text-xs text-zinc-500 mb-1">{t("ext.website")}</label>
                 <a href={manifest.website} target="_blank" rel="noopener noreferrer" className="text-sm text-sky-400 hover:text-sky-300 break-all">{manifest.website}</a>
               </div>
             )}
@@ -513,7 +519,7 @@ function ExtensionCard({
 
           {manifest.permissions && manifest.permissions.length > 0 && (
             <div>
-              <label className="block text-xs text-zinc-500 mb-2">Permissions</label>
+              <label className="block text-xs text-zinc-500 mb-2">{t("ext.permissions")}</label>
               <div className="flex flex-wrap gap-2">
                 {manifest.permissions.map((perm) => (
                   <span key={perm} className="px-2 py-1 text-xs bg-zinc-800 rounded text-zinc-400">{perm}</span>
@@ -524,7 +530,7 @@ function ExtensionCard({
 
           {settings && Object.keys(settings).length > 0 && (
             <div>
-              <h4 className="font-medium text-zinc-100 mb-3">Settings</h4>
+              <h4 className="font-medium text-zinc-100 mb-3">{t("ext.settings")}</h4>
               <div className="space-y-3">
                 {Object.entries(settings).map(([key, value]) => (
                   <div key={key} className="flex items-center gap-3">

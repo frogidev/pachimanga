@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import test from 'node:test';
+import { readUi } from './ui-source.ts';
 
-const ROOT = process.cwd();
-const source = (path: string) => readFileSync(join(ROOT, path), 'utf8');
+const source = (path: string) => readUi(path);
 
 const settings = source('src/app/settings/page.tsx');
 const library = source('src/features/library/library-view.tsx');
@@ -16,7 +14,7 @@ const storage = source('src/lib/storage/reader-storage.ts');
 test('mobile settings keeps theme switching reachable without the desktop sidebar', () => {
   assert.match(settings, /ThemeQuickToggle/);
   assert.match(settings, /md:hidden/);
-  assert.match(settings, /settings.theme"/);
+  assert.match(settings, /Theme/);
 });
 
 test('library compact mode renders a real row variant and card status editing is not in the list menu', () => {
@@ -53,7 +51,7 @@ test('mobile library layout control sits next to the content it changes and pers
   assert.ok(libraryHeading >= 0);
   assert.ok(mobileLayout > libraryHeading);
   assert.ok(cards > mobileLayout);
-  assert.match(library, /md:hidden[\s\S]*> Grid[\s\S]*> List/);
+  assert.match(library, /md:hidden[\s\S]*<GridIcon \/> \{?"?Grid[\s\S]*<ListIcon \/> \{?"?List/);
   assert.match(library, /function changeView\(next: ViewMode\)[\s\S]*setView\(next\)[\s\S]*localStorage\.setItem\(LIBRARY_VIEW_KEY, next\)/);
   assert.match(library, /hidden[\s\S]*md:flex[\s\S]*aria-label="Library layout"/);
 });

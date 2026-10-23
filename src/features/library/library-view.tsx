@@ -178,7 +178,7 @@ export function LibraryView() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ mangaId: entry.mangaId, sourceId: entry.sourceId }),
             });
-            if (!response.ok) throw new Error(t("library.err.refresh", { status: response.status }));
+            if (!response.ok) throw new Error(`Provider refresh failed with HTTP ${response.status}`);
           }));
         }
         if (!cancelled) {
@@ -205,7 +205,7 @@ export function LibraryView() {
           void refreshSources(result);
         }
       } catch (error) {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : t("library.err.load"));
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : "library.err.load");
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -460,7 +460,7 @@ export function LibraryView() {
           </button>
         </div>
 
-        <section className="mt-3 hidden rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:block" aria-label="Library collections">
+        <section className="mt-3 hidden rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:block" aria-label={t("library.collections_aria")}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
@@ -468,7 +468,7 @@ export function LibraryView() {
                 onClick={() => setCollectionFilter("all")}
                 className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition ${collectionFilter === "all" ? "border-sky-300/55 bg-sky-300/10 text-sky-200" : "border-white/[.08] text-zinc-500 hover:text-zinc-200"}`}
               >
-                All collections
+                {t("library.all_collections")}
               </button>
               {collections.map((collection) => (
                 <button
@@ -547,10 +547,10 @@ export function LibraryView() {
           </div>
         </div>
 
-        <div className="mt-3 grid gap-3 rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:hidden" aria-label="Mobile library controls">
+        <div className="mt-3 grid gap-3 rounded-2xl border border-white/[.07] bg-[#111019] p-3 md:hidden" aria-label={t("library.mobile_controls")}>
           <div className="grid grid-cols-2 gap-2">
             <label className="grid min-w-0 gap-1 text-[10px] font-medium uppercase tracking-[.08em] text-zinc-500" htmlFor="library-mobile-sort">
-              Sort
+              {t("library.sort_short")}
               <select
                 id="library-mobile-sort"
                 value={sort}
@@ -565,7 +565,7 @@ export function LibraryView() {
               </select>
             </label>
             <label className="grid min-w-0 gap-1 text-[10px] font-medium uppercase tracking-[.08em] text-zinc-500" htmlFor="library-mobile-filter">
-              Status
+              {t("library.status_short")}
               <select
                 id="library-mobile-filter"
                 value={filter}
@@ -599,7 +599,7 @@ export function LibraryView() {
           </div>
         </div>
 
-        {loadError ? <div className="mt-4 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80">{loadError}</div> : null}
+        {loadError ? <div className="mt-4 rounded-xl border border-red-300/15 bg-red-400/[.05] px-4 py-3 text-sm text-red-200/80">{t(loadError)}</div> : null}
 
         {!ready ? (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">

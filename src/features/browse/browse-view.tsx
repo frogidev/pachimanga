@@ -15,8 +15,13 @@ import { getLibraryEntries } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga } from "@/types/models";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
 
-const WEB_STATUS = "Search live WeebCentral results with duplicate titles collapsed.";
-const NATIVE_STATUS = "Native shell detected. WeebCentral requests are sent from this device.";
+// Status/notice text is stored as a message descriptor and translated at render time, so effects need not depend on the language.
+type Msg = { key: string; vars?: Record<string, string | number> };
+const msg = (key: string, vars?: Record<string, string | number>): Msg => ({ key, vars });
+const plural = (count: number, base: string) => msg(count === 1 ? `${base}_one` : `${base}_other`, { count });
+
+const WEB_STATUS = msg("browse.status.web");
+const NATIVE_STATUS = msg("browse.status.native");
 
 type RuntimeMode = "checking" | "web" | "native";
 type SourceHealth = "idle" | "checking" | "reachable" | "unreachable";
@@ -48,8 +53,8 @@ export function BrowseView() {
   const [results, setResults] = useState<Manga[]>([]);
   const [runtime, setRuntime] = useState<RuntimeMode>("checking");
   const [sourceHealth, setSourceHealth] = useState<SourceHealth>("idle");
-  const [status, setStatus] = useState(WEB_STATUS);
-  const [sourceNotice, setSourceNotice] = useState<string | null>(null);
+  const [status, setStatus] = useState<Msg>(WEB_STATUS);
+  const [sourceNotice, setSourceNotice] = useState<Msg | null>(null);
   const [searchState, setSearchState] = useState<SearchState>("idle");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -103,18 +108,18 @@ export function BrowseView() {
       setSourceHealth("checking");
 
       if (native) {
-        setSourceNotice("Native bridge detected · checking direct WeebCentral access from this device…");
+        setSourceNotice(msg("browse.notice.native_checking"));
         void probeNativeWeebCentral().then((probe) => {
           if (cancelled) return;
           setSourceHealth(probe.ok ? "reachable" : "unreachable");
           setSourceNotice(
             probe.ok
-              ? "Native bridge connected · WeebCentral is reachable directly from this device."
-              : `Native bridge connected, but WeebCentral health failed: ${probe.error || "unknown native error"}`,
+              ? msg("browse.notice.native_ok")
+              : msg("browse.notice.native_health_failed", { detail: probe.error || "unknown native error" }),
           );
         });
       } else {
-        setSourceNotice("Checking private WeebCentral relay for PWA/web…");
+        setSourceNotice(msg("browse.notice.relay_checking"));
         void fetch("/api/source/weebcentral/status", { cache: "no-store" })
           .then(async (response) => {
             const body = (await response.json()) as WebRelayStatus;
@@ -123,16 +128,16 @@ export function BrowseView() {
             setSourceHealth(relayReady ? "reachable" : "unreachable");
             setSourceNotice(
               relayReady
-                ? "Private WeebCentral relay connected · PWA/web can query WeebCentral."
+                ? msg("browse.notice.relay_ok")
                 : body.configured
-                  ? `Private relay is configured but unavailable${body.error ? `: ${body.error}` : "."}`
-                  : "Private WeebCentral relay is not configured.",
+                  ? msg(body.error ? "browse.notice.relay_down_detail" : "browse.notice.relay_down", { detail: body.error ?? "" })
+                  : msg("browse.notice.relay_missing"),
             );
           })
           .catch((error) => {
             if (cancelled) return;
             setSourceHealth("unreachable");
-            setSourceNotice(`Private relay health check failed: ${nativeErrorMessage(error)}`);
+            setSourceNotice(msg("browse.notice.relay_check_failed", { detail: nativeErrorMessage(error) }));
           });
       }
     }, 0);
@@ -165,8 +170,8 @@ export function BrowseView() {
     const timer = window.setTimeout(async () => {
       // The native bridge only reaches WeebCentral (English); other languages use the server route.
       const useNative = runtime === "native" && contentLanguage === "en";
-      setStatus(useNative ? "Searching live WeebCentral from this device…" : "Searching live manga sources…");
-      if (useNative) setSourceNotice("Native WeebCentral search in progress…");
+      setStatus(msg(useNative ? "browse.status.searching_native" : "browse.status.searching"));
+      if (useNative) setSourceNotice(msg("browse.notice.native_searching"));
 
       if (useNative) {
         try {
@@ -176,14 +181,14 @@ export function BrowseView() {
             setResults(nativeItems);
             setSearchState("done");
             setSourceHealth("reachable");
-            setSourceNotice(`Using WeebCentral directly from this device · ${nativeItems.length} result${nativeItems.length === 1 ? "" : "s"}.`);
-            setStatus(`${nativeItems.length} readable result${nativeItems.length === 1 ? "" : "s"} from WeebCentral · native device connection`);
+            setSourceNotice(plural(nativeItems.length, "browse.notice.native_using"));
+            setStatus(plural(nativeItems.length, "browse.status.native_results"));
             return;
           }
           setResults([]);
           setSearchState("done");
-          setSourceNotice("WeebCentral answered the native search with 0 matching titles.");
-          setStatus(`0 readable titles returned by WeebCentral for “${q}”.`);
+          setSourceNotice(msg("browse.notice.native_zero"));
+          setStatus(msg("browse.status.zero_weeb", { q }));
           return;
         } catch (error) {
           const nativeError = nativeErrorMessage(error);
@@ -191,8 +196,8 @@ export function BrowseView() {
           setResults([]);
           setSearchState("error");
           setSearchError(nativeError);
-          setStatus(`Live search failed: ${nativeError}`);
-          setSourceNotice(`Native WeebCentral failed: ${nativeError}`);
+          setStatus(msg("browse.status.failed", { detail: nativeError }));
+          setSourceNotice(msg("browse.notice.native_failed", { detail: nativeError }));
           return;
         }
       }
@@ -200,7 +205,7 @@ export function BrowseView() {
       try {
         const response = await fetch(`/api/source/search?q=${encodeURIComponent(q)}&lang=${contentLanguage}`, { signal: controller.signal, cache: "no-store" });
         const body = await response.json() as SearchResponse;
-        if (!response.ok) throw new Error(body.error || `Search failed with HTTP ${response.status}`);
+        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
         if (cancelled) return;
 
         const items = Array.isArray(body.items) ? body.items : [];
@@ -212,17 +217,16 @@ export function BrowseView() {
         const viaRelay = runtime === "web" && sources.includes("WeebCentral") && body.transport === "relay";
         if (viaRelay) {
           setSourceHealth("reachable");
-          setSourceNotice(`Using WeebCentral through the private relay · ${items.length} result${items.length === 1 ? "" : "s"}.`);
+          setSourceNotice(plural(items.length, "browse.notice.relay_using"));
         } else if (body.warning) {
           setSourceHealth("unreachable");
-          setSourceNotice(`Live source warning · ${body.warning}`);
+          setSourceNotice(msg("browse.notice.warning", { detail: body.warning }));
         }
 
         if (items.length && source) {
-          const fallbackNote = viaRelay ? " · private relay" : "";
-          setStatus(`${items.length} readable result${items.length === 1 ? "" : "s"} from ${source}${fallbackNote}`);
+          setStatus(msg(viaRelay ? (items.length === 1 ? "browse.status.results_relay_one" : "browse.status.results_relay_other") : (items.length === 1 ? "browse.status.results_one" : "browse.status.results_other"), { count: items.length, source }));
         } else {
-          setStatus(`0 readable titles returned by the live sources for “${q}”.`);
+          setStatus(msg("browse.status.zero", { q }));
         }
       } catch (error) {
         if (!cancelled && (error as Error).name !== "AbortError") {
@@ -230,8 +234,8 @@ export function BrowseView() {
           setResults([]);
           setSearchState("error");
           setSearchError(message);
-          setStatus(`Live search failed: ${message}`);
-          setSourceNotice(`Search failed: ${message}`);
+          setStatus(msg("browse.status.failed", { detail: message }));
+          setSourceNotice(msg("browse.notice.search_failed", { detail: message }));
         }
       }
     }, 320);
@@ -251,10 +255,10 @@ export function BrowseView() {
       : "bg-pink-400";
 
   const runtimeLabel = runtime === "native"
-    ? "Native · WeebCentral"
+    ? t("browse.runtime.native")
     : sourceHealth === "reachable"
-      ? "PWA/Web · private relay"
-      : "PWA/Web · direct";
+      ? t("browse.runtime.relay")
+      : t("browse.runtime.direct");
 
   const q = query.trim();
   const hasQuery = Boolean(q);
@@ -271,7 +275,7 @@ export function BrowseView() {
       <PageHeading
         eyebrow={t("browse.kicker")}
         title={t("browse.title")}
-        subtitle={status}
+        subtitle={t(status.key, status.vars)}
         actions={
           <span className="inline-flex items-center gap-2 rounded-full border border-white/[.08] bg-white/[.035] px-3 py-1.5 text-[11px] text-zinc-400">
             <span className={`size-1.5 rounded-full ${sourceDot}`} />
@@ -293,13 +297,13 @@ export function BrowseView() {
         </label>
         {sourceNotice ? (
           <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5 ${sourceHealth === "unreachable" ? "border-amber-300/20 bg-amber-300/[.05] text-amber-200/80" : "border-pink-300/15 bg-pink-300/[.04] text-zinc-400"}`}>
-            {sourceNotice}
+            {t(sourceNotice.key, sourceNotice.vars)}
           </div>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-zinc-600">
-          <span className="rounded-full bg-white/[.035] px-2.5 py-1">{t("browse.try")} fantasy</span>
-          <span className="rounded-full bg-white/[.035] px-2.5 py-1">romance</span>
-          <span className="rounded-full bg-white/[.035] px-2.5 py-1">action</span>
+          <span className="rounded-full bg-white/[.035] px-2.5 py-1">{t("browse.try")} {t("browse.try_fantasy")}</span>
+          <span className="rounded-full bg-white/[.035] px-2.5 py-1">{t("browse.try_romance")}</span>
+          <span className="rounded-full bg-white/[.035] px-2.5 py-1">{t("browse.try_action")}</span>
         </div>
       </div>
 
@@ -308,7 +312,7 @@ export function BrowseView() {
           <p className="pixel-kicker text-[9px] text-pink-400">{t("browse.catalog")}</p>
           <h2 className="mt-1 text-xl font-bold tracking-[-.03em] text-white">{hasQuery ? t("browse.results") : t("browse.idle")}</h2>
         </div>
-        {hasQuery && searchState === "done" ? <span className="text-xs text-zinc-500">{visibleResults.length} title{visibleResults.length === 1 ? "" : "s"}</span> : null}
+        {hasQuery && searchState === "done" ? <span className="text-xs text-zinc-500">{t(visibleResults.length === 1 ? "browse.titles_one" : "browse.titles_other", { count: visibleResults.length })}</span> : null}
       </div>
 
       {hiddenCount > 0 ? (
@@ -336,17 +340,17 @@ export function BrowseView() {
         </div>
       ) : searchState === "searching" && hasQuery ? (
         <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-sm text-zinc-400" role="status" aria-live="polite">
-          Searching live sources for “{q}”…
+          {t("browse.searching_for", { q })}
         </div>
       ) : searchState === "done" && hasQuery ? (
         <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-sm text-zinc-400">
-          <strong className="text-zinc-200">0 readable titles returned.</strong>
-          <span className="ml-2">The current live sources returned no readable matches for “{q}”.</span>
+          <strong className="text-zinc-200">{t("browse.zero_title")}</strong>
+          <span className="ml-2">{t("browse.zero_sub", { q })}</span>
         </div>
       ) : searchState === "error" && hasQuery ? (
         <div className="mt-4 flex flex-col gap-3 rounded-xl border border-amber-300/20 bg-amber-300/[.05] px-4 py-3 text-sm text-amber-100/80 sm:flex-row sm:items-center sm:justify-between" role="alert">
-          <span>Live search failed{searchError ? `: ${searchError}` : "."}</span>
-          <button type="button" onClick={() => setRetryNonce((value) => value + 1)} className="button-secondary shrink-0 px-3 py-2 text-xs">Retry live search</button>
+          <span>{searchError ? t("browse.err.failed_detail", { detail: searchError }) : t("browse.err.failed")}</span>
+          <button type="button" onClick={() => setRetryNonce((value) => value + 1)} className="button-secondary shrink-0 px-3 py-2 text-xs">{t("browse.retry")}</button>
         </div>
       ) : null}
     </div>

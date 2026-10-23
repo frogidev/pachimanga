@@ -7,9 +7,9 @@ export default function ArchivePage() {
   return (
     <div className="app-page max-w-5xl">
       <PageHeading
-        eyebrow="Local Files"
-        title="Archive Reader"
-        description="Open CBZ, ZIP, and other comic archives directly in your browser. Files never leave your device."
+        eyebrow="archivepage.kicker"
+        title="archivepage.title"
+        description="archivepage.sub"
       />
       <LocalArchiveReader />
     </div>

@@ -4,7 +4,7 @@ import { PageHeading } from '@/components/page-heading';
 export default function ImportPage() {
   return (
     <div className="app-page max-w-5xl">
-      <PageHeading eyebrow="Migration" title="Bring your manga with you" description="Scan screenshots or import backups from Tachiyomi, Mihon, and Tachimanga without rebuilding your library by hand." />
+      <PageHeading eyebrow="importpage.kicker" title="importpage.title" description="importpage.sub" />
       <ImportPanel />
     </div>
   );

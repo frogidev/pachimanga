@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import test from 'node:test';
+import { readUi } from './ui-source.ts';
 
-const ROOT = process.cwd();
 
 function source(path: string) {
-  return readFileSync(join(ROOT, path), 'utf8');
+  return readUi(path);
 }
 
 const updatesPage = source('src/app/updates/page.tsx');

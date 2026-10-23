@@ -7,17 +7,18 @@ import { buildPasswordRecoveryRedirect, isPasswordRecoveryRequest, safeLocalPath
 import { clearChapterCache } from '@/lib/offline/chapter-cache';
 import { createClient } from '@/lib/supabase/client';
 import { bindCurrentUserCache, clearLocalUserCache } from '@/lib/storage/reader-storage';
+import { useLocale } from "@/lib/i18n";
 
 function requestedDestination() {
   if (typeof window === 'undefined') return '/';
   return safeLocalPath(new URLSearchParams(window.location.search).get('next'));
 }
 
-function initialAuthMessage() {
+function initialAuthMessageKey() {
   if (typeof window === 'undefined') return '';
   const error = new URLSearchParams(window.location.search).get('error');
-  if (error === 'confirmation') return 'The confirmation link is invalid or expired. Request a new confirmation email or try signing in.';
-  if (error === 'configuration') return 'Authentication is temporarily unavailable.';
+  if (error === 'confirmation') return 'auth.err.confirmation';
+  if (error === 'configuration') return 'auth.err.configuration';
   return '';
 }
 
@@ -38,16 +39,17 @@ function confirmationRedirect() {
 
 export function AuthForm() {
   const router = useRouter();
+  const { t } = useLocale();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const urlMessage = useSyncExternalStore(subscribeUrlState, initialAuthMessage, () => '');
+  const urlMessageKey = useSyncExternalStore(subscribeUrlState, initialAuthMessageKey, () => '');
   const recoveryRequested = useSyncExternalStore(subscribeUrlState, initialRecoveryRequest, () => false);
   const [recoveryEvent, setRecoveryEvent] = useState(false);
   const recoveryMode = recoveryRequested || recoveryEvent;
   const [override, setOverride] = useState<string | null>(null);
-  const message = override ?? urlMessage;
+  const message = override ?? (urlMessageKey ? t(urlMessageKey) : '');
   const [busy, setBusy] = useState(false);
   const [signedIn, setSignedIn] = useState<string | null>(null);
 
@@ -100,7 +102,7 @@ export function AuthForm() {
           router.refresh();
           return;
         }
-        setOverride('Registration request accepted. Check your email for a confirmation link. If it does not arrive, use Resend confirmation after the provider cooldown.');
+        setOverride(t("auth.registered"));
       } else {
         const { error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -109,7 +111,7 @@ export function AuthForm() {
         router.refresh();
       }
     } catch (error) {
-      setOverride(error instanceof Error ? error.message : 'Authentication failed');
+      setOverride(error instanceof Error ? error.message : t("auth.err.failed"));
     } finally {
       setBusy(false);
     }
@@ -117,7 +119,7 @@ export function AuthForm() {
 
   async function resendConfirmation() {
     if (!email) {
-      setOverride('Enter the email address you registered with first.');
+      setOverride(t("auth.enter_registered_email"));
       return;
     }
     setBusy(true);
@@ -130,9 +132,9 @@ export function AuthForm() {
         options: { emailRedirectTo: confirmationRedirect() },
       });
       if (error) throw error;
-      setOverride('Confirmation email requested. Check your inbox and spam folder. If the provider reports a rate limit, wait before retrying.');
+      setOverride(t("auth.confirm_sent"));
     } catch (error) {
-      setOverride(error instanceof Error ? error.message : 'Could not resend the confirmation email.');
+      setOverride(error instanceof Error ? error.message : t("auth.err.resend"));
     } finally {
       setBusy(false);
     }
@@ -140,7 +142,7 @@ export function AuthForm() {
 
   async function reset() {
     if (!email) {
-      setOverride('Enter your email first.');
+      setOverride(t("auth.enter_email"));
       return;
     }
     setBusy(true);
@@ -150,9 +152,9 @@ export function AuthForm() {
       const { error } = await sb.auth.resetPasswordForEmail(email, {
         redirectTo: buildPasswordRecoveryRedirect(window.location.origin),
       });
-      setOverride(error ? error.message : 'Password reset email requested. Check your inbox and spam folder.');
+      setOverride(error ? error.message : t("auth.reset_sent"));
     } catch (error) {
-      setOverride(error instanceof Error ? error.message : 'Password reset failed.');
+      setOverride(error instanceof Error ? error.message : t("auth.err.reset"));
     } finally {
       setBusy(false);
     }
@@ -171,7 +173,7 @@ export function AuthForm() {
       router.replace('/account');
       router.refresh();
     } catch (error) {
-      setOverride(error instanceof Error ? error.message : 'Password update failed');
+      setOverride(error instanceof Error ? error.message : t("auth.err.update"));
     } finally {
       setBusy(false);
     }
@@ -186,11 +188,11 @@ export function AuthForm() {
       if (error) throw error;
       await Promise.all([clearLocalUserCache(), clearChapterCache()]);
       setSignedIn(null);
-      setOverride('Signed out on this device.');
+      setOverride(t("auth.signed_out"));
       router.replace('/auth');
       router.refresh();
     } catch (error) {
-      setOverride(error instanceof Error ? error.message : 'Could not sign out.');
+      setOverride(error instanceof Error ? error.message : t("auth.err.signout"));
     } finally {
       setBusy(false);
     }
@@ -199,12 +201,12 @@ export function AuthForm() {
   if (recoveryMode) {
     return (
       <div className="surface-card p-5 sm:p-6">
-        <p className="pixel-kicker text-[9px] text-pink-400">Account recovery</p>
-        <h2 className="mt-2 text-xl font-semibold text-white">Choose a new password</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-500">Set a new password for this Pachimanga account.</p>
+        <p className="pixel-kicker text-[9px] text-pink-400">{t("auth.recovery_kicker")}</p>
+        <h2 className="mt-2 text-xl font-semibold text-white">{t("auth.choose_password")}</h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-500">{t("auth.set_password")}</p>
         <form onSubmit={updatePassword} className="mt-5 grid gap-4">
           <label className="grid gap-2 text-sm text-zinc-400">
-            New password
+            {t("account.new_password")}
             <input
               className="field px-3.5 py-3 text-white"
               type="password"
@@ -212,12 +214,12 @@ export function AuthForm() {
               minLength={8}
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="At least 8 characters"
+              placeholder={t("auth.pw_ph")}
               autoComplete="new-password"
             />
           </label>
           <button className="button-primary mt-1 px-4 py-3 text-sm disabled:opacity-50" disabled={busy}>
-            {busy ? 'Updating…' : 'Update password'}
+            {busy ? t("auth.updating") : t("auth.update_password")}
           </button>
           {message ? <p className="rounded-xl border border-white/[.06] bg-white/[.025] px-3 py-2.5 text-sm text-zinc-400" aria-live="polite">{message}</p> : null}
         </form>
@@ -229,13 +231,13 @@ export function AuthForm() {
     return (
       <div className="surface-card p-6">
         <div className="grid size-11 place-items-center rounded-full bg-emerald-400/10 text-emerald-300">✓</div>
-        <p className="mt-4 text-xs uppercase tracking-[.12em] text-zinc-600">Signed in as</p>
+        <p className="mt-4 text-xs uppercase tracking-[.12em] text-zinc-600">{t("auth.signed_in_as")}</p>
         <p className="mt-1 break-all font-semibold text-zinc-100">{signedIn}</p>
-        <p className="mt-3 text-sm leading-6 text-zinc-500">This account owns the library, imports, reader settings and reading progress on Pachimanga.</p>
+        <p className="mt-3 text-sm leading-6 text-zinc-500">{t("auth.owns")}</p>
         <div className="mt-5 flex flex-wrap gap-2">
-          <Link href="/account" className="button-primary px-4 py-2.5 text-sm">Manage account</Link>
-          <Link href="/" className="button-secondary px-4 py-2.5 text-sm">Open library</Link>
-          <button onClick={logout} disabled={busy} className="button-secondary px-4 py-2.5 text-sm disabled:opacity-50">Sign out</button>
+          <Link href="/account" className="button-primary px-4 py-2.5 text-sm">{t("auth.manage")}</Link>
+          <Link href="/" className="button-secondary px-4 py-2.5 text-sm">{t("auth.open_library")}</Link>
+          <button onClick={logout} disabled={busy} className="button-secondary px-4 py-2.5 text-sm disabled:opacity-50">{t("auth.signout")}</button>
         </div>
         {message ? <p className="mt-3 text-sm text-zinc-400" aria-live="polite">{message}</p> : null}
       </div>
@@ -245,33 +247,33 @@ export function AuthForm() {
   return (
     <div className="surface-card p-5 sm:p-6">
       <div className="grid grid-cols-2 rounded-xl border border-white/[.07] bg-[#0d0c12] p-1">
-        <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'login' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('login'); setOverride(''); }}>Sign in</button>
-        <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'signup' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('signup'); setOverride(''); }}>Register</button>
+        <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'login' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('login'); setOverride(''); }}>{t("account.signin")}</button>
+        <button type="button" className={`rounded-[9px] px-4 py-2.5 text-sm transition ${mode === 'signup' ? 'bg-pink-400 font-semibold text-[#28101c]' : 'text-zinc-400 hover:text-white'}`} onClick={() => { setMode('signup'); setOverride(''); }}>{t("auth.register")}</button>
       </div>
 
       <form onSubmit={submit} className="mt-5 grid gap-4">
         <label className="grid gap-2 text-sm text-zinc-400">
-          Email
+          {t("auth.email")}
           <input className="field px-3.5 py-3 text-white" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" />
         </label>
         <label className="grid gap-2 text-sm text-zinc-400">
-          Password
-          <input className="field px-3.5 py-3 text-white" type="password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
+          {t("auth.password")}
+          <input className="field px-3.5 py-3 text-white" type="password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("auth.pw_ph")} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
         </label>
-        <button className="button-primary mt-1 px-4 py-3 text-sm disabled:opacity-50" disabled={busy}>{busy ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}</button>
+        <button className="button-primary mt-1 px-4 py-3 text-sm disabled:opacity-50" disabled={busy}>{busy ? t("auth.working") : mode === 'signup' ? t("auth.create") : t("account.signin")}</button>
 
         {mode === 'login' ? (
           <div className="rounded-xl border border-white/[.06] bg-white/[.02] p-3">
-            <p className="text-xs font-medium uppercase tracking-[.1em] text-zinc-600">Password help</p>
-            <button type="button" onClick={reset} disabled={busy} className="mt-2 text-sm font-medium text-pink-300 transition hover:text-pink-200 disabled:opacity-50">Forgot password? Send reset email</button>
+            <p className="text-xs font-medium uppercase tracking-[.1em] text-zinc-600">{t("auth.help")}</p>
+            <button type="button" onClick={reset} disabled={busy} className="mt-2 text-sm font-medium text-pink-300 transition hover:text-pink-200 disabled:opacity-50">{t("auth.forgot")}</button>
           </div>
         ) : null}
 
-        {mode === 'signup' || urlMessage.includes('confirmation') ? (
+        {mode === 'signup' || urlMessageKey === 'auth.err.confirmation' ? (
           <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.04] p-3">
-            <p className="text-xs font-medium uppercase tracking-[.1em] text-amber-300">Confirmation email</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">Use this if a previous registration link expired or a confirmation email never arrived. Delivery can be delayed or rate-limited by the configured provider.</p>
-            <button type="button" onClick={resendConfirmation} disabled={busy} className="button-secondary mt-3 px-3 py-2 text-sm disabled:opacity-50">Resend confirmation</button>
+            <p className="text-xs font-medium uppercase tracking-[.1em] text-amber-300">{t("auth.confirmation_kicker")}</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">{t("auth.confirmation_hint")}</p>
+            <button type="button" onClick={resendConfirmation} disabled={busy} className="button-secondary mt-3 px-3 py-2 text-sm disabled:opacity-50">{t("auth.resend")}</button>
           </div>
         ) : null}
 

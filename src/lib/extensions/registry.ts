@@ -32,7 +32,7 @@ export async function installExtension(code: string, manifest?: ExtensionManifes
   const existingExtensions = getStoredExtensions();
 
   if (existingExtensions.some(ext => ext.manifest.id === finalManifest.id)) {
-    return { success: false, error: 'Extension with this ID is already installed' };
+    return { success: false, error: 'ext.err.duplicate' };
   }
 
   const extension: InstalledExtension = {
@@ -56,7 +56,7 @@ export async function installExtensionFromZip(file: File): Promise<{ success: bo
     // Look for manifest file
     const manifestFile = zip.file('manifest.json');
     if (!manifestFile) {
-      return { success: false, error: 'No manifest.json found in zip' };
+      return { success: false, error: 'ext.err.no_manifest' };
     }
     
     const manifestContent = await manifestFile.async('text');
@@ -65,25 +65,25 @@ export async function installExtensionFromZip(file: File): Promise<{ success: bo
     try {
       manifest = JSON.parse(manifestContent);
     } catch (e) {
-      return { success: false, error: `Invalid manifest: ${e instanceof Error ? e.message : 'parse error'}` };
+      return { success: false, error: `ext.err.invalid_manifest|${e instanceof Error ? e.message : ''}` };
     }
     
     if (!manifest) {
-      return { success: false, error: 'Manifest is null after parsing' };
+      return { success: false, error: 'ext.err.manifest_null' };
     }
     
     // Validate required manifest fields
     const requiredFields = ['id', 'name', 'version', 'description', 'author', 'sourceId', 'sourceName'];
     for (const field of requiredFields) {
       if (!manifest[field as keyof ExtensionManifest]) {
-        return { success: false, error: `Manifest missing required field: ${field}` };
+        return { success: false, error: `ext.err.missing_field|${field}` };
       }
     }
     
     // Look for source file
     const sourceFile = zip.file('source.js') || zip.file('index.js') || zip.file('main.js');
     if (!sourceFile) {
-      return { success: false, error: 'No source.js, index.js, or main.js found in zip' };
+      return { success: false, error: 'ext.err.no_source' };
     }
     
     const sourceCode = await sourceFile.async('text');
@@ -96,12 +96,12 @@ export async function installExtensionFromZip(file: File): Promise<{ success: bo
     
     // Check manifest consistency
     if (validation.manifest && validation.manifest.id !== manifest.id) {
-      return { success: false, error: 'Manifest ID mismatch between manifest and source' };
+      return { success: false, error: 'ext.err.id_mismatch' };
     }
     
     const existingExtensions = getStoredExtensions();
     if (existingExtensions.some(ext => ext.manifest.id === manifest.id)) {
-      return { success: false, error: 'Extension with this ID is already installed' };
+      return { success: false, error: 'ext.err.duplicate' };
     }
     
     const extension: InstalledExtension = {
@@ -117,7 +117,7 @@ export async function installExtensionFromZip(file: File): Promise<{ success: bo
     
     return { success: true, extension };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to install from zip' };
+    return { success: false, error: error instanceof Error ? error.message : 'ext.err.install_zip' };
   }
 }
 

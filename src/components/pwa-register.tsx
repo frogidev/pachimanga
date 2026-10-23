@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale } from "@/lib/i18n";
 
 export function PwaRegister() {
+  const { t } = useLocale();
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const refreshing = useRef(false);
@@ -63,20 +65,20 @@ export function PwaRegister() {
   if (!waitingWorker || dismissed) return null;
 
   return (
-    <div className="fixed inset-x-3 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-w-lg rounded-2xl border border-sky-300/20 bg-[#12111a] p-4 shadow-[0_20px_70px_rgba(0,0,0,.5)] md:bottom-5 md:left-auto md:right-5 md:mx-0 md:w-[360px]" role="status" aria-live="polite" aria-label="PWA update available">
-      <p className="pixel-kicker text-[9px] text-sky-300">PWA update</p>
-      <div className="mt-1 font-semibold text-zinc-100">A new Pachimanga version is ready</div>
-      <p className="mt-1 text-xs leading-5 text-zinc-500">Reload when convenient. The current version stays active until you choose to update. Press Escape to dismiss this notice.</p>
+    <div className="fixed inset-x-3 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-w-lg rounded-2xl border border-sky-300/20 bg-[#12111a] p-4 shadow-[0_20px_70px_rgba(0,0,0,.5)] md:bottom-5 md:left-auto md:right-5 md:mx-0 md:w-[360px]" role="status" aria-live="polite" aria-label={t("pwa.update_aria")}>
+      <p className="pixel-kicker text-[9px] text-sky-300">{t("pwa.kicker")}</p>
+      <div className="mt-1 font-semibold text-zinc-100">{t("pwa.ready")}</div>
+      <p className="mt-1 text-xs leading-5 text-zinc-500">{t("pwa.hint")}</p>
       <div className="mt-3 flex gap-2">
         <button
           type="button"
           className="button-primary px-4 py-2 text-xs"
           onClick={() => waitingWorker.postMessage({ type: "SKIP_WAITING" })}
         >
-          Update & reload
+          {t("pwa.update_reload")}
         </button>
         <button type="button" className="button-secondary px-4 py-2 text-xs" onClick={() => setDismissed(true)}>
-          Later
+          {t("pwa.later")}
         </button>
       </div>
     </div>

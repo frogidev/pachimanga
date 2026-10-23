@@ -3,18 +3,20 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { classifyProviderError, type ProviderErrorInfo } from '@/lib/source/provider-error';
+import { classifyProviderError, providerErrorText, type ProviderErrorInfo } from '@/lib/source/provider-error';
+import { useLocale } from "@/lib/i18n";
 
 export function ProviderFailure({
   info,
   backHref = '/',
-  backLabel = 'Back to library',
+  backLabel,
 }: {
   info: ProviderErrorInfo;
   backHref?: string;
   backLabel?: string;
 }) {
   const router = useRouter();
+  const { t } = useLocale();
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
@@ -29,12 +31,13 @@ export function ProviderFailure({
     };
   }, []);
 
-  const display = offline ? classifyProviderError(null, { offline: true }) : info;
+  const shown = offline ? classifyProviderError(null, { offline: true }) : info;
+  const display = { ...shown, ...providerErrorText(t, shown) };
 
   return (
     <div className="grid min-h-[70dvh] place-items-center px-6 py-12 text-center">
       <div className="surface-card max-w-md p-6 sm:p-8">
-        <p className="pixel-kicker text-[9px] text-amber-300">Provider status</p>
+        <p className="pixel-kicker text-[9px] text-amber-300">{t("pfail.status")}</p>
         <h1 className="mt-2 text-xl font-bold tracking-[-.03em] text-zinc-100">{display.title}</h1>
         <p className="mt-3 text-sm leading-6 text-zinc-500">{display.message}</p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
@@ -45,10 +48,10 @@ export function ProviderFailure({
               disabled={offline}
               className="button-primary px-5 py-2.5 text-sm disabled:opacity-50"
             >
-              {offline ? 'Reconnect to retry' : 'Retry'}
+              {offline ? t("pfail.reconnect") : t("common.retry")}
             </button>
           ) : null}
-          <Link href={backHref} className="button-secondary px-5 py-2.5 text-sm">{backLabel}</Link>
+          <Link href={backHref} className="button-secondary px-5 py-2.5 text-sm">{backLabel ?? t("pfail.back")}</Link>
         </div>
       </div>
     </div>

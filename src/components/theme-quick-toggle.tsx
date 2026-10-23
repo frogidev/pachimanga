@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { loadReaderSettings, saveReaderSettings } from '@/lib/storage/reader-storage';
+import { useLocale } from "@/lib/i18n";
 
 type Theme = 'dark' | 'light';
 
 export function ThemeQuickToggle() {
+  const { t } = useLocale();
   const [theme, setTheme] = useState<Theme>('dark');
   const [ready, setReady] = useState(false);
 
@@ -38,7 +40,7 @@ export function ThemeQuickToggle() {
     }
   }
 
-  const nextLabel = theme === 'dark' ? 'Use light theme' : 'Use dark theme';
+  const nextLabel = theme === 'dark' ? t("theme.use_light") : t("theme.use_dark");
 
   return (
     <button
@@ -52,9 +54,9 @@ export function ThemeQuickToggle() {
       <span className="grid size-7 place-items-center text-zinc-500 group-hover:text-pink-300" aria-hidden="true">
         {theme === 'dark' ? '☾' : '☀'}
       </span>
-      <span>Theme</span>
+      <span>{t("settings.theme")}</span>
       <span className="ml-auto rounded-full border border-white/[.08] bg-white/[.035] px-2 py-0.5 text-[10px] capitalize text-zinc-500">
-        {theme}
+        {t(`theme.${theme}`)}
       </span>
     </button>
   );

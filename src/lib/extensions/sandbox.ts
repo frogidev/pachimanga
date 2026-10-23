@@ -25,21 +25,21 @@ addEventListener('message', async (event) => {
     try {
       const exports = {};
       new Function('exports', String(msg.code))(exports);
-      if (!exports.manifest || typeof exports.manifest !== 'object') throw new Error('Extension must export a manifest object');
-      if (!exports.source || typeof exports.source !== 'object') throw new Error('Extension must export a source object');
+      if (!exports.manifest || typeof exports.manifest !== 'object') throw new Error('ext.err.no_manifest_export');
+      if (!exports.source || typeof exports.source !== 'object') throw new Error('ext.err.no_source_export');
       loaded = exports;
       post({ type: 'loaded', manifest: JSON.parse(JSON.stringify(exports.manifest)), methods: Object.keys(exports.source).filter((k) => typeof exports.source[k] === 'function') });
     } catch (error) {
-      post({ type: 'load-error', error: error && error.message ? String(error.message) : 'Extension execution failed' });
+      post({ type: 'load-error', error: error && error.message ? String(error.message) : 'ext.err.exec' });
     }
   } else if (msg.type === 'call' && loaded) {
     try {
       const fn = loaded.source[msg.method];
-      if (typeof fn !== 'function') throw new Error('Unknown method');
+      if (typeof fn !== 'function') throw new Error('ext.err.unknown_method');
       const value = await fn.apply(loaded.source, msg.args || []);
       post({ type: 'result', id: msg.id, value: JSON.parse(JSON.stringify(value ?? null)) });
     } catch (error) {
-      post({ type: 'result', id: msg.id, error: error && error.message ? String(error.message) : 'Extension call failed' });
+      post({ type: 'result', id: msg.id, error: error && error.message ? String(error.message) : 'ext.err.call' });
     }
   }
 });
@@ -56,7 +56,7 @@ type Pending = { resolve(value: unknown): void; reject(error: Error): void; time
 
 function validateManifest(manifest: ExtensionManifest) {
   for (const field of REQUIRED_FIELDS) {
-    if (!manifest[field]) throw new Error(`Manifest missing required field: ${field}`);
+    if (!manifest[field]) throw new Error(`ext.err.missing_field|${field}`);
   }
 }
 
@@ -77,7 +77,7 @@ export function loadSandboxedExtension(code: string): Promise<SandboxedExtension
       clearTimeout(loadTimer);
       for (const entry of pending.values()) {
         clearTimeout(entry.timer);
-        entry.reject(new Error('Extension was unloaded'));
+        entry.reject(new Error('ext.err.unloaded'));
       }
       pending.clear();
       iframe.remove();
@@ -94,7 +94,7 @@ export function loadSandboxedExtension(code: string): Promise<SandboxedExtension
         const id = nextId++;
         const timer = setTimeout(() => {
           pending.delete(id);
-          rej(new Error(`Extension call timed out: ${method}`));
+          rej(new Error(`ext.err.timeout|${method}`));
         }, CALL_TIMEOUT_MS);
         pending.set(id, { resolve: res, reject: rej, timer });
         iframe.contentWindow?.postMessage({ type: 'call', id, method, args }, '*');
@@ -115,7 +115,7 @@ export function loadSandboxedExtension(code: string): Promise<SandboxedExtension
           validateManifest(manifest);
           const methods = new Set(msg.methods as string[]);
           for (const method of REQUIRED_METHODS) {
-            if (!methods.has(method)) throw new Error(`Source missing required method: ${method}`);
+            if (!methods.has(method)) throw new Error(`ext.err.missing_method|${method}`);
           }
           settled = true;
           clearTimeout(loadTimer);
@@ -131,7 +131,7 @@ export function loadSandboxedExtension(code: string): Promise<SandboxedExtension
             },
           });
         } catch (error) {
-          fail(error instanceof Error ? error : new Error('Invalid extension'));
+          fail(error instanceof Error ? error : new Error('ext.err.invalid'));
         }
       } else if (msg.type === 'result' && typeof msg.id === 'number') {
         const entry = pending.get(msg.id);
@@ -143,7 +143,7 @@ export function loadSandboxedExtension(code: string): Promise<SandboxedExtension
       }
     }
 
-    const loadTimer = setTimeout(() => fail(new Error('Extension did not load in time')), LOAD_TIMEOUT_MS);
+    const loadTimer = setTimeout(() => fail(new Error('ext.err.load_timeout')), LOAD_TIMEOUT_MS);
     window.addEventListener('message', onMessage);
     document.body.appendChild(iframe);
   });
@@ -155,6 +155,6 @@ export async function validateExtensionCode(code: string): Promise<{ valid: bool
     extension.destroy();
     return { valid: true, manifest: extension.manifest };
   } catch (error) {
-    return { valid: false, error: error instanceof Error ? error.message : 'Validation failed' };
+    return { valid: false, error: error instanceof Error ? error.message : 'ext.err.validation' };
   }
 }
