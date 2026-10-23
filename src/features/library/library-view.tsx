@@ -24,6 +24,7 @@ import { removeLibraryEntry } from "@/lib/storage/reader-storage";
 import type { LibraryEntry, Manga, MangaLanguage } from "@/types/models";
 import { readViewState, writeViewState } from "@/lib/ui/view-state";
 import { useLocale } from "@/lib/i18n";
+import { libraryTitleLanguage } from "@/lib/library/manga-language";
 
 type SortMode = "recent" | "lastRead" | "progress" | "added" | "title";
 type FilterMode = "All" | "Unread Updates" | "Reading" | "Completed" | "On Hold" | "Dropped" | "Plan to Read";
@@ -93,16 +94,15 @@ function mangaHref(manga: Manga, native: boolean) {
 }
 
 export function LibraryView() {
-  const { t, contentLanguage } = useLocale();
+  const { t } = useLocale();
   const filterLabel = (item: FilterMode) => t(`library.filter.${item}`);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("All");
-  // The manga-language setting is the default chip; picking a chip overrides it for this visit.
-  const [languageOverride, setLanguageFilter] = useState<MangaLanguage | "all" | null>(null);
-  const languageFilter = languageOverride ?? contentLanguage;
+  // Your own library is never narrowed by the Browse language preference: start on "All".
+  const [languageFilter, setLanguageFilter] = useState<MangaLanguage | "all">("all");
   const [view, setView] = useState<ViewMode>(initialLibraryView);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const native = useSyncExternalStore(subscribeNative, isTauriNative, () => false);
@@ -254,7 +254,7 @@ export function LibraryView() {
       })
       .filter((item) => {
         if (languageFilter === "all") return true;
-        return item.manga.language === languageFilter;
+        return libraryTitleLanguage({ sourceId: item.entry.sourceId, manga: item.manga }) === languageFilter;
       });
 
     pairs.sort((a, b) => {
