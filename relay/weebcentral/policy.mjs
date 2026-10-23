@@ -1,5 +1,8 @@
 export const WEEBCENTRAL_ORIGIN = 'https://weebcentral.com';
+export const ZONATMO_ORIGIN = 'https://zonatmo.org';
+export const ALLOWED_UPSTREAM_ORIGINS = [WEEBCENTRAL_ORIGIN, ZONATMO_ORIGIN];
 const ID = /^[0-9A-Z]{20,32}$/;
+const ZONATMO_ID = /^\d{1,9}$/;
 
 export function sanitizeRelayQuery(value) {
   return String(value || '')
@@ -10,7 +13,30 @@ export function sanitizeRelayQuery(value) {
     .slice(0, 100);
 }
 
+function zonaTmoOperation(url) {
+  if (url.pathname === '/v1/zonatmo/search') {
+    const query = sanitizeRelayQuery(url.searchParams.get('q'));
+    if (!query) return null;
+    return {
+      operation: 'zonatmo-search',
+      key: `zonatmo-search:${query.toLowerCase()}`,
+      ttl: 60_000,
+      url: `${ZONATMO_ORIGIN}/biblioteca?${new URLSearchParams({ title: query }).toString()}`,
+    };
+  }
+  const match = url.pathname.match(/^\/v1\/zonatmo\/(series|reader)\/(\d+)$/);
+  if (!match || !ZONATMO_ID.test(match[2])) return null;
+  const [, operation, id] = match;
+  if (operation === 'series') {
+    // The site redirects any type/slug to the canonical URL, so the id is enough.
+    return { operation: 'zonatmo-series', key: `zonatmo-series:${id}`, ttl: 120_000, url: `${ZONATMO_ORIGIN}/library/manga/${id}/x` };
+  }
+  return { operation: 'zonatmo-reader', key: `zonatmo-reader:${id}`, ttl: 600_000, url: `${ZONATMO_ORIGIN}/view_uploads/${id}` };
+}
+
 export function relayOperationFromUrl(url) {
+  if (url.pathname.startsWith('/v1/zonatmo/')) return zonaTmoOperation(url);
+
   if (url.pathname === '/v1/search') {
     const query = sanitizeRelayQuery(url.searchParams.get('q'));
     if (!query) return null;

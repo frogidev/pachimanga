@@ -217,7 +217,7 @@ Documentation index: `docs/README.md`.
 - `src/features`, `src/components`: React 19 and Tailwind CSS 4 UI.
 - `src/lib/supabase`, `supabase/migrations`: Supabase authentication, PostgreSQL and row-level security.
 - `src/lib/storage`, `src/lib/offline`, `public/sw.js`: account-bound IndexedDB/offline cache, outbox sync and PWA support.
-- `src/sources`, `relay/weebcentral`: ZonaTMO, MangaPlus, Webtoon and restricted WeebCentral network paths.
+- `src/sources`, `relay/weebcentral` (WeebCentral + ZonaTMO operations): ZonaTMO, MangaPlus, Webtoon and restricted WeebCentral network paths.
 - `src/lib/imports`: import formats.
 - `src/lib/extensions`, `extensions/`: extension system (sandbox, registry, UI, templates).
 - `src/lib/archive`: local archive reader (CBZ/ZIP).

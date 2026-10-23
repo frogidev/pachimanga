@@ -1,5 +1,6 @@
 import type { MangaSource } from '@/sources/core/manga-source';
 import { SourceUnavailableError } from '@/sources/core/manga-source';
+import { isRelayConfigured, relayBase, relayToken } from '@/sources/core/relay';
 import { fetchWithSourceRetry } from '@/sources/core/source-fetch';
 import {
   parseChapterSeriesId,
@@ -31,17 +32,7 @@ type WcFetchOptions = {
 const chapterMemoryCache = new Map<string, { expiresAt: number; chapters: ParsedChapters }>();
 const chapterRequests = new Map<string, Promise<ParsedChapters>>();
 
-function relayBase() {
-  return process.env.WEEBCENTRAL_RELAY_URL?.trim().replace(/\/+$/, '') || null;
-}
-
-function relayToken() {
-  return process.env.WEEBCENTRAL_RELAY_TOKEN?.trim() || null;
-}
-
-export function isWeebCentralRelayConfigured() {
-  return Boolean(relayBase() && relayToken());
-}
+export const isWeebCentralRelayConfigured = isRelayConfigured;
 
 export function getWeebCentralTransport(): 'relay' | 'direct' {
   return isWeebCentralRelayConfigured() ? 'relay' : 'direct';

@@ -254,7 +254,7 @@ Never turn either into an arbitrary URL proxy. Validate IDs/operations in truste
 
 ### ZonaTMO
 
-Server-side, fixed origin `https://zonatmo.org`, numeric ids only. Never add cookies, challenge solving, proxies or an image proxy; surface 403/429/challenge states instead.
+Server-side, fixed origin `https://zonatmo.org`, numeric ids only. When the private relay is configured it goes through the three fixed `/v1/zonatmo/*` relay operations; keep them operation-limited. Never add cookies, challenge solving, proxies or an image proxy; surface 403/429/challenge states instead.
 
 ### MangaPlus / Webtoon
 
