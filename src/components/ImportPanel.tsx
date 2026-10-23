@@ -20,6 +20,7 @@ import {
   setLibraryCollectionMembership,
 } from '@/lib/storage/library-collections';
 import type { Manga } from '@/types/models';
+import { sourceDisplayName } from '@/lib/source-labels';
 
 type Candidate = ImportManga & { match?: Manga; selected?: boolean; reviewed?: boolean };
 const REVIEW_PAGE_SIZE = 50;
@@ -79,12 +80,6 @@ async function readExistingLibrary(): Promise<Manga[]> {
   } catch {
     return [];
   }
-}
-
-function matchSourceLabel(sourceId: string): string {
-  if (sourceId === 'weebcentral') return 'WeebCentral';
-  if (sourceId === 'zonatmo') return 'ZonaTMO';
-  return 'your library';
 }
 
 function dedupeCandidates(items: ImportManga[]): { items: ImportManga[]; merged: number } {
@@ -482,7 +477,7 @@ export function ImportPanel() {
                 <input className="size-4 accent-pink-400" type="checkbox" checked={manga.selected !== false} onChange={(event) => patch(index, { selected: event.target.checked })} />
                 <div className="min-w-0">
                   <input className="w-full bg-transparent font-medium text-zinc-200 outline-none" value={manga.title} onChange={(event) => patch(index, { title: event.target.value, match: undefined })} />
-                  <div className="mt-1 text-xs text-zinc-600">{!manga.reviewed ? 'Needs review · ' : ''}{manga.match ? `Matched: ${manga.match.title} · ${matchSourceLabel(manga.match.sourceId)}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
+                  <div className="mt-1 text-xs text-zinc-600">{!manga.reviewed ? 'Needs review · ' : ''}{manga.match ? `Matched: ${manga.match.title} · ${(sourceDisplayName(manga.match.sourceId) ?? 'your library')}` : manga.lastChapterRead ? `Imported progress reference: chapter ${manga.lastChapterRead}${manga.lastPageRead ? ` · page ${manga.lastPageRead}` : ''}` : 'Not matched yet'}</div>
                 </div>
                 <button onClick={() => void findMatch(index)} className="button-secondary px-3 py-2 text-xs">Find match</button>
                 <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="rounded-xl px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[.06] hover:text-red-300" aria-label={`Discard ${manga.title}`}>✕</button>
