@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { clearChapterCache, getOfflineStorageEstimate } from "@/lib/offline/chapter-cache";
+import { getOfflineStorageEstimate } from "@/lib/offline/chapter-cache";
 import { isInstalledPwa } from "@/lib/pwa/display-mode";
 import { useLocale } from "@/lib/i18n";
 
@@ -24,7 +24,6 @@ export function PwaDeviceStatus() {
   const { t } = useLocale();
   const [standalone, setStandalone] = useState(false);
   const [storage, setStorage] = useState<StorageState>(null);
-  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia("(display-mode: standalone)");
@@ -41,18 +40,6 @@ export function PwaDeviceStatus() {
       window.removeEventListener("pachimanga:offline-cache-change", refreshStorage);
     };
   }, []);
-
-  async function clearDownloads() {
-    if (clearing) return;
-    setClearing(true);
-    try {
-      await clearChapterCache();
-      setStorage(await getOfflineStorageEstimate());
-      window.dispatchEvent(new CustomEvent("pachimanga:offline-cache-change"));
-    } finally {
-      setClearing(false);
-    }
-  }
 
   const storageCopy = storage
     ? t("device.usage", { used: formatBytes(storage.usage), quota: formatBytes(storage.quota) })
@@ -75,9 +62,6 @@ export function PwaDeviceStatus() {
       <p className="mt-3 text-xs leading-5 text-zinc-600">{storageCopy}</p>
       <div className="mt-5 flex flex-wrap gap-2">
         {!standalone ? <Link href="/install" className="button-primary inline-flex px-4 py-2.5 text-sm">{t("device.guide")}</Link> : null}
-        <button type="button" onClick={() => void clearDownloads()} disabled={clearing} className="button-secondary px-4 py-2.5 text-sm disabled:opacity-50">
-          {clearing ? t("device.clearing") : t("device.clear")}
-        </button>
       </div>
     </section>
   );

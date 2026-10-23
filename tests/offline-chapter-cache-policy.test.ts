@@ -31,5 +31,7 @@ test('offline chapter saves are quota-aware and cancellable', () => {
   assert.match(cacheSource, /getOfflineStorageEstimate\(\)/);
   assert.match(cacheSource, /16 \* 1024 \* 1024/);
   assert.match(cacheSource, /options\.signal\?\.aborted/);
-  assert.match(cacheSource, /signal: options\.signal/);
+  assert.match(cacheSource, /fetchPage\(url, options\.signal\)/);
+  assert.match(cacheSource, /\{ \.\.\.init, mode: "cors" \}/);
+  assert.match(cacheSource, /signal\?\.aborted/);
 });

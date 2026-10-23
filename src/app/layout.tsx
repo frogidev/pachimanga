@@ -38,6 +38,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             __html: `try{document.documentElement.dataset.theme=localStorage.getItem('pachimanga-theme')||'dark'}catch(e){}`,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            // ES5 only: Internet Explorer cannot run this app (no service workers or modern JavaScript), so tell the person instead of showing a blank page.
+            __html: `(function(){if(!document.documentMode)return;function show(){document.body.style.cssText='margin:0;background:#09080d';document.body.innerHTML='<div style="font:16px Segoe UI,Arial,sans-serif;color:#f4f4f5;max-width:520px;margin:15vh auto;padding:0 20px;line-height:1.6"><h1 style="font-size:22px">Pachimanga needs a modern browser</h1><p>Internet Explorer is no longer supported by Microsoft and cannot run this app. Please open Pachimanga in Microsoft Edge, Chrome, Firefox or Safari.</p><h1 style="font-size:22px;margin-top:28px">Pachimanga necesita un navegador moderno</h1><p>Microsoft ya no da soporte a Internet Explorer y no puede ejecutar esta app. Abre Pachimanga en Microsoft Edge, Chrome, Firefox o Safari.</p></div>'}if(document.body){show()}else{document.addEventListener('DOMContentLoaded',show)}})();`,
+          }}
+        />
       </head>
       <body>
         <WebVitalsReporter />

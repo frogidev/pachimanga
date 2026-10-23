@@ -5,7 +5,6 @@ import { AccountDataExport } from '@/components/account-data-export';
 import { AccountSettings } from '@/components/account-settings';
 import { ExtensionManager } from '@/components/extensions/ExtensionManager';
 import { PageHeading } from '@/components/page-heading';
-import { OfflineDownloadManager } from '@/components/offline-download-manager';
 import { PwaDeviceStatus } from '@/components/pwa-device-status';
 import { SegmentedControl } from '@/components/segmented-control';
 import { SettingsDiagnostics } from '@/components/settings-diagnostics';
@@ -166,7 +165,6 @@ export default function SettingsPage() {
         <Group title={t("settings.group.device")}>
           <SyncStatusPanel />
           <PwaDeviceStatus />
-          <OfflineDownloadManager />
         </Group>
 
         <Group title={t("settings.group.account")}>
