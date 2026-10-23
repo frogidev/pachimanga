@@ -6,6 +6,7 @@ import { PageHeading } from '@/components/page-heading';
 import { shouldRefreshLibrarySource } from '@/lib/library/library-state';
 import { classifyProviderError, type ProviderErrorInfo } from '@/lib/source/provider-error';
 import { isTauriNative } from '@/lib/native/tauri-bridge';
+import { sourceDisplayName } from '@/lib/source-labels';
 
 type AvailabilityItem = {
   sourceId: string;
@@ -45,12 +46,6 @@ function subscribeNative() {
   return () => {};
 }
 
-function providerLabel(sourceId: string) {
-  if (sourceId === 'weebcentral') return 'WeebCentral';
-  if (sourceId === 'zonatmo') return 'ZonaTMO';
-  if (sourceId === 'import') return 'Local import';
-  return sourceId || 'Unknown source';
-}
 
 function formatCheckedAt(value?: string | null) {
   if (!value) return 'Never checked';
@@ -296,7 +291,7 @@ export function UpdatesView() {
                       ) : (
                         <span className="font-semibold text-zinc-100">{entry.title || entry.mangaId}</span>
                       )}
-                      <p className="mt-1 text-[11px] text-zinc-500">{providerLabel(entry.sourceId)}</p>
+                      <p className="mt-1 text-[11px] text-zinc-500">{sourceDisplayName(entry.sourceId) ?? (entry.sourceId || 'Unknown source')}</p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-[.12em] text-zinc-600">Availability</p>

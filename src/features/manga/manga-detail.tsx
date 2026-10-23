@@ -11,6 +11,7 @@ import { normalizeLibraryReadingStatus, type LibraryReadingStatus } from "@/lib/
 import { setLibraryReadingStatus } from "@/lib/storage/library-dashboard";
 import type { Chapter, Manga, ReadingProgress } from "@/types/models";
 import { allReadableChaptersComplete, firstReadableChapter, latestReadableChapter, nextUnreadReadableChapter } from "./read-target";
+import { sourceDisplayName } from "@/lib/source-labels";
 
 type ExternalReadLink = { label: string; url: string };
 
@@ -35,12 +36,6 @@ function cleanDescription(description: string) {
     .replace(/([.!?])([A-Z])/g, "$1 $2")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-function sourceName(sourceId: string) {
-  if (sourceId === "weebcentral") return "WeebCentral";
-  if (sourceId === "zonatmo") return "ZonaTMO";
-  return "this source";
 }
 
 function chapterDate(value?: string) {
@@ -109,7 +104,7 @@ export function MangaDetail({
   );
   const external = useMemo(() => externalReadLink(manga.description), [manga.description]);
   const description = useMemo(() => cleanDescription(manga.description), [manga.description]);
-  const provider = sourceName(manga.sourceId);
+  const provider = sourceDisplayName(manga.sourceId) ?? "this source";
   const chapterHref = (chapterId: string) => `${readerBasePath}/${chapterId}`;
 
   useEffect(() => {
